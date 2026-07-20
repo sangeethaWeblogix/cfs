@@ -39,7 +39,7 @@ export function useBannerTracking(banners: Banner[]) {
 
     try {
       await fetch(
-        `${process.env.NEXT_PUBLIC_CF7_BASE || "https://admin.caravansforsale.com.au"}/wp-json/ads-manager/v1/banners/track`,
+        `${process.env.NEXT_PUBLIC_CF7_BASE || "https://cfs.marketplacenetwork.com.au"}/wp-json/ads-manager/v1/banners/track`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
