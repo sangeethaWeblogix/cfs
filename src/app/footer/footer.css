@@ -1,0 +1,383 @@
+footer.style-8 {
+  position: relative;
+  z-index: 1;
+  background: #1e1e1e;
+}
+
+footer.style-8 .container {
+  position: relative;
+  z-index: 0;
+}
+
+footer.style-8 .content .logo-social {
+  padding-bottom: 30px;
+}
+
+footer.style-8 .content .logo-social .foot-logo img {
+  width: 240px;
+  margin-bottom: 50px;
+}
+
+footer.style-8 .content .logo-social .socials a {
+  width: 45px;
+  height: 45px;
+  line-height: 40px;
+  text-align: center;
+  border-radius: 50%;
+  border: 2px solid #a3a3a3;
+  color: #a3a3a3;
+  font-size: 19px;
+  -webkit-margin-start: 8px;
+  margin-inline-start: 8px;
+}
+
+footer.style-8 .content .logo-social .socials a:hover {
+  border: 2px solid #ffffff;
+  color: #ffffff;
+}
+
+.menu {
+  position: relative;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -ms-flex-wrap: wrap;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.menu li a {
+  color: #a3a3a3;
+  position: relative;
+  font-size: 15px;
+}
+
+.menu li a:hover {
+  color: #ffffff;
+}
+
+.foot p {
+    color: #a3a3a3;
+    font-size: 14px;
+    line-height: 1.7;
+    margin-bottom: 0;
+}
+
+.new_font .foot-title.foot_xs {
+  justify-content: start;
+}
+
+.new_font .menu {
+  display: block;
+  padding: 0;
+}
+
+.new_font .menu li {
+  margin-bottom: 5px;
+  list-style: none;
+}
+
+.new_font .menu li + li {
+  margin-left: 0;
+}
+
+.new_font .menu li a:before {
+  content: none;
+}
+
+.new_font footer.style-8 .content .logo-social {
+  padding-bottom: 0;
+}
+.foot-title.foot_xs {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  margin-top: 0;
+  text-transform: uppercase;
+  color: #a3a3a3;
+  height: 40px;
+  padding-right: 26px;
+  border-bottom: 1px solid #8e8e8e;
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding-bottom: 5px;
+  padding-top: 5px;
+}
+
+/* --------------- to_top button --------------- */
+
+.to_top {
+  position: fixed;
+  z-index: 99;
+  bottom: 15px;
+  right: -50px;
+  width: 35px;
+  height: 35px;
+  border-radius: 7px;
+  background: #000 !important;
+  color: #fff;
+  font-size: 11px;
+  text-align: center;
+  padding: 7px;
+  line-height: 1;
+  opacity: 0;
+  -webkit-transition: all 0.4s ease;
+  -o-transition: all 0.4s ease;
+  transition: all 0.4s ease;
+  border: 1px solid #000;
+}
+
+.to_top small {
+  display: block;
+  text-transform: uppercase;
+  -webkit-transition: all 0.4s ease;
+  -o-transition: all 0.4s ease;
+  transition: all 0.4s ease;
+  font-size: 8px;
+}
+
+.to_top i {
+  -webkit-transition: all 0.4s ease;
+  -o-transition: all 0.4s ease;
+  transition: all 0.4s ease;
+}
+
+.to_top.show {
+  right: 20px;
+  opacity: 1;
+}
+
+.to_top.show {
+  right: 10px;
+  bottom: 10px;
+  opacity: 1;
+}
+
+.menu li a:before {
+  position: absolute;
+  content: "/";
+  left: -15px;
+  top: 0px;
+  color: #a3a3a3;
+}
+
+.menu li:first-child a:before {
+  display: none;
+}
+
+.menu li + li {
+  margin-left: 25px;
+}
+
+.footer_menu {
+  padding-left: 0;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.footer_menu li {
+  position: relative;
+  list-style: none;
+  padding-left: 10px;
+  line-height: 15px;
+}
+.footer_menu li:first-child {
+  padding-left: 0;
+}
+.footer_menu li:first-child::before {
+  content: none;
+}
+.footer_menu li:before {
+  content: "";
+  background: #626262;
+  width: 1px;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.footer_menu li a {
+  color: #a3a3a3;
+  position: relative;
+  font-size: 15px;
+}
+.footer_menu li a:hover {
+  color: #ffffff;
+}
+
+@media (max-width: 767px) {
+  .footer_menu {display: block;}
+  .footer_menu li {
+    padding-bottom: 12px;
+    padding-left: 0;
+}
+.footer_menu li a {
+    font-size: 16px;
+}
+  .footer_menu li::before {
+    content:none
+  }
+}
+
+/* ── Sell button in footer nav ───────────────────────── */
+.sell-footer-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #a3a3a3;
+  font-size: 15px;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+.sell-footer-btn:hover {
+  color: #ffffff;
+}
+.sell-chevron {
+  transition: transform 0.25s ease;
+}
+.sell-chevron--open {
+  transform: rotate(180deg);
+}
+
+/* ── Panel li — full-width break-out ────────────────── */
+.footer_menu--sell {
+  flex-wrap: wrap;
+}
+.sell-panel-li {
+  width: 100%;
+  padding-left: 0 !important;
+  padding-bottom: 0 !important;
+}
+.sell-panel-li::before {
+  content: none !important;
+}
+
+/* Prevent footer_menu li:before pipe bleeding into region list items */
+.sell-panel__region-list li::before {
+  content: none !important;
+  display: none !important;
+}
+
+/* ── Panel container ─────────────────────────────────── */
+.sell-panel {
+  background: #262626;
+  border-top: 1px solid #333;
+  border-radius: 8px;
+  padding: 24px 20px 20px;
+  margin-top: 12px;
+  animation: sellPanelIn 0.22s ease;
+}
+@keyframes sellPanelIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Panel header ────────────────────────────────────── */
+.sell-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #333;
+}
+.sell-panel__main-link {
+  color: #ffffff !important;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  letter-spacing: 0.03em;
+  transition: color 0.2s;
+}
+.sell-panel__main-link:hover {
+  color: #ec7200 !important;
+}
+.sell-panel__close {
+  background: none;
+  border: 1px solid #444;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #a3a3a3;
+  padding: 0;
+  transition: border-color 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+.sell-panel__close:hover {
+  border-color: #fff;
+  color: #fff;
+}
+
+/* ── State/region grid ───────────────────────────────── */
+.sell-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px 20px;
+}
+@media (max-width: 991px) {
+  .sell-panel__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 575px) {
+  .sell-panel__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── State column ────────────────────────────────────── */
+.sell-panel__col {
+  min-width: 0;
+}
+.sell-panel__state-title {
+  display: block;
+  color: #ffffff !important;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  border-bottom: 2px solid #ec7200;
+  transition: color 0.2s;
+}
+.sell-panel__state-title:hover {
+  color: #ec7200 !important;
+}
+
+/* ── Region list ─────────────────────────────────────── */
+.sell-panel__region-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sell-panel__region-list li a {
+  color: #a3a3a3;
+  font-size: 13px;
+  text-decoration: none;
+  transition: color 0.2s;
+  display: block;
+  line-height: 1.4;
+}
+.sell-panel__region-list li a:hover {
+  color: #ec7200;
+}

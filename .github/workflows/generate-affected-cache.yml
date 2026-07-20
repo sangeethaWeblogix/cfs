@@ -1,0 +1,56 @@
+name: Generate Affected Cache (Event-Driven)
+
+# Fires when WordPress (cfs-selective-cache-invalidator.php) detects a product
+# add/edit/delete and works out which pre-rendered listing pages that product
+# affects (state, category, make, ATM, length, sleep, price, region, etc.).
+# Only those pages get their HTML KV variants rebuilt — not all 3,462 URLs.
+#
+# JSON KV cache for the same pages is refreshed synchronously in PHP before
+# this workflow even fires (no HTTP round trip needed there); this workflow
+# only handles the pre-rendered HTML KV variants + a routes-mapping merge.
+
+on:
+  repository_dispatch:
+    types: [cfs-affected-cache]
+
+  workflow_dispatch:
+    inputs:
+      urls_json:
+        description: 'URL(s) to rebuild. Plain URL, JSON array, or newline-separated. e.g. https://www.caravansforsale.com.au/listings/victoria-state/'
+        required: true
+        type: string
+
+jobs:
+  generate-affected:
+    runs-on: ubuntu-latest
+    # WordPress now batches a whole day's worth of affected pages into one
+    # nightly dispatch (see cfs-selective-cache-invalidator.php) instead of
+    # firing this per product change, so a single run can cover far more URLs
+    # than before. 90 min gives real headroom; it only runs once/night so a
+    # longer worst case doesn't cost anything (see generate-affected-html-cache.js
+    # for the concurrency/checkpointing changes that make this safer too).
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Generate affected-only HTML cache
+        env:
+          VERCEL_BASE_URL:     ${{ secrets.VERCEL_BASE_URL }}
+          CF_ACCOUNT_ID:       ${{ secrets.CF_ACCOUNT_ID }}
+          CF_KV_NAMESPACE_ID:  ${{ secrets.CF_KV_NAMESPACE_ID }}
+          CF_API_TOKEN:        ${{ secrets.CF_API_TOKEN }}
+          AFFECTED_URLS_JSON: >-
+            ${{ github.event_name == 'repository_dispatch'
+                && toJson(github.event.client_payload.urls)
+                || github.event.inputs.urls_json }}
+        run: node scripts/generate-affected-html-cache.js
+
+      - name: Done
+        if: success()
+        run: echo "::notice::Affected-cache rebuild complete."

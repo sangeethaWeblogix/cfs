@@ -1,0 +1,74 @@
+.page-wrap-410 {
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  padding: 40px 20px;
+  border-top: 1px solid #e1e1e1;
+}
+
+.card-410 {
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 520px;
+  padding: 48px 38px;
+  text-align: center;
+}
+
+.err-number-410 {
+  font-size: 140px;
+  font-weight: 700;
+  text-align: center;
+  color: #e0e0e0;
+  margin: 0 0 4px;
+  line-height: 1;
+}
+
+.err-title-410 {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 12px;
+}
+
+.err-desc-410 {
+  text-align: center;
+  color: #6b7280;
+  margin: 0 0 28px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.btn-410 {
+  display: inline-block;
+  background: #5b5ef4;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 13px 36px;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-410:hover {
+  background: #4a4de0;
+  color: #fff;
+}
+
+@media (max-width: 520px) {
+  .card-410 {
+    padding: 32px 22px;
+  }
+  .err-number-410 {
+    font-size: 90px;
+  }
+  .err-title-410 {
+    font-size: 20px;
+  }
+}

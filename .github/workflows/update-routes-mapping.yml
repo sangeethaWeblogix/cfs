@@ -1,0 +1,31 @@
+name: Update Routes Mapping
+
+# Standalone workflow — runs regenerate-routes-mapping.js directly.
+# Use this to rebuild the KV routes-mapping without waiting for the full
+# 90-minute cache generation run.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-routes-mapping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm install node-fetch@2
+
+      - name: Regenerate routes mapping from KV
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: node scripts/regenerate-routes-mapping.js

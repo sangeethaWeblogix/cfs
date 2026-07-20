@@ -1,0 +1,1008 @@
+.breadcrumbs_border {
+  background: #f1f1f1;
+}
+
+.breadcrumbs {
+  margin-top: 1rem;
+  padding: 0;
+}
+
+.breadcrumbs-item {
+  display: inline;
+  margin-right: 22px;
+  position: relative;
+  color: #000000;
+}
+
+.breadcrumbs-link {
+  color: #151413;
+  transition: opacity 0.5s;
+}
+
+.breadcrumbs li + li::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: -16px;
+  width: 6px;
+  height: 10px;
+  background-image: url("/images/arrow.svg");
+  background-size: 6px 10px;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.services.style-1 {
+  background: #f1f1f1;
+  position: relative;
+  padding-top: 30px;
+}
+.services.style-1 h1 {
+  font-weight: 700;
+}
+.services.style-1 h2 {
+  font-weight: 700;
+}
+.services.style-1 h3 {
+  font-weight: 600;
+}
+.sc_recent_news_style_news-announce {
+  overflow: hidden;
+}
+
+.sc_recent_news_style_news-announce .post_size_big {
+  width: 100%;
+  height: 700px;
+}
+
+.sc_recent_news_style_news-announce .post_item {
+  float: left;
+}
+
+.post_featured_bg:before {
+  content: " ";
+  width: 0;
+  height: 0;
+  padding-top: 56.25%;
+  display: inline-block;
+  vertical-align: top;
+  margin-left: -0.3em;
+}
+
+.post_featured .mask {
+  content: " ";
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+  -webkit-transition: all 0.5s ease;
+  -ms-transition: all 0.5s ease;
+  transition: all 0.5s ease;
+}
+
+.post_featured .mask {
+  background-color: rgba(0, 0, 0, 0);
+}
+
+/* .sc_recent_news_style_news-announce .post_item .post_featured:after {
+	content: ' ';
+    position: absolute;
+    z-index: 1;
+    top: 35%;
+	left: -1px;
+    right: -1px;
+    bottom: -1px;
+	pointer-events: none;
+    background: -moz-linear-gradient(top, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.85) 100%);
+    background: -webkit-linear-gradient(top, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.85) 100%);
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.85) 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#00000000', endColorstr='#e6000000',GradientType=0 );
+} */
+.sc_recent_news .post_item .post_featured_bg {
+  position: absolute !important;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+}
+
+.sc_recent_news_style_news-announce .post_item.post_size_big .post_title {
+  font-size: 65px;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.sc_recent_news_style_news-announce .post_item.post_size_big .post_info p {
+  max-width: 1200px;
+  display: inline-block;
+  font-size: 24px;
+  margin-top: 15px;
+  text-align: justify;
+  margin-bottom: 12px;
+  font-weight: normal;
+}
+
+.mt-30 {
+  margin-top: 30px !important;
+}
+
+.sc_recent_news_style_news-announce .post_item.post_size_big .post_info h2 {
+  margin-top: 30px;
+  font-size: 26px;
+  font-weight: bold;
+}
+
+.sc_recent_news_style_news-announce
+  .post_item.post_size_big
+  .post_info
+  h2
+  span {
+}
+
+.sc_recent_news_style_news-announce .post_item.post_size_big .post_info h2 em {
+  font-style: normal;
+  vertical-align: -12px;
+  margin: 0px 20px;
+  color: #f58333;
+  font-size: 38px;
+}
+
+.sc_recent_news_style_news-announce
+  .post_item.post_size_big
+  .post_info
+  .warranty {
+  display: block;
+}
+
+.sc_recent_news_style_news-announce
+  .post_item.post_size_big
+  .post_info
+  .warranty
+  img {
+  max-width: 400px;
+}
+
+.sc_recent_news_style_news-announce .post_item.post_size_big .post_title span {
+  color: #f58333;
+}
+
+.post_featured.hover_simple .icons {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+.buzzstone_inline_210659395 {
+  background-image: url(https://admin.caravansforsale.com.au/images/banner1.jpg);
+}
+
+.sc_recent_news_style_news-announce .post_size_medium {
+  width: 50%;
+  height: 500px;
+}
+
+.buzzstone_inline_1751010 {
+  background-image: url(https://admin.caravansforsale.com.au/images/banner2.jpg);
+}
+
+.post_featured_bg {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  overflow: hidden;
+}
+
+.sc_recent_news .post_item .post_featured .post_info {
+  display: block;
+  position: absolute;
+  z-index: 2;
+  padding: 0 0.8em;
+}
+
+.sc_recent_news_style_news-announce .post_item .post_featured .post_info {
+  padding: 0 2.15em 2.25em;
+}
+
+.sc_recent_news .post_item .post_featured .post_info * {
+  color: #fff;
+  font-weight: bold;
+}
+
+.sc_recent_news .post_item .post_featured .big-button small {
+  font-size: 25px;
+  text-transform: inherit;
+  color: #000000;
+}
+
+.sc_recent_news_style_news-announce .post_item .post_title {
+  font-size: 21px;
+  text-transform: uppercase;
+}
+
+.sc_recent_news .post_item .post_featured .post_info {
+  -webkit-transform: none;
+  -ms-transform: none;
+  transform: none;
+  opacity: 1;
+  text-align: center;
+}
+
+.sc_recent_news .post_item .post_featured .post_info {
+  z-index: 7;
+  width: 100%;
+}
+
+.sc_recent_news_style_news-announce
+  .post_item.post_size_big
+  .post_featured
+  .post_info {
+  padding: 0 2.5em 2.55em;
+}
+
+.sc_recent_news .post_item {
+  background-color: transparent;
+  text-align: left;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 0 !important;
+  margin-top: 0 !important;
+}
+
+.sc_recent_news_style_news-announce .post_size_small {
+  width: 25%;
+  height: 330px;
+}
+
+.buzzstone_inline_1114347121 {
+  background-image: url(https://www.caravansforsale.com.au/images/banner3.jpg);
+}
+
+.buzzstone_inline_1338339578 {
+  background-image: url(https://www.caravansforsale.com.au/images/banner4.jpg);
+}
+
+.icon_logo {
+  max-width: 100px;
+  margin-bottom: 12px;
+}
+
+.hover14 .hover_simple {
+  position: relative;
+}
+
+.hover14 .hover_simple::before {
+  position: absolute;
+  top: 0;
+  left: -75%;
+  z-index: 2;
+  display: block;
+  content: "";
+  width: 50%;
+  height: 100%;
+  background: -webkit-linear-gradient(
+    left,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 100%
+  );
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 100%
+  );
+  -webkit-transform: skewX(-25deg);
+  transform: skewX(-25deg);
+}
+
+.hover14 .hover_simple:hover::before {
+  -webkit-animation: shine 0.75s;
+  animation: shine 0.75s;
+}
+
+@-webkit-keyframes shine {
+  100% {
+    left: 125%;
+  }
+}
+
+@keyframes shine {
+  100% {
+    left: 125%;
+  }
+}
+
+.mobile_fltn.navbar-toggler {
+  font-size: 15px;
+  background: #444;
+  color: #fff;
+  padding: 10px;
+  width: 100%;
+}
+
+.sc_recent_news_style_news-announce .post_item.post_size_big .post_title {
+  text-transform: uppercase;
+  font-size: 50px;
+  font-weight: 800;
+}
+.big-button {
+  border: 2px solid;
+  padding: 6px 0px;
+  box-shadow: none;
+  background: #fff;
+}
+.border-blue4 {
+  border-color: #f58333 !important;
+}
+
+.btn.hover-blue4:hover {
+  background: #f58333;
+  border-color: #0000 !important;
+}
+
+.top_cta {
+  margin-top: 18px;
+  background-repeat: no-repeat;
+  background-size: cover;
+  border-radius: 0px;
+  padding: 20px 60px;
+  background-position: center;
+  background-clip: padding-box;
+  border: 6px solid transparent;
+}
+
+.top_cta_container {
+  position: relative;
+}
+
+.top_cta_container::before {
+  content: "";
+  width: 100%;
+  height: 100%;
+  background: transparent
+    linear-gradient(98deg, #ff0935 0, #ffd119 53%, #0dcea6 100%) 0 0 no-repeat
+    padding-box;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: -1;
+  border-radius: 0px;
+}
+
+.top_cta_container h4 {
+  font-size: 35px;
+  color: #fff;
+  margin-bottom: 0px;
+}
+
+.top_cta_container p {
+  font-size: 20px;
+  color: #fff;
+}
+
+.manufacture_content_area {
+  background-color: #f1f1f1;
+  padding-top: 30px;
+}
+
+.breadcrumb_links {
+  margin-bottom: 20px;
+}
+
+.breadcrumb_links span {
+  font-size: 0.9em;
+}
+
+.manufacture_content_area .advertisement {
+  margin-bottom: 20px;
+}
+
+h2.divide-orange {
+  font-size: 2rem;
+  font-family: "Poppins";
+  color: #000;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.section-head p {
+  font-size: 18px;
+  margin-bottom: 12px;
+  font-weight: 400;
+}
+
+main .manufacture_content_area h3 a {
+  color: #bb4a03;
+}
+
+main .manufacture_content_area h3 {
+  font-weight: 700;
+}
+.key_features {
+  padding: 20px;
+  border: 3px solid #bb4a03;
+  border-radius: 10px;
+  background-color: #ffffff;
+  margin-bottom: 15px;
+}
+
+.key_features h4 {
+  margin-bottom: 15px;
+  font-weight: 600;
+  font-size: 1.4rem;
+}
+
+.key_features ul li {
+  font-size: 17px;
+  color: #000;
+  padding-bottom: 12px;
+  padding-left: 25px;
+  position: relative;
+  list-style: none;
+}
+
+.key_features ul li:before {
+  content: "\f058";
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
+  position: absolute;
+  left: 0;
+  color: #bb4a03;
+}
+
+.key_features ul {
+  padding-left: 0;
+}
+
+.key_features a.underline {
+  font-size: 17px;
+  padding-left: 25px;
+  text-decoration: underline !important;
+}
+main .section-head a {
+  color: #0d6efd;
+}
+
+/* --------------- faq styles --------------- */
+
+.faq.style-3 .accordion-item {
+  border: 0;
+  border-bottom: 1px solid #9995;
+  background: transparent;
+}
+
+.faq.style-3 .accordion-item .accordion-button {
+  font-weight: bold;
+  font-size: 14px;
+  background-color: #fff;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+  text-transform: capitalize;
+  padding: 25px 15px;
+  margin-bottom: 8px;
+}
+
+.faq.style-3 .accordion-item .accordion-button:not(.collapsed) {
+  background-color: #fff;
+  color: var(--color-blue2);
+  padding-top: 30px;
+}
+
+.faq.style-3 .accordion-item .accordion-collapse {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-top: none;
+}
+
+.faq.style-3 .accordion-item .accordion-collapse .accordion-body {
+  color: #000000;
+  padding-bottom: 30px;
+  font-size: 17px;
+}
+
+.faq.style-3 .accordion-item .accordion-collapse .accordion-body h4 {
+  color: #000;
+  margin-bottom: 5px;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.faq.style-3.style-4 .accordion-item {
+  border: 0 !important;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.faq.style-3.style-4 .accordion-item .accordion-button {
+  padding: 15px 20px !important;
+  font-weight: 600;
+  font-family: "Poppins";
+  font-size: 18px;
+  border: 1px solid #ddd;
+}
+
+.faq.style-3.style-4 .accordion-item .accordion-button:not(.collapsed) {
+  background-color: #fff;
+  color: #000000;
+  padding-bottom: 10px;
+  margin-bottom: 0;
+}
+
+.faq.style-3.style-4 .accordion-item .accordion-collapse {
+  background-color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.faq.style-3.style-4 .accordion-item .accordion-collapse .accordion-body p {
+  font-size: 17px;
+  color: #000;
+  line-height: 28px;
+  margin-bottom: 15px;
+}
+
+.faq.style-3.style-4 .accordion-item .accordion-collapse .accordion-body p a {
+  color: #0d6efd;
+}
+
+.faq.style-3.style-4
+  .accordion-item
+  .accordion-collapse
+  .accordion-body
+  p
+  a:hover {
+  color: #0d6efd !important;
+  text-decoration: underline !important;
+}
+
+.faq {
+  background-color: #eeeeee;
+}
+.bg_custom_d h2 {
+  font-size: 1.75rem;
+  line-height: 1.6;
+  font-weight: 700;
+}
+.mb-30 {
+  margin-bottom: 30px !important;
+}
+
+/* --------------- clients style-4 --------------- */
+
+.clients.style-4 {
+  background: url(https://admin.caravansforsale.com.au/images/bg_rugged.jpg);
+  position: relative;
+  z-index: 25;
+  background-size: cover;
+}
+
+.clients.style-4 .client-logos {
+}
+
+.clients.style-4 .client-logos .img img {
+  -webkit-filter: grayscale(1);
+  filter: grayscale(1);
+  opacity: 1;
+}
+
+.clients.style-4 .client-logos .img:hover img {
+  -webkit-filter: grayscale(0);
+  filter: grayscale(0);
+  opacity: 1;
+}
+.white_section h4 {
+  color: #f58333;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+.white_section p {
+  color: #fff;
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+/* --------------- features style-7 --------------- */
+
+.features.style-7 {
+  position: relative;
+  background-color: #ffffff;
+  overflow: hidden;
+}
+
+.features.style-7 .img-circle {
+  position: absolute;
+  top: -120px;
+  left: 25%;
+  width: 700px;
+  height: 700px;
+  max-width: 50%;
+  pointer-events: none;
+}
+
+.features.style-7 .features-slider7 .swiper-wrapper {
+  -webkit-transition-timing-function: linear !important;
+  -o-transition-timing-function: linear !important;
+  transition-timing-function: linear !important;
+  position: relative;
+}
+
+.features.style-7 .features-slider7 .swiper-slide {
+  padding: 30px 0;
+}
+
+@media screen and (min-width: 991px) {
+  .features-slider7 {
+    position: relative;
+  }
+
+  .features-slider7 .swiper-slide {
+    width: 470px !important;
+  }
+}
+
+.features-card.style-7 {
+  display: block;
+  position: relative;
+  text-align: center;
+  padding: 0px;
+  border-radius: 10px;
+  background-color: #f2f1f1;
+  margin-bottom: 20px;
+  height: 350px;
+  top: -20px;
+  -webkit-transition: all 0.3s ease;
+  -o-transition: all 0.3s ease;
+  transition: all 0.3s ease;
+}
+
+.features-card.style-7::before {
+  position: absolute;
+  content: "";
+  left: 20px;
+  bottom: -20px;
+  width: calc(100% - 40px);
+  height: 100%;
+  border-radius: 10px;
+  background-color: rgb(250 250 250 / 53%);
+  z-index: -1;
+  -webkit-transition: all 0.3s ease;
+  -o-transition: all 0.3s ease;
+  transition: all 0.3s ease;
+}
+
+.features-card.style-7:hover {
+  top: -20px;
+  color: #000000;
+}
+
+.features-card.style-7:hover::before {
+  bottom: -20px;
+}
+
+.features-card.style-7 .icon {
+  margin-bottom: 10px;
+}
+
+.features-card.style-7 .icon img {
+  height: 70px;
+  border-radius: 50%;
+  -o-object-fit: contain;
+  object-fit: contain;
+}
+
+.features-card.style-7 .info h5 {
+  font-size: 18px;
+  color: #000;
+  text-transform: uppercase;
+  padding: 0px 30px;
+  font-family: "Poppins";
+  font-weight: 600;
+  height: 70px;
+}
+
+.box_mid {
+  padding-top: 12px;
+}
+
+.box_mid img {
+  border-radius: 10px 10px 0px 0px;
+  height: auto;
+  max-height: 260px;
+  width: auto;
+}
+
+.panel {
+}
+
+.panel .front,
+.panel .back {
+  text-align: center;
+}
+
+.panel .front {
+  height: inherit;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 900;
+  text-align: center;
+  -webkit-transform: rotateX(0deg) rotateY(0deg);
+  -moz-transform: rotateX(0deg) rotateY(0deg);
+  -webkit-transform-style: preserve-3d;
+  -moz-transform-style: preserve-3d;
+  -webkit-backface-visibility: hidden;
+  -moz-backface-visibility: hidden;
+  -webkit-transition: all 0.4s ease-in-out;
+  -moz-transition: all 0.4s ease-in-out;
+  -ms-transition: all 0.4s ease-in-out;
+  -o-transition: all 0.4s ease-in-out;
+  transition: all 0.4s ease-in-out;
+}
+
+.panel .back {
+  height: inherit;
+  position: absolute;
+  top: 0;
+  z-index: 1000;
+  -webkit-transform: rotateY(-180deg);
+  -moz-transform: rotateY(-180deg);
+  -webkit-transform-style: preserve-3d;
+  -moz-transform-style: preserve-3d;
+  -webkit-backface-visibility: hidden;
+  -moz-backface-visibility: hidden;
+  -webkit-transition: all 0.4s ease-in-out;
+  -moz-transition: all 0.4s ease-in-out;
+  -ms-transition: all 0.4s ease-in-out;
+  -o-transition: all 0.4s ease-in-out;
+  transition: all 0.4s ease-in-out;
+}
+
+.panel.flip .front {
+  z-index: 900;
+  -webkit-transform: rotateY(180deg);
+  -moz-transform: rotateY(180deg);
+}
+
+.panel.flip .back {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  background: #f1f1f1;
+  border-radius: 10px;
+  top: 0;
+  -webkit-transform: rotateX(0deg) rotateY(0deg);
+  -moz-transform: rotateX(0deg) rotateY(0deg);
+}
+
+.box1 {
+}
+
+.box2 {
+  text-align: left;
+  background-color: #f58333;
+  -webkit-clip-path: polygon(0 0%, 7% 0, 70% 0, 80% 0%, 70% 100%, 0 100%);
+}
+
+.box2 h4 {
+  color: #fff;
+  padding: 6px 20px;
+  font-family: "Poppins";
+  font-weight: 700;
+}
+
+.box-bottom {
+  -webkit-clip-path: url(#path-direction-up);
+  clip-path: url(#path-direction-up);
+  transition: all 0.3s ease;
+  position: relative;
+  margin-top: 0;
+  padding-top: 15px;
+}
+
+.big-button {
+  border: 2px solid;
+  padding: 6px 0px;
+  box-shadow: none;
+  background: #fff;
+}
+
+.big-button.plain_ng {
+  border: 2px solid;
+  padding: 12px 70px !important;
+  box-shadow: none;
+  background: #f58333 !important;
+  color: #fff;
+}
+
+.big-button.plain_ng:hover {
+  background: #000000 !important;
+  border-color: #000000 !important;
+}
+
+.big-button small {
+  font-size: 20px;
+}
+
+.back_bottom {
+  padding: 15px;
+}
+
+.back_bottom ul {
+  padding-top: 30px;
+}
+
+.back_bottom li p {
+  font-size: 16px;
+}
+
+.back_bottom .discription {
+  padding: 15px 0px;
+  text-align: left;
+}
+
+.back_bottom .discription h6 {
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.back_bottom .discription p {
+  font-size: 16px;
+  height: 140px;
+  overflow: hidden;
+}
+
+.top_d_content .container {
+  padding: 0;
+}
+
+.back_bottom a.button {
+  display: inline-block;
+  background: #000000;
+  color: #fff;
+  padding: 14px 20px;
+  margin: 20px;
+  line-height: 29px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-top: 50px;
+  cursor: pointer;
+  transition: all 0.5s;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 6px;
+  font-size: 20px;
+}
+
+.back_bottom a.button:hover {
+  background: #f58333;
+  color: #fff;
+}
+
+.pagination\:container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.related-products .tpof_tab h2 {
+  font-size: 26px;
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 25px;
+}
+
+.features-card.style-7 {
+  margin-bottom: 0px !important;
+}
+
+.other_dlogo {
+  margin-bottom: 5px;
+}
+
+a.quick_lnk {
+    margin-bottom: 20px;
+    margin-left: 10px;
+    font-weight: 500;
+    text-decoration: underline !important;
+    font-size: 14px;
+}
+
+.other_dlogo a {
+  text-align: center;
+  -webkit-transition: all 0.6s ease;
+  -o-transition: all 0.6s ease;
+  transition: all 0.6s ease;
+  padding: 10px;
+  border-radius: 6px;
+  color: #000000;
+  background: #fff;
+  border: 1px solid #f1f1f1;
+  font-size: 14px;
+}
+
+.other_dlogo a:hover {
+  box-shadow: 0 0px 10px #0003;
+}
+
+.other_dlogo img {
+}
+
+.other_dlogo span {
+  margin-top: 5px;
+  line-height: 18px;
+  max-width: 170px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vehicleDetailsWithIcons.simple {
+    white-space: nowrap;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    height: 50px;
+    margin: 0;
+    padding: 8px 0 16px;
+    font-size: 9px;
+    display: inline-block;
+}
+
+.vehicleDetailsWithIcons.simple li {
+    color: #333;
+    text-align: left;
+    vertical-align: top;
+    float: left;
+    width: 25%;
+    margin-right: 25px;
+    font-size: 1.6em;
+    line-height: 27px;
+    display: inline-block;
+}
+
+.vehicleDetailsWithIcons.simple li:before {
+    content: "";
+    color: #797979;
+    margin-right: 5px;
+    font-family: "Font Awesome 6 Free";
+    font-size: 9px;
+    font-style: normal;
+    font-weight: 900;
+    position: relative;
+}
+
+.product-page .related-products .product-card .img {
+        background: #ffffff;
+}
+
+.product-page .product-card .btn {
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    background: none;
+    border: 2px solid #333;
+    padding: 7px 15px;
+    display: block;
+    border-radius: 4px !important;
+    color: #000 !important;
+    margin-top: 5px;
+}
+
+.product-page .product-card:hover .btn {
+    color: #fff !important;
+    background-color: #ec7200;
+    border-color: #ec7200;
+}

@@ -1,0 +1,150 @@
+name: Promote Deploy to Cache (Manual)
+
+# Runs MANUALLY (Actions tab) or automatically every evening at 8 PM AEST
+# (10:00 UTC) to close the buildId gap after any deployment that day.
+#
+# HISTORY / WHY THIS LOOKS THE WAY IT DOES:
+# This used to be "Post-Deploy Cache Warmup," auto-triggered on every push.
+# It started with an "invalidate-kv-build-id" job that wiped current-build-id
+# in KV the instant code was pushed — before anyone knew if the new deploy
+# actually worked. That meant every deploy, good or bad, sent 100% of live
+# traffic straight to Vercel origin with zero cache protection. On
+# 2026-07-01 a broken navbar/mega-menu deploy reached every visitor directly
+# for ~2 hours because of exactly this.
+#
+# The first fix made this a validated canary-then-flip flow, still automatic
+# on every push. That solved the "broken deploy goes live" problem, but with
+# frequent deploys (e.g. 10/day) it created a new one: each deploy resets
+# Vercel's ISR cache, so re-crawling pages afterward forces cold SSR renders
+# against WP admin's API — real CPU pressure on a shared admin box.
+#
+# Final design: deploying code to Vercel and updating what Cloudflare serves
+# are now two SEPARATE, deliberate steps. Pushing to main only deploys to
+# Vercel — it does not touch KV, current-build-id, or routes-mapping at all.
+# The live site keeps serving whatever was already cached, completely
+# unaffected by the deploy, until one of these three things happens:
+#   1. The daily 8 PM AEST cron (this file) promotes the current Vercel
+#      deployment into the cache — closes the buildId gap within 24 hours of
+#      any deployment made during the day.
+#   2. A dev manually runs this workflow (Actions tab -> Run workflow) to
+#      promote immediately after a deployment.
+#   3. The weekly generate-cache.yml cron does its full rebuild (Sunday).
+#   4. WordPress pushes a product/listing data change through the
+#      cfs-selective-cache-invalidator.php -> generate-affected-cache.yml
+#      path — this only refreshes the data on already-cached pages using
+#      whichever build was last promoted; it never carries new frontend code
+#      into the cache on its own.
+#
+# This job is still a canary + gate, same as before: current-build-id only
+# gets flipped if the homepage + /listings/ render perfectly cleanly against
+# the live Vercel deployment. If they don't, nothing in KV changes and the
+# job fails loudly so whoever ran it knows the promotion didn't happen.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 10 * * *'   # 08:00 PM AEST (UTC+10) / 09:00 PM AEDT (UTC+11)
+
+jobs:
+
+  # ==========================================
+  # CANARY — Homepage + /listings/ (Puppeteer)
+  # Always runs first. Gates the current-build-id flip — see header comment.
+  # ==========================================
+  warmup-priority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Confirm Vercel deployment is live
+        env:
+          VERCEL_BASE_URL: ${{ secrets.VERCEL_BASE_URL }}
+        run: |
+          echo "Checking that the Vercel deployment is reachable..."
+          # -L follows redirects so we land on the real response code. VERCEL_BASE_URL/
+          # permanently redirects (308, likely a canonical-domain rule in middleware.ts) —
+          # that's normal steady-state behavior, not a sign the deploy isn't ready, so we
+          # check the code AFTER following it rather than treating any non-200 as "not ready."
+          for i in $(seq 1 20); do
+            STATUS=$(curl -Ls -o /dev/null -w "%{http_code}" "${VERCEL_BASE_URL}/" --max-time 15 || echo "000")
+            echo "Attempt $i: HTTP $STATUS (after following redirects)"
+            if [ "$STATUS" = "200" ]; then
+              echo "Vercel is reachable."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::Vercel deployment never responded within 5 minutes — aborting. current-build-id untouched, existing cache stays live."
+          exit 1
+
+      - name: Install dependencies
+        run: |
+          npm install node-fetch@2
+          npm install puppeteer
+
+      - name: Generate + validate priority pages (canary)
+        env:
+          VERCEL_BASE_URL: ${{ secrets.VERCEL_BASE_URL }}
+          PRODUCTION_DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          TARGET_PAGE: 'all'
+          SKIP_ROUTES_UPDATE: 'true'
+          REQUIRE_FULL_SUCCESS: 'true'
+        run: node scripts/generate-priority-pages.js
+
+      - name: Report canary failure
+        if: failure()
+        run: |
+          echo "::error::Canary failed — current-build-id was NOT updated, nothing was promoted. The live site is still serving whatever was cached before this run. Check the 'Generate + validate priority pages' step above for which page/variant failed, fix it, then re-run this workflow."
+
+  # ==========================================
+  # ALL LISTING URLS (url.csv) — 10 parallel batches of ~350 URLs each.
+  #
+  # Only runs on MANUAL triggers (workflow_dispatch), NOT on the daily cron.
+  #
+  # Why: the Worker now patches buildIds in KV HTML at serve-time, so KV
+  # stays warm through deployments without regenerating sitemap pages.
+  # The daily cron only needs to update priority pages + current-build-id
+  # (the warmup-priority job above).  Full sitemap regeneration is expensive
+  # (~17,000 KV writes, long WP admin crawl) and the data on these pages only
+  # changes when a product is added or removed — which is handled selectively
+  # by generate-affected-cache.yml triggered from WordPress.
+  # Run this manually when you've done a major design overhaul and want all
+  # sitemap pages to reflect the new frontend immediately.
+  # ==========================================
+  warmup-urls:
+    needs: warmup-priority
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      matrix:
+        batch: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+      fail-fast: false
+      max-parallel: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Warm Batch ${{ matrix.batch }} of 10
+        env:
+          PRODUCTION_DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
+          VERCEL_BASE_URL: ${{ secrets.VERCEL_BASE_URL }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          BATCH_SIZE: 350
+          BATCH_NUMBER: ${{ matrix.batch }}
+          SKIP_ROUTES_UPDATE: 'true'
+        run: node scripts/generate-sitemap-cache-simple.js

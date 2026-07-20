@@ -1,0 +1,203 @@
+:root {
+  --caravan-orange: #ec7200;
+  --caravan-orange-dark: #c55a22;
+  --caravan-navy: #1a243d;
+  --caravan-gray-bg: #f5f7f9;
+  --caravan-text-dark: #1a243d;
+  --caravan-text-gray: #4a4a4a;
+}
+
+.hero-bg {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.2)),
+    url("/images/home_ad_banner.jpg");
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  min-height: 480px;
+}
+
+.hero-bg p.h4 {
+  font-size: 20px;
+  line-height: 30px;
+}
+
+.features-overview .font-black {
+  font-weight: 700;
+  font-size: 30px;
+  color: #000;
+}
+
+.htk_keywords .font-black {
+  font-weight: 600;
+  font-size: 38px;
+  color: #000;
+}
+
+.footer-bg {
+  background:
+    linear-gradient(rgb(0 0 0 / 49%), rgb(0 0 0 / 76%)),
+    url(/images/footer_bg.jpg);
+  background-size: cover;
+  background-position: center center;
+}
+
+.footer-bg .display-4.font-black {
+  font-weight: 700;
+  font-size: 65px;
+}
+
+.btn-caravan-orange {
+  background-color: var(--caravan-orange);
+  border-color: var(--caravan-orange);
+  color: white;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 0.85rem 2rem;
+  transition:
+    transform 0.2s,
+    background-color 0.2s;
+}
+
+.btn-caravan-orange:hover {
+  background-color: var(--caravan-orange-dark);
+  border-color: var(--caravan-orange-dark);
+  color: white;
+  transform: scale(1.05);
+}
+
+.shadow-card {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+.takeover_box {
+  box-shadow: 5px 5px 3px #6262621a;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 7px;
+}
+
+.takeover_box .border-light {
+  border-color: #f1f1f1 !important;
+}
+
+.takeover_box .feature-card h3 {
+  font-size: 17px;
+  letter-spacing: 0.5px;
+  color: #000;
+}
+
+.takeover_box .feature-card p {
+  font-size: 15px;
+  color: #000;
+}
+
+.takeover_box .feature-card img {
+  width: 60px;
+}
+
+.icon-circle {
+  width: 64px;
+  height: 64px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--caravan-orange);
+  margin: 0 auto 1.5rem;
+}
+
+.mockup-container {
+}
+
+.mockup-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0.4;
+}
+
+.mockup-overlay img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 70%;
+}
+
+.browser-mockup {
+  background: rgb(183 183 183 / 10%);
+  backdrop-filter: blur(10px);
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+  padding: 0;
+  border: 1px solid rgb(220 216 216 / 20%);
+}
+
+.browser-dots {
+  display: flex;
+  gap: 6px;
+  padding: 10px 10px;
+}
+
+.browser-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.mobile-mockup {
+  position: absolute;
+  right: -24px;
+  bottom: -80px;
+  width: 250px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.4rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.package-card {
+  background-color: #fefefe;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  padding: 2rem;
+  height: 100%;
+  box-shadow: 0 0 13px #6262621a;
+}
+
+.package-card img {
+    width: 80px;
+    height: 80px;
+    max-width: fit-content;
+}
+
+.package-card h4 {
+  font-size: 17px;
+  margin-bottom: 6px;
+}
+
+.package-card p {
+  font-size: 16px;
+  color: #000;
+}
+
+.tracking-widest {
+  letter-spacing: 0.1em;
+}
+
+.tracking-wider {
+  letter-spacing: 0.05em;
+}
+
+.font-black {
+  font-weight: 600;
+  font-size: 38px;
+}
+
+@media (max-width: 768px) {
+  .mobile-mockup {
+    display: none;
+  }
+}

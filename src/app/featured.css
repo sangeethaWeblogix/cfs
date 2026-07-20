@@ -1,0 +1,16 @@
+.product-card {
+  width: 100%;
+  max-width: 320px; /* optional */
+}
+
+.image-container {
+  position: relative;
+  width: 100%;
+  height: 250px; /* fix height for all images */
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.image-container img {
+  object-fit: cover; /* crops image to fit box */
+}

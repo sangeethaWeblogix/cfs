@@ -1,0 +1,22 @@
+{
+    "success": true,
+    "type": "sleep",
+    "count": 14,
+    "paths": [
+        "under-2-people-sleeping-capacity/",
+        "under-3-people-sleeping-capacity/",
+        "under-4-people-sleeping-capacity/",
+        "under-5-people-sleeping-capacity/",
+        "under-6-people-sleeping-capacity/",
+        "between-2-3-people-sleeping-capacity/",
+        "between-3-4-people-sleeping-capacity/",
+        "between-4-5-people-sleeping-capacity/",
+        "between-5-6-people-sleeping-capacity/",
+        "over-2-people-sleeping-capacity/",
+        "over-3-people-sleeping-capacity/",
+        "over-4-people-sleeping-capacity/",
+        "over-5-people-sleeping-capacity/",
+        "over-6-people-sleeping-capacity/"
+    ],
+    "generated_at": "2026-07-17 15:53:55"
+}

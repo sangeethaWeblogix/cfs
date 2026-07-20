@@ -1,0 +1,19 @@
+.static_page {
+    background-color: #f2f2f2;
+    border: 1px solid #e4e4e4;
+}
+
+.static_page h1 {
+    font-weight: 600;
+    margin-bottom: 20px;
+    font-size: 35px;
+}
+
+.static_page h4 {
+font-weight: 600;
+    font-size: 20px;
+}
+
+.static_page p {
+    line-height: 26px;
+}

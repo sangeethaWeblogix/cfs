@@ -1,0 +1,156 @@
+name: Generate Cache (Weekly Safety Net)
+
+# NOTE: This used to run daily and rebuild all 3,462 URLs every time, even
+# though most pages had zero product changes underneath them. Day-to-day
+# freshness is now handled by the event-driven flow instead:
+#   WordPress (cfs-selective-cache-invalidator.php) scans wp_amigo_product_datas
+#   every 15 min, works out exactly which listing pages a product add/edit/
+#   delete affects (state, category, make, ATM, length, sleep, price, region),
+#   refreshes JSON KV immediately, and dispatches
+#   generate-affected-cache.yml to rebuild HTML KV for just those pages.
+#
+# This workflow is now a WEEKLY safety net — it catches anything the
+# selective invalidator might miss (e.g. price-band boundary edge cases,
+# orphaned KV keys, manual DB edits that bypass both scan paths) by doing a
+# full rebuild of every URL, same as before. Run it manually any time via
+# workflow_dispatch if you need an immediate full rebuild.
+
+on:
+  schedule:
+    # Weekly, Saturday 1 AM Melbourne time (AEST UTC+10 - standard time)
+    # Note: During DST (Oct–Apr) this will fire at 2 AM Melbourne time (AEDT UTC+11)
+    - cron: '0 15 * * 5'
+
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'What to generate'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - priority
+          - urls
+
+# Source: src/app/url.csv (3,462 URLs × 7 variants = 24,234 KV uploads)
+# Split across 10 batches of 350 URLs each (max-parallel: 4).
+# Up to 4 batches run simultaneously, with a 2-minute stagger between starts
+# to avoid all runners hammering Vercel/KV at the exact same moment.
+# Estimated total: ~1.5 hours (was ~6–8 hours with max-parallel: 1).
+
+jobs:
+
+  # ==========================================
+  # PRIORITY PAGES (Homepage + /listings/) — Puppeteer
+  # ==========================================
+  generate-priority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: |
+      (github.event_name == 'schedule') ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.target == 'all' || github.event.inputs.target == 'priority'))
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: |
+          npm install node-fetch@2
+          npm install puppeteer
+
+      - name: Generate priority pages
+        env:
+          VERCEL_BASE_URL: ${{ secrets.VERCEL_BASE_URL }}
+          PRODUCTION_DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          TARGET_PAGE: 'all'
+          SKIP_ROUTES_UPDATE: 'true'
+          # Same safety gate as the post-deploy canary: don't flip current-build-id
+          # on a partial/flaky run. A weekly full rebuild that half-fails shouldn't
+          # be able to point the whole site's cache at a build-id nothing matches.
+          REQUIRE_FULL_SUCCESS: 'true'
+        run: node scripts/generate-priority-pages.js
+
+  # ==========================================
+  # ALL LISTING URLS (url.csv) — 10 batches of ~350 URLs, max-parallel: 4
+  # Up to 4 batches run at the same time; 2-min stagger between starts.
+  # ==========================================
+  generate-urls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: |
+      (github.event_name == 'schedule') ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.target == 'all' || github.event.inputs.target == 'urls'))
+    strategy:
+      matrix:
+        batch: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+      fail-fast: false
+      max-parallel: 4
+    steps:
+      - name: Cooldown before batch (skip for batch 1)
+        if: matrix.batch != 1
+        run: |
+          echo "Waiting 2 minutes before starting batch ${{ matrix.batch }}..."
+          sleep 120
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Generate Batch ${{ matrix.batch }} of 10
+        env:
+          PRODUCTION_DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
+          VERCEL_BASE_URL: ${{ secrets.VERCEL_BASE_URL }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          BATCH_SIZE: 350
+          BATCH_NUMBER: ${{ matrix.batch }}
+          SKIP_ROUTES_UPDATE: 'true'
+        run: node scripts/generate-sitemap-cache-simple.js
+
+  # ==========================================
+  # UPDATE ROUTES MAPPING (after all jobs complete)
+  # ==========================================
+  update-routes-mapping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - generate-priority
+      - generate-urls
+    if: |
+      always() &&
+      (github.event_name == 'schedule' ||
+       github.event_name == 'workflow_dispatch')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm install node-fetch@2
+
+      - name: Regenerate routes mapping from KV
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: node scripts/regenerate-routes-mapping.js

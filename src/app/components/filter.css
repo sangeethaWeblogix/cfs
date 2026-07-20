@@ -1,0 +1,442 @@
+/* ── Radius slider ── */
+.cfs-radius-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 18px;
+}
+.cfs-radius-wrap {
+  position: relative;
+  padding-top: 40px;
+}
+.cfs-radius-tooltip {
+  position: absolute;
+  top: 0;
+  background: #222;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 5px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.cfs-radius-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #222;
+}
+.cfs-radius-slider, .search-bar input.cfs-radius-slider {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: #ccc;
+  outline: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  display: block;
+}
+.cfs-radius-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #f37920;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  cursor: pointer;
+}
+.cfs-radius-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #f37920;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  cursor: pointer;
+}
+.cfs-radius-track-wrap {
+  position: relative;
+  padding: 0 9px;
+  box-sizing: border-box;
+}
+.cfs-radius-tick {
+    pointer-events: none;
+    background: #ddd;
+    border: 2px solid #ddd;
+    border-radius: 50%;
+    width: 10px;
+    height: 10px;
+    transition: border-color .15s;
+    display: block;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+.cfs-radius-tick.active {
+    border-color: #f37920;
+    background: #f37920;
+}
+.cfs-radius-tick.current {
+    opacity: 0;
+}
+.cfs-radius-range {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
+}
+
+/* ── Location suggestions dropdown (inside filter modal) ── */
+.filter-modal .location-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+  margin-top: 4px;
+  padding: 4px 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.filter-modal .location-suggestions .suggestion-item {
+  padding: 11px 16px;
+  cursor: pointer;
+  font-size: 16px;
+  color: #222;
+  border-bottom: 1px solid #f2f2f2;
+}
+.filter-modal .location-suggestions .suggestion-item:last-child {
+  border-bottom: none;
+}
+.filter-modal .location-suggestions .suggestion-item:hover,
+.filter-modal .location-suggestions .suggestion-item.selected {
+  background: #fff7f2;
+  color: #ec7200;
+}
+.filter-modal .location-suggestions .suggestion-skeleton {
+  padding: 11px 16px;
+}
+/* fallback for plain <li> inside modal suggestions */
+.filter-modal .location-suggestions li {
+  padding: 11px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #222;
+  border-bottom: 1px solid #f2f2f2;
+}
+.filter-modal .location-suggestions li:last-child {
+  border-bottom: none;
+}
+.filter-modal .location-suggestions li:hover {
+  background: #fff7f2;
+  color: #ec7200;
+}
+/* For selected filter chip */
+/* Selected filter pill */
+.filter-chip {
+    box-sizing: border-box;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px 12px;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+}
+
+/* Close (X) icon aligned to end */
+.filter-chip-close, .search-bar button.filter-chip-close {
+    color: #fff;
+    cursor: pointer;
+    background-color: #999;
+    border: none;
+    border-radius: 50%;
+    justify-content: center;
+    align-items: center;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    margin-left: auto;
+    font-size: 14px;
+    line-height: 1;
+    font-weight: bold;
+    display: flex;
+    padding: 0;
+    fill: #fff;
+}
+/* ── Skeleton loading ── */
+.suggestion-skeleton {
+  padding: 8px 0;
+  list-style: none;
+}
+.skeleton-line {
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s infinite;
+  width: 70%;
+}
+.suggestion-skeleton:nth-child(2) .skeleton-line { width: 85%; }
+.suggestion-skeleton:nth-child(3) .skeleton-line { width: 60%; }
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.suggestions-no-results {
+  font-size: 14px;
+  color: #888;
+  padding: 10px 0;
+  margin: 0;
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.suggestion-item:hover {
+  background-color: #ffffff;
+  color: #ec7200; /* hover color */
+}
+
+.suggestion-item.selected {
+  background-color: #ffffff; /* your selected bg color */
+  font-weight: 500;
+  color: #ec7200;
+}
+
+
+
+/* ── Location modal — state-list design ── */
+.loc-search-wrap {
+  position: relative;
+  margin-bottom: 16px;
+}
+.loc-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #888;
+  font-size: 15px;
+  pointer-events: none;
+  z-index: 1;
+}
+.search-bar input.loc-search-input,
+input.loc-search-input {
+    color: #000000;
+    box-sizing: border-box;
+    background: #fff;
+    border-radius: 4px;
+    outline: none;
+    width: 100%;
+    height: 46px;
+    padding: 0 16px 0 40px;
+    font-size: 16px;
+    transition: border-color .15s;
+    display: block;
+    box-shadow: 0 0 0 1.5px #d9d9d9 !important;
+}
+.search-bar input.loc-search-input:focus,
+input.loc-search-input:focus {
+  box-shadow: 0 0 0 1.5px #7e7e7e !important;
+}
+
+.loc-state-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.loc-state-item {
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 8px;
+    transition: background .1s;
+    display: flex;
+    min-height: 48px;
+}
+.loc-state-item:last-child { border-bottom: none; }
+.loc-state-item:hover { background: #fafafa; }
+.loc-state-item.selected { background: #fff9f4; }
+
+.search-bar button.loc-arrow-btn {
+    background: transparent;
+    border-color: transparent;
+    color: #000;
+}
+
+
+.loc-checkbox {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #ccc;
+  border-radius: 5px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s;
+  background: #fff;
+}
+.loc-checkbox.checked {
+  border-color: #ec7200;
+  background: #ec7200;
+}
+
+.loc-state-name {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 500;
+  color: #222;
+}
+
+.loc-count {
+  color: #000000;
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 40px;
+  text-align: right;
+}
+
+.loc-arrow-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid #ddd;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+  padding: 0;
+  color: #555;
+}
+.loc-arrow-btn:hover { border-color: #ec7200; color: #ec7200; }
+.loc-arrow-btn svg { display: block; }
+
+.search-bar button.loc-region-pill,
+.loc-region-pill {
+  background: #ec7200;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.loc-region-pill:hover { background: #cf6503; }
+
+.search-bar button.loc-back-btn {
+  background: none;
+  border: none;
+  color: #ec7200;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.search-bar button.loc-back-btn:hover { color: #cf6503; }
+
+.loc-region-heading {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #333;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.cfs-links-section {
+  display: none;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+ 
+.cfs-links-group {
+  margin-bottom: 16px;
+}
+
+.cfs-links-group:last-child {
+  margin-bottom: 0;
+}
+
+.cfs-links-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cfs-links-item {
+  flex: 0 0 auto;
+}
+.cfs-links-link {
+  display: inline-block;
+  padding: 4px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: #333;
+  text-decoration: none;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+.cfs-links-link:hover {
+  background: #f37920;
+  color: #fff;
+  border-color: #f37920;
+}
+.cfs-links-loading {
+  text-align: center;
+  padding: 12px;
+  color: #888;
+  font-size: 13px;
+}
+
+@media (max-width: 767px) { 
+  .loc-state-name, .search-bar input.loc-search-input,  
+.filter-modal .location-suggestions .suggestion-item  {
+    font-size: 15px;
+  }
+}

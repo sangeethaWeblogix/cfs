@@ -1,0 +1,89 @@
+.contact.style-6 .content .form {
+    position: relative;
+    z-index: 5;
+    height: auto;
+    overflow: inherit;
+    border-radius: 8px;
+}
+.form {
+    width: 100%;
+    margin: 0 auto;
+    background: #f2f2f2;
+    padding: 22px;
+    border-radius: 4px;
+    height: 600px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+.text-danger {
+    color: #dc3545!important;
+}
+
+.contact_top {
+    background-color: #f2f2f2;
+    border-top: 1px solid #e1e1e1;
+    padding-bottom: 5px;
+}
+
+.contact {
+  background-color: #f2f2f2;  
+}
+
+.contact_top h2 {
+    font-weight: 600;
+}
+
+.form-control {
+    display: block;
+    width: 100%;
+    padding: .375rem .75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    border-radius: .25rem;
+    transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+}
+
+.contact.style-6 .form-group .form-control, .contact.style-6 .form-group .form-select {
+    background: #ffffff;
+    border: 1px solid #e4e4e4;
+    border-radius: .25rem;
+    min-height: 60px;
+    padding: 10px 15px;
+    font-size: 15px;
+    box-shadow: none;
+}
+
+.mb-20 {
+    margin-bottom: 20px;
+}
+
+.contact.style-6 .btn {
+    padding: 15px 15px;
+    font-size: 20px;
+    display: block;
+    width: 100%;
+    border-radius: 4px;
+}
+.bg-blue4 {
+    background-color: #000000;
+}
+
+.butn, .btn {
+    padding: 12px 30px;
+    position: relative;
+    overflow: hidden;
+    text-align: center;
+    font-weight: 500;
+    display: -webkit-inline-box;
+    display: -ms-inline-flexbox;
+    display: inline-flex;
+    text-align: center;
+    -webkit-box-pack: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+}

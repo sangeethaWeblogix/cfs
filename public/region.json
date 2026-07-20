@@ -1,0 +1,19 @@
+{
+  "data": [
+    {
+      "heading": "region",
+      "items": [
+        "Adelaide", "Gold Coast", "Ballarat", "Melbourne",
+        "Perth", "Brisbane", "Newcastle", "Gippsland",
+        "Sydney", "Geelong", "Sunshine Coast", "Hobart"
+      ]
+    },
+    {
+      "heading": "state",
+      "items": [
+        "New South Wales", "Victoria", "Queensland",
+        "Western Australia", "Tasmania"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+    "success": true,
+    "type": "categories",
+    "count": 6,
+    "paths": [
+        "family-category/",
+        "hybrid-category/",
+        "luxury-category/",
+        "off-road-category/",
+        "pop-top-category/",
+        "touring-category/"
+    ],
+    "generated_at": "2026-07-17 15:53:54"
+}

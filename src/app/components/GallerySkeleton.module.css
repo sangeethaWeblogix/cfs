@@ -1,0 +1,32 @@
+.wrapper {
+  display: flex;
+  gap: 20px;
+}
+
+.thumbs {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.thumb {
+  width: 128px;
+  height: 96px;
+  background: #e8e8e8;
+  border-radius: 6px;
+  animation: pulse 1.2s infinite ease-in-out;
+}
+
+.main {
+  width: 800px;
+  height: 600px;
+  background: #e8e8e8;
+  border-radius: 10px;
+  animation: pulse 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { opacity: .7; }
+  50% { opacity: .3; }
+  100% { opacity: .7; }
+}

@@ -1,0 +1,45 @@
+.filter-accordion-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 4px;
+  padding: 6px 12px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.filter-accordion-item.selected {
+  background-color: #f7f7f7;
+}
+
+.filter-accordion-subitem {
+  margin-left: 24px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+
+.filter-accordion-subitem.active {
+  background-color: #e8f0fe;
+}
+
+.filter-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-close-icon {
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.filter-arrow {
+  transition: 0.3s;
+  margin-left: 8px;
+  cursor: pointer;
+}
+
+.filter-arrow.rotate {
+  transform: rotate(180deg);
+}
