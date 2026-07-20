@@ -46,11 +46,11 @@ const nextConfig: NextConfig = {
   },
 
   
-  compiler: {
-   removeConsole: {
-     exclude: ["error"],
-    },
-  },
+  // compiler: {
+  //  removeConsole: {
+  //    exclude: ["error"],
+  //   },
+  // },
 
   // ✅ Redirects: malformed URLs + old sell-my-caravan URL structure → new nested URLs
   async redirects() {

@@ -1,7 +1,7 @@
  // src/app/regions-sitemap.xml/route.ts
 import { NextResponse } from "next/server";
 
-const API_URL = "https://admin.caravansforsale.com.au/wp-json/cfs/v1/location-search-all";
+const API_URL = "https://cfs.marketplacenetwork.com.au/wp-json/cfs/v1/location-search-all";
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.caravansforsale.com.au";
 

@@ -36,7 +36,7 @@ const VALID_AU_STATES = new Set([
   'nsw', 'vic', 'qld', 'sa', 'wa', 'tas', 'nt', 'act',
 ]);
 
-const API_WP = 'https://admin.caravansforsale.com.au/wp-json/cfs/v1';
+const API_WP = 'https://cfs.marketplacenetwork.com.au/wp-json/cfs/v1';
 
 
 
@@ -145,7 +145,7 @@ async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest)
     const slugParts = url.pathname.replace("/listings", "").split("/").filter(Boolean);
     const filters = parseSlugToFilters(slugParts, Object.fromEntries(url.searchParams));
     const apiParams = buildApiParams(filters);
-    const apiUrl = "https://admin.caravansforsale.com.au/wp-json/cfs/v1/new_optimize_code?" + apiParams.toString();
+    const apiUrl = "https://cfs.marketplacenetwork.com.au/wp-json/cfs/v1/new_optimize_code?" + apiParams.toString();
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
     const apiRes = await fetch(apiUrl, {
@@ -337,7 +337,7 @@ export async function middleware(request: NextRequest) {
         if (!cached.exists) return render410(request);
       } else {
         try {
-          const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE || 'https://admin.caravansforsale.com.au/wp-json/cfs/v1';
+          const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE || 'https://cfs.marketplacenetwork.com.au/wp-json/cfs/v1';
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000);
           const apiRes = await fetch(
@@ -435,7 +435,7 @@ export async function middleware(request: NextRequest) {
         // Raw filter keys (minKg, maxKg, sleeps) must be converted to API names (from_atm, to_atm, sleep).
         const apiParams = buildApiParams(filters);
         const apiUrl =
-          "https://admin.caravansforsale.com.au/wp-json/cfs/v1/new_optimize_code?" +
+          "https://cfs.marketplacenetwork.com.au/wp-json/cfs/v1/new_optimize_code?" +
           apiParams.toString();
 
         const controller = new AbortController();

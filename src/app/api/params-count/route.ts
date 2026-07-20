@@ -8,7 +8,7 @@ const API_KEY = process.env.CFS_API_KEY;
  * created by users stacking multiple filters not covered by the daily warm).
  */
 async function fetchFromWP(searchParams: URLSearchParams): Promise<NextResponse> {
-  const url = `https://admin.caravansforsale.com.au/wp-json/cfs/v1/params_count?${searchParams.toString()}`;
+  const url = `https://cfs.marketplacenetwork.com.au/wp-json/cfs/v1/params_count?${searchParams.toString()}`;
   try {
     const response = await fetch(url, {
       headers: {

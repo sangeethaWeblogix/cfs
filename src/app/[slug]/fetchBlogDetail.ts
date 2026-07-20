@@ -25,7 +25,7 @@ async function fetchWithTimeout(url: string) {
 // generateMetadata + layout + page no longer each hit the WP API separately.
 export const fetchBlogDetail = cache(async (slug: string, seed?: number) => {
   const seedParam = seed ? `&seed=${seed}` : "";
-  const url = `https://admin.caravansforsale.com.au/wp-json/cfs/v1/blog-detail-new/?slug=${encodeURIComponent(
+  const url = `https://cfs.marketplacenetwork.com.au/wp-json/cfs/v1/blog-detail-new/?slug=${encodeURIComponent(
     slug
   )}${seedParam}`;
 
