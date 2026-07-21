@@ -44,6 +44,12 @@ interface Props {
   onSeo?: (seo: SeoV2) => void;
   maxItems?: number;
   hideBanners?: boolean;
+  /** When this grid is the ONLY product section on the page (non-indexed
+   * combined grid, or a page>1 self-fetch grid), show this message instead
+   * of silently disappearing on an empty result — an indexed page's
+   * Featured/New/Used split legitimately hides individually-empty sections,
+   * but a lone empty grid with no fallback reads as a broken page. */
+  noResultsMessage?: string;
 }
 
 const PROMO_BANNERS = [
@@ -447,7 +453,7 @@ function SkeletonCard() {
 }
 
 /* ── Main grid component ── */
-export default function StateListingGrid({ title, viewAllHref, apiUrl, items: externalItems, loading: externalLoading, showSpotlight, hideViewAll, hideTitle, titleAs = "h2", skeletonCount = 10, page = 1, onTotalPages, onSeo, maxItems, hideBanners }: Props) {
+export default function StateListingGrid({ title, viewAllHref, apiUrl, items: externalItems, loading: externalLoading, showSpotlight, hideViewAll, hideTitle, titleAs = "h2", skeletonCount = 10, page = 1, onTotalPages, onSeo, maxItems, hideBanners, noResultsMessage }: Props) {
 
   const [fetchedItems,  setFetchedItems]  = useState<Listing[]>([]);
   const [fetchLoading,  setFetchLoading]  = useState(true);
@@ -533,7 +539,18 @@ export default function StateListingGrid({ title, viewAllHref, apiUrl, items: ex
 
   // No title/section at all once we know for sure there's nothing to show —
   // an empty heading with a blank grid under it reads as broken, not "no results".
-  if (!loading && items.length === 0) return null;
+  // Exception: if this grid is the page's only product section, show a
+  // message instead of vanishing entirely (see `noResultsMessage` prop doc).
+  if (!loading && items.length === 0) {
+    if (!noResultsMessage) return null;
+    return (
+      <section className="lsd-grid-section lsd-grid-section--empty">
+        <div className="container">
+          <p className="lsd-grid-empty">{noResultsMessage}</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <>

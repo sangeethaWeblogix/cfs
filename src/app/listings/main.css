@@ -268,6 +268,17 @@ input.loc-search-input:focus { box-shadow: 0 0 0 1.5px #7e7e7e !important; }
 }
 .lsd-grid-section--no-title { padding-top: 32px; }
 
+.lsd-grid-section--empty { padding: 24px 0; }
+.lsd-grid-empty {
+  margin: 0;
+  padding: 32px 20px;
+  text-align: center;
+  color: #666;
+  font-size: 15px;
+  background: #f7f7f7;
+  border-radius: 8px;
+}
+
 .lsd-grid-section:nth-child(odd) { background: #ffffff; }
 
 .lsd-grid-header {

@@ -262,26 +262,6 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
 
   const handleTotalPages = (n: number) => setMaxPages(prev => Math.max(prev, n));
 
-  useEffect(() => {
-    if (page !== 1) return;
-    const canonicalPath = buildListingsSlug(filters);
-    fetch(`/api/indexed-url/?path=${encodeURIComponent(canonicalPath)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
-        // Suppress if either:
-        //  (a) preloadSnapshotRef is set — snapshot already consumed, authoritative
-        //  (b) preloadReadRef is set — preload detected on mount but pool effect
-        //      macro task hasn't run yet; this covers cached-response microtasks
-        //      that fire before the pool effect saves the snapshot
-        if (preloadSnapshotRef.current !== null || preloadReadRef.current) return;
-        setIsIndexed(json?.indexed ?? false);
-      })
-      .catch(() => {
-        if (preloadSnapshotRef.current !== null || preloadReadRef.current) return;
-        setIsIndexed(false);
-      });
-  }, [filters, page]);
-
   // Page 1 uses ONE shared pool call, split by slot_bucket into
   // Featured/New/Used — instead of 3 separate condition-locked API calls.
   const poolApiUrl = buildApiUrl("/api/pool-listings/?per_page=24", filters, seed);
@@ -300,15 +280,12 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
       initialPropConsumed.current = true;
       return;
     }
-    // `isIndexed` starts as the `true` default and flips to its real value
-    // once the async /api/indexed-url/ check resolves — since this effect
-    // depends on `isIndexed`, it fires once with that stale default and
-    // again with the real value. The two requests race with no cancellation,
-    // so if the stale-`isIndexed` response happens to land last, it overwrites
-    // the correct one with a near-empty result (that branch's slot_bucket
-    // filtering finds nothing, since this endpoint never sends slot_bucket).
-    // `cancelled` lets a newer run of this effect discard an in-flight older
-    // one's result instead of letting it win the race.
+    // `isIndexed` for the current filter context is resolved inline inside
+    // the "filter changed" branch below (via /api/indexed-url/) BEFORE the
+    // pool is fetched — not read from state — so bucketing never uses a
+    // stale isIndexed value left over from the previous filter. `cancelled`
+    // still lets a newer run of this effect discard an in-flight older one's
+    // result if the filter/page changes again before this run finishes.
     const requestUrl = `${poolApiUrl}&page=${page}`;
     const absoluteUrl = new URL(requestUrl, window.location.origin).toString();
 
@@ -406,8 +383,8 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
     }
 
     // Filter changed (or no snapshot) — clear the snapshot and do a live fetch.
-    // Also clear preloadReadRef so subsequent /api/indexed-url/ callbacks (for
-    // the new filter context) can update isIndexed normally.
+    // Also clear preloadReadRef so subsequent /api/indexed-url/ checks (for
+    // the new filter context) apply normally.
     preloadSnapshotRef.current = null;
     preloadReadRef.current = false;
 
@@ -418,49 +395,66 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
     // on screen (e.g. Victoria's copy lingering after switching to NSW).
     setSeo(null);
 
-    console.log("[StateHome] shared pool API:", absoluteUrl);
-    fetch(requestUrl, { cache: "no-store" })
+    // Resolve isIndexed for the NEW filter context FIRST, then fetch the
+    // pool using that resolved value directly (not the possibly-stale
+    // `isIndexed` state) — sequential instead of racing two independent
+    // effects. This is what previously could bucket a fresh filter's
+    // products by slot_bucket using the PREVIOUS filter's isIndexed value,
+    // leaving Featured/New/Used all empty until a hard refresh recomputed
+    // isIndexed server-side.
+    const canonicalPath = buildListingsSlug(filters);
+    fetch(`/api/indexed-url/?path=${encodeURIComponent(canonicalPath)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
-        if (cancelled) return;
-        console.log("[StateHome] shared pool API response:", json);
+      .then((json) => json?.indexed ?? false)
+      .catch(() => false)
+      .then((resolvedIsIndexed) => {
+        if (cancelled) return null;
+        setIsIndexed(resolvedIsIndexed);
 
-        // seo_v2 is set first, independently of the product-pool bucketing
-        // below, so a bad product shape can never suppress the title/description.
-        const seoData = json?.data?.seo_v2 ?? json?.seo_v2;
-        if (seoData) setSeo(seoData);
+        console.log("[StateHome] shared pool API:", absoluteUrl);
+        return fetch(requestUrl, { cache: "no-store" })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((json) => {
+            if (cancelled) return;
+            console.log("[StateHome] shared pool API response:", json);
 
-        const products: Listing[]      = json?.data?.products ?? json?.products ?? [];
-        const premiumsRaw: Listing[]   = json?.data?.premium_products ?? json?.premium_products ?? [];
-        const exclusivesRaw: Listing[] = json?.data?.exclusive_products ?? json?.exclusive_products ?? [];
-        const empExclusivesRaw: Listing[] = json?.data?.emp_exclusive_products ?? json?.emp_exclusive_products ?? [];
-        const totalCount: number = json?.data?.counts?.total_count ?? json?.counts?.total_count ?? products.length;
-     console.log("shared  premium:", premiumsRaw);
-        if (totalCount === 0 && empExclusivesRaw.length > 0) {
-          // No products at all — fall back to the emp_exclusive_products pool
-          // so the page isn't empty, all shown with the Spotlight Van design.
-          const empItems = empExclusivesRaw.map((p) => ({ ...p, is_exclusive: true }));
-          setPool({ featured: empItems, new: [], used: [] });
-        } else if (isIndexed) {
-          // Indexed pages split by slot_bucket into Featured/New/Used.
-          // Premium and exclusive vans always come from their own top-level
-          // arrays and only render on the Featured tab (position 3 =
-          // exclusive, 4-5 = premium).
-          const featuredSource = products.filter((p) => p.slot_bucket === "featured");
-          const featuredItems  = buildFeaturedOrder(featuredSource, premiumsRaw, exclusivesRaw);
-          const featuredIds    = new Set(featuredItems.map((p) => p.id));
+            // seo_v2 is set first, independently of the product-pool bucketing
+            // below, so a bad product shape can never suppress the title/description.
+            const seoData = json?.data?.seo_v2 ?? json?.seo_v2;
+            if (seoData) setSeo(seoData);
 
-          const newItems  = products.filter((p) => p.slot_bucket === "new"  && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
-          const usedItems = products.filter((p) => p.slot_bucket === "used" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
+            const products: Listing[]      = json?.data?.products ?? json?.products ?? [];
+            const premiumsRaw: Listing[]   = json?.data?.premium_products ?? json?.premium_products ?? [];
+            const exclusivesRaw: Listing[] = json?.data?.exclusive_products ?? json?.exclusive_products ?? [];
+            const empExclusivesRaw: Listing[] = json?.data?.emp_exclusive_products ?? json?.emp_exclusive_products ?? [];
+            const totalCount: number = json?.data?.counts?.total_count ?? json?.counts?.total_count ?? products.length;
 
-          setPool({ featured: featuredItems, new: newItems, used: usedItems });
-        } else {
-          // Non-indexed pages get one combined grid instead of a split.
-          const combined = buildFeaturedOrder(products, premiumsRaw, exclusivesRaw);
-          setPool({ featured: combined, new: [], used: [] });
-        }
+            if (totalCount === 0 && empExclusivesRaw.length > 0) {
+              // No products at all — fall back to the emp_exclusive_products pool
+              // so the page isn't empty, all shown with the Spotlight Van design.
+              const empItems = empExclusivesRaw.map((p) => ({ ...p, is_exclusive: true }));
+              setPool({ featured: empItems, new: [], used: [] });
+            } else if (resolvedIsIndexed) {
+              // Indexed pages split by slot_bucket into Featured/New/Used.
+              // Premium and exclusive vans always come from their own top-level
+              // arrays and only render on the Featured tab (position 3 =
+              // exclusive, 4-5 = premium).
+              const featuredSource = products.filter((p) => p.slot_bucket === "featured");
+              const featuredItems  = buildFeaturedOrder(featuredSource, premiumsRaw, exclusivesRaw);
+              const featuredIds    = new Set(featuredItems.map((p) => p.id));
 
-        handleTotalPages(json?.pagination?.total_pages ?? 1);
+              const newItems  = products.filter((p) => p.slot_bucket === "new"  && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
+              const usedItems = products.filter((p) => p.slot_bucket === "used" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
+
+              setPool({ featured: featuredItems, new: newItems, used: usedItems });
+            } else {
+              // Non-indexed pages get one combined grid instead of a split.
+              const combined = buildFeaturedOrder(products, premiumsRaw, exclusivesRaw);
+              setPool({ featured: combined, new: [], used: [] });
+            }
+
+            handleTotalPages(json?.pagination?.total_pages ?? 1);
+          });
       })
       .catch((err) => {
         console.warn('[StateHome] pool fetch failed, retaining existing data:', (err as any)?.message);
@@ -471,7 +465,7 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
       .finally(() => { if (!cancelled) setPoolLoading(false); });
 
     return () => { cancelled = true; };
-  }, [poolApiUrl, page, isIndexed, ready]);
+  }, [poolApiUrl, page, ready]);
 
   // Pre-warm the next page's pool-listings response in the background so the
   // Cloudflare Worker serves it from KV before the user clicks "Next".
@@ -670,6 +664,7 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
               showSpotlight={true}
               hideViewAll
               hideBanners={!!filters.make}
+              noResultsMessage="No caravans currently match this search. Try adjusting your filters."
             />
           )}
           <StateBrowseSection state={filters.state} region={filters.region} category={filters.category} initialData={browseData} />
@@ -802,6 +797,7 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
             showSpotlight={true}
             hideViewAll
             hideBanners={!!filters.make}
+            noResultsMessage="No caravans currently match this search. Try adjusting your filters."
           />
         )}
 
@@ -858,6 +854,7 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
         page={page}
         showSpotlight={true}
         hideViewAll
+        noResultsMessage="No caravans currently match this search. Try adjusting your filters."
         onTotalPages={(n) => setMaxPages((prev) => Math.max(prev, n))}
       />
 
