@@ -1,6 +1,42 @@
 import { cache } from "react";
-import { type ApiResponse, type Item } from "@/api/listings/api";
 import { parseSlugToFilters } from "@/app/components/urlBuilder";
+
+/** Local shapes for the pool_test response fields this file actually reads —
+ * kept here instead of importing from the (removed) old listings API module. */
+type Item = {
+  name: string;
+  make?: string;
+  model?: string;
+  link: string;
+  length?: string;
+  regular_price?: string;
+  sale_price?: string;
+  image?: string;
+  image_format?: string[];
+  categories?: string[];
+  axle?: string;
+};
+
+type ApiResponse = {
+  success?: boolean;
+  seo_v2?: {
+    h1?: string;
+    meta_title?: string;
+    meta_description?: string;
+    footer_description?: string;
+    faq?: string;
+  };
+  pagination?: {
+    total_products?: number;
+  };
+  data?: {
+    products?: Item[];
+    exclusive_products?: Item[];
+    emp_exclusive_products?: Item[];
+    premium_products?: Item[];
+  };
+  emp_exclusive_products?: Item[];
+};
 
 const BASE_URL = "https://www.caravansforsale.com.au";
 const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;

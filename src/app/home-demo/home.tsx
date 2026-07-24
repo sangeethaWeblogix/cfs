@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 
 import { type HomeBlogPost } from "@/api/home/api";
+import { type TypeCounts } from "@/api/homeApi/typeCounts/api";
 import HomeFeatured from "./HomeFeatured";
 import HomeStateSection from "./HomeStateSection";
 import HomeTypeSection from "./HomeTypeSection";
@@ -34,33 +35,21 @@ interface Item {
 }
 
 interface Props {
-  sleepBands: Item[];
-  regionBands: Item[];
-  manufactureBands: Item[];
-  atmBands: Item[];
-  lengthBands: Item[];
-  priceBands: Item[];
-  usedData: { by_category: Item[]; by_state: Item[]; by_region: Item[] };
   stateBands: Item[];
   requirements: any;
   homeblog: HomeBlogPost[];
+  typeCounts?: TypeCounts;
 }
 /* --------------------------------- Page ---------------------------------- */
 export default function HomePage({
-  sleepBands,
-  regionBands,
-  manufactureBands,
-  atmBands,
-  lengthBands,
-  priceBands,
-  usedData,
+
   stateBands,
   requirements,
-  homeblog,
-}: Props) {
-  const [usedCategoryList, setUsedCategoryList] = useState<Item[]>([]);
-  const [usedState, setUsedState] = useState<Item[]>([]);
-  const [usedRegion, setUsedRegion] = useState<Item[]>([]);
+    homeblog,
+  typeCounts,
+
+ }: Props) {
+   
   const [adIndex, setAdIndex] = useState<number>(0);
   // Fresh random seed (1-15) every page load/refresh — drives the backend's
   // randomized featured pick so the same visitor sees a different set each visit.
@@ -103,8 +92,7 @@ async function fetchClientIp(): Promise<string> {
     const res = await fetch("https://api.ipify.org?format=json");
     const data = await res.json();
     return data.ip || "";
-  } catch (err) {
-    console.error("[home] fetchClientIp failed:", err);
+  } catch {
     return "";
   }
 }
@@ -135,7 +123,7 @@ const handleBannerClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) =
     user_agent: navigator.userAgent,
     ip_address: clientIp,   // 👈 fix: hardcoded "" -> state value
   });
-  const trackUrl = `${process.env.NEXT_PUBLIC_CF7_BASE || "https://cfs.marketplacenetwork.com.au"}/wp-json/ads-manager/v1/banners/track`;
+  const trackUrl = `${process.env.NEXT_PUBLIC_CF7_BASE || "https://admin.caravansforsale.com.au"}/wp-json/ads-manager/v1/banners/track`;
   fetch(trackUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true })
     .catch((err) => console.error("[home] banner click tracking failed:", err));
 
@@ -332,7 +320,7 @@ const handleBannerClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) =
       </div>
 
       {/* ── Browse by Type ── */}
-      <HomeTypeSection />
+      <HomeTypeSection typeCounts={typeCounts} />
 
       {/* ── Find by Location ── */}
       <HomeLocationSection />

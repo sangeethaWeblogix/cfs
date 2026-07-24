@@ -1,6 +1,6 @@
 // utils/slugBuilter.ts
 import { toSlug } from "../../utils/seo/slug";
-import { Filters } from "../components/ListContent/Listings";
+import type { FilterState as Filters } from "@/app/listings/StateFilterBar";
 
 const conditionToSlug: Record<string, string> = {
   "near new": "near-new",

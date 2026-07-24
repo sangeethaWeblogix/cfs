@@ -1,12 +1,13 @@
  // app/410/page.tsx
 import "./page.css";
-import ListingsPage from "@/app/components/ListContent/Listings";
-import "../listings/listings.css";
-import "../components/ListContent/newList.css";
+import fs from "fs";
+import path from "path";
 import { headers } from "next/headers";
-import { parseSlugToFilters } from "@/app/components/urlBuilder";
-import { getCachedListings } from "@/api/listings/api";
-import { fetchProductList, fetchCategoryCounts, fetchMakeCounts } from "@/api/productList/api";
+import StateHome from "@/app/listings/home";
+import { parseDemoFilters, buildListingsSlug } from "@/app/listings/urlUtils";
+import { fetchBrowseSectionData } from "@/app/listings/fetchBrowseSectionData";
+import { fetchInitialPool } from "@/app/listings/fetchInitialPool";
+
 export const metadata = {
   title: "410 - Page Permanently Removed | Caravans For Sale",
   description:
@@ -14,12 +15,34 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
+// Cache the indexed-URL set for the lifetime of this server instance
+// (same approach as /listings/[[...slug]]/page.tsx — read once, never re-read).
+let _indexedPaths = null;
+function isPathIndexed(urlPath) {
+  if (!_indexedPaths) {
+    const csvPath = path.join(process.cwd(), "src", "app", "url.csv");
+    const raw = fs.readFileSync(csvPath, "utf-8");
+    const set = new Set();
+    for (const line of raw.split("\n").slice(1)) {
+      const u = line.split("\t")[1];
+      if (u) set.add(u.replace(/^https?:\/\/[^/]+/, "").trim().toLowerCase().replace(/\/+$/, ""));
+    }
+    _indexedPaths = set;
+  }
+  const normalized = urlPath.trim().toLowerCase().replace(/\/+$/, "");
+  return _indexedPaths.has(normalized);
+}
+
 export default async function GonePage() {
   // The middleware rewrites to /410/ but the original URL is still in x-pathname
   const headersList = await headers();
   const originalPathname = headersList.get("x-pathname") || "";
 
-  // Only attempt data fetch if this came from a /listings/... rewrite
+  // Defensive fallback only — in normal operation, /listings/... URLs with
+  // exclusive-only products are rewritten to /api/listings-410/ (which
+  // renders the real /listings/ page directly), never to /410/. If some
+  // other path ever lands here with real listing content, render it instead
+  // of the plain 410 UI.
   if (originalPathname.startsWith("/listings")) {
     try {
       const slugParts = originalPathname
@@ -27,29 +50,28 @@ export default async function GonePage() {
         .split("/")
         .filter(Boolean);
 
-      const filters = parseSlugToFilters(slugParts, {});
+      const initialFilters = parseDemoFilters(slugParts, {});
+      const canonicalPath = buildListingsSlug(initialFilters);
+      const isIndexed = isPathIndexed(canonicalPath);
 
-      const [response, productListData, initialCategoryCounts, initialMakeCounts] =
-        await Promise.all([
-          getCachedListings({ ...filters, page: 1 }),
-          fetchProductList(),
-          fetchCategoryCounts(),
-          fetchMakeCounts(),
-        ]);
+      const [browseData, initialPool] = await Promise.all([
+        fetchBrowseSectionData(initialFilters, isIndexed),
+        fetchInitialPool(initialFilters, isIndexed, 0),
+      ]);
 
-      const empExclusiveProducts = response?.data?.emp_exclusive_products;
-      const hasEmpExclusive =
-        Array.isArray(empExclusiveProducts) && empExclusiveProducts.length > 0;
+      const hasListings =
+        !!initialPool &&
+        (initialPool.featured.length > 0 ||
+          initialPool.new.length > 0 ||
+          initialPool.used.length > 0);
 
-      if (hasEmpExclusive) {
+      if (hasListings) {
         return (
-          <ListingsPage
-            initialData={response}
-            productListData={productListData}
-            initialCategoryCounts={initialCategoryCounts}
-            initialMakeCounts={initialMakeCounts}
-            initialDistances={{}}
-            page={1}
+          <StateHome
+            initialFilters={initialFilters}
+            browseData={browseData}
+            initialPool={initialPool}
+            serverIsIndexed={isIndexed}
           />
         );
       }

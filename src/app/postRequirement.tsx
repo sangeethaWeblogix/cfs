@@ -8,7 +8,7 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import { fetchRequirements, Requirement } from "@/api/postRquirements/api";
-   import '../app/home/main.css'
+   import '../app/home-demo/main.css'
 
 interface Props {
   requirements: Requirement[];
