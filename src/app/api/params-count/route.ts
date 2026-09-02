@@ -14,7 +14,7 @@ async function fetchFromWP(
   kvKey: string
 ): Promise<NextResponse> {
   const paramsStr = searchParams.toString();
-  const url = `https://admin.caravansforsale.com.au/wp-json/cfs/v1/params_count?${paramsStr}`;
+  const url = `https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/params_count?${paramsStr}`;
 
   console.log(`[params-count] KV MISS — falling back to WP | params="${paramsStr}" | kv_key="${kvKey}"`);
 

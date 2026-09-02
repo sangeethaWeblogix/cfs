@@ -27,7 +27,7 @@ const fetch = require('node-fetch');
 const fs    = require('fs');
 const path  = require('path');
 
-const WP_API_BASE       = process.env.WP_API_BASE       || 'https://admin.caravansforsale.com.au/wp-json/cfs/v1/sitemap';
+const WP_API_BASE       = process.env.WP_API_BASE       || 'https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/sitemap';
 const WP_STATIC_BASE    = process.env.WP_STATIC_BASE    || '';  // e.g. https://admin.caravansforsale.com.au/wp-content/uploads/cfs-paths
 const WP_API_KEY        = process.env.WP_API_KEY        || '';
 const PRODUCTION_DOMAIN = process.env.PRODUCTION_DOMAIN || 'https://www.caravansforsale.com.au';

@@ -10,7 +10,7 @@ type RouteParams = { slug: string };
 async function fetchBlogDetail(slug: string) {
   try {
     const res = await fetch(
-      `https://admin.caravansforsale.com.au/wp-json/cfs/v1/blog-detail-new/?slug=${encodeURIComponent(
+      `https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/blog-detail-new/?slug=${encodeURIComponent(
         slug
       )}`,
       { cache: "no-store", headers: { Accept: "application/json" } }

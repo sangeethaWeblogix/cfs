@@ -1,5 +1,6 @@
-const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
-const API_KEY = process.env.CFS_API_KEY; // ✅ Add this
+ const MPN_BLOG_BASE = process.env.MPN_API_BASE ?? "https://admin.marketplacenetwork.com.au/wp-json/mpn/v1";
+const MPN_API_KEY   = process.env.MPN_API_KEY;
+const PER_PAGE = 12;
 
 export interface BlogPost {
   id: number;
@@ -9,16 +10,6 @@ export interface BlogPost {
   image: string;
   slug: string;
   date: string;
-}
-
-export interface BlogApiResponse {
-  data: {
-    latest_blog_posts: {
-      items: BlogPost[];
-      current_page?: number;
-      total_pages?: number;
-    };
-  };
 }
 
 export type BlogPageResult = {
@@ -39,7 +30,7 @@ const fetchWithTimeout = async (url: string) => {
     return await fetch(url, {
       headers: {
         Accept: "application/json",
-        ...(API_KEY && { "X-API-Key": API_KEY }), // ✅ API key added
+        ...(MPN_API_KEY && { Authorization: `Bearer ${MPN_API_KEY}` }),
       },
       cache: "no-store",
       signal: controller.signal,
@@ -50,16 +41,11 @@ const fetchWithTimeout = async (url: string) => {
 };
 
 export const fetchBlogs = async (page: number = 1): Promise<BlogPageResult> => {
-  if (!API_BASE) {
-    console.error("❌ CFS_API_BASE env missing"); // ✅ Server log
-    return { items: [], currentPage: page, totalPages: 1, total_pages: 1, error: true };
-  }
-
-  const url = `${API_BASE}/blog?page=${page}`;
+  const url = `${MPN_BLOG_BASE}/blog?vehicle_type=caravans&per_page=${PER_PAGE}&page=${page}`;
 
   let lastErr: unknown;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    console.log(`[Blog API] GET ${url} (attempt ${attempt}/${MAX_ATTEMPTS})`); // ✅ Server terminal-ல் தெரியும்
+    console.log(`[Blog API] GET ${url} (attempt ${attempt}/${MAX_ATTEMPTS})`);
     try {
       const res = await fetchWithTimeout(url);
 
@@ -69,21 +55,24 @@ export const fetchBlogs = async (page: number = 1): Promise<BlogPageResult> => {
         continue;
       }
 
-      const raw = await res.text();
-      const idx = raw.indexOf('{"');
-      const data = JSON.parse(idx >= 0 ? raw.substring(idx) : raw) as BlogApiResponse;
+      const data = await res.json();
+      const posts: BlogPost[] = (data?.data ?? []).map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        excerpt: p.excerpt,
+        link: p.link,
+        image: p.featured_image ?? p.image ?? "",
+        slug: p.slug,
+        date: p.date,
+      }));
 
-      const lp = data?.data?.latest_blog_posts ?? {
-        items: [],
-        current_page: page,
-        total_pages: 1,
-      };
+      const totalPages = data?.meta?.total_pages ?? 1;
 
       return {
-        items: lp.items ?? [],
-        currentPage: lp.current_page ?? page,
-        totalPages: lp.total_pages ?? 1,
-        total_pages: lp.total_pages ?? 1,
+        items: posts,
+        currentPage: page,
+        totalPages,
+        total_pages: totalPages,
       };
     } catch (err) {
       console.error(`❌ fetchBlogs error (attempt ${attempt}/${MAX_ATTEMPTS}):`, err);

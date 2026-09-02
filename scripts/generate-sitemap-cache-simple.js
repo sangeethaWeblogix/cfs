@@ -479,7 +479,7 @@ function isErrorPage(html) {
 /**
  * Fetch page paths from the WordPress API for a given type.
  *
- * API: GET https://admin.caravansforsale.com.au/wp-json/cfs/v1/sitemap/{type}
+ * API: GET https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/sitemap/{type}
  * Response: { success, type, count, paths: ["family-category/", ...], generated_at }
  *
  * Each path is relative (e.g. "family-category/") and gets /listings/ prepended.

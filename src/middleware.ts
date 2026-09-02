@@ -36,7 +36,7 @@ const VALID_AU_STATES = new Set([
   'nsw', 'vic', 'qld', 'sa', 'wa', 'tas', 'nt', 'act',
 ]);
 
-const API_WP = 'https://admin.caravansforsale.com.au/wp-json/cfs/v1';
+const API_WP = 'https://admin.marketplacenetwork.com.au/wp-json/mpn/v1';
 
 
 
@@ -338,7 +338,7 @@ export async function middleware(request: NextRequest) {
         if (!cached.exists) return render410(request);
       } else {
         try {
-          const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE || 'https://admin.caravansforsale.com.au/wp-json/cfs/v1';
+          const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE || 'https://admin.marketplacenetwork.com.au/wp-json/mpn/v1';
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000);
           const apiRes = await fetch(
