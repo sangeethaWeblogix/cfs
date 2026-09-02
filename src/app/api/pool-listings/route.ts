@@ -1,27 +1,32 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+export const preferredRegion = "syd1";
+
 const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
 const API_KEY = process.env.CFS_API_KEY;
-
-// engine=typesense is appended whenever any filter beyond pagination is present.
-// If typesense returns products:[] (empty), we automatically fall back to the
-// WP native engine (same request without engine=typesense).
-const BASE_PARAM_KEYS = new Set([
-  "per_page", "orderby", "seed", "page",
-]);
 
 async function fetchPoolTest(url: string, signal: AbortSignal) {
   const res = await fetch(url, {
     signal,
     headers: {
       Accept: "application/json",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
       ...(API_KEY && { "X-API-Key": API_KEY }),
     },
     cache: "no-store",
   });
 
   const raw = await res.text();
+
+  // Detect SiteGround bot challenge
+  if (raw.includes("sgcaptcha") || raw.trimStart().startsWith("<html")) {
+    console.error(
+      `[WP API pool_test] BOT CHALLENGE blocked request | url="${url.substring(0, 120)}"`
+    );
+    return { res, data: null, raw, botChallenge: true };
+  }
+
   const jsonStart = raw.indexOf("{");
   const cleaned =
     jsonStart === -1 ? raw : jsonStart === 0 ? raw : raw.substring(jsonStart);
@@ -30,49 +35,30 @@ async function fetchPoolTest(url: string, signal: AbortSignal) {
   try {
     data = JSON.parse(cleaned);
   } catch {
+    console.error(`[WP API pool_test] JSON parse failed | url="${url.substring(0, 120)}" | preview="${raw.slice(0, 200)}"`);
     data = null;
   }
 
-  return { res, data, raw };
+  return { res, data, raw, botChallenge: false };
 }
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const params = searchParams.toString();
 
-  const hasRealFilter = [...searchParams.keys()].some((key) => !BASE_PARAM_KEYS.has(key));
-  const url = `${API_BASE}/pool_test?${params}${hasRealFilter ? `${params ? "&" : ""}engine=typesense` : ""}`;
+  // Forward all params directly to WP pool_test (SQL engine, no typesense).
+  const url = `${API_BASE}/pool_test?${params}`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
   const t0 = Date.now();
 
   try {
-    let { res, data, raw } = await fetchPoolTest(url, controller.signal);
+    const { res, data, raw, botChallenge } = await fetchPoolTest(url, controller.signal);
 
-    // Fallback: if typesense returned empty products, retry without engine=typesense
-    if (
-      hasRealFilter &&
-      res.ok &&
-      data &&
-      (data?.products?.length === 0 || data?.data?.products?.length === 0)
-    ) {
-      const fallbackUrl = `${API_BASE}/pool_test?${params}`;
-      console.log(`[WP API pool_test] typesense empty, falling back to WP engine | ${params.substring(0, 80)}`);
-      const controller2 = new AbortController();
-      const timeout2 = setTimeout(() => controller2.abort(), 30000);
-      try {
-        const fallback = await fetchPoolTest(fallbackUrl, controller2.signal);
-        clearTimeout(timeout2);
-        if (fallback.res.ok && fallback.data) {
-          res = fallback.res;
-          data = fallback.data;
-          raw = fallback.raw;
-        }
-      } catch (fbErr: any) {
-        clearTimeout(timeout2);
-        console.log("[WP API pool_test] fallback fetch error:", fbErr?.message);
-      }
+    if (botChallenge) {
+      clearTimeout(timeoutId);
+      return NextResponse.json({ success: false, error: "bot_challenge" }, { status: 503 });
     }
 
     clearTimeout(timeoutId);

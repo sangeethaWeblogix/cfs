@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   console.log("IPUA:", user_agent);
     // 🔥 Your existing API call (move here)
     await fetch(
-      "https://cfs.marketplacenetwork.com.au/wp-json/cfs/v1/update-impressions",
+      "https://admin.caravansforsale.com.au/wp-json/cfs/v1/update-impressions",
       {
         method: "POST",
          headers: {

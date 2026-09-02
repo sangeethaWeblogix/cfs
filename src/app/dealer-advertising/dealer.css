@@ -64,7 +64,7 @@
   padding: 50px 0;
 }
 .free_app_section .container .free_app_inner {
-  background-color: #2f2e2d;
+  background-color: #000000;
   border-radius: 30px;
   padding: 50px 50px;
   padding-bottom: 25px;
@@ -275,6 +275,30 @@
     margin-top: 20px;
     max-width: 100%;
   }
+}
+
+@media (max-width: 767px) {
+  .free_app_section .container .free_app_inner {
+    padding: 50px 20px 25px;
+  }
+  .free_app_section .why_box-1 {
+    border-right: none;
+  }
+  .banner_section .banner_text h1 {
+    font-size: 40px;
+        line-height: 50px;
+  }
+  .banner_section .banner_text h1 .no-color-text {
+    font-size: 20px;
+  }
+  .banner_section .banner_text p {
+    color: #1c1c1c;
+    font-size: 17px;
+}
+.top_cta {padding:20px 20px;}
+.special_txt {    margin: 10px -20px -20px;}
+.accordion .btn {text-align:left;}
+.pricing-grid {    margin-bottom: 25px;}
 }
 
 .box-content {

@@ -1,4 +1,4 @@
- import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { parseSlugToFilters, type Filters } from "@/app/components/urlBuilder";
 import { buildSlugFromFilters } from "@/app/components/slugBuilter";
 import { isAllowedSingleBand } from "@/utils/seo/band-utils";
@@ -145,7 +145,7 @@ async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest)
     const slugParts = url.pathname.replace("/listings", "").split("/").filter(Boolean);
     const filters = parseSlugToFilters(slugParts, Object.fromEntries(url.searchParams));
     const apiParams = buildApiParams(filters);
-    const apiUrl = `${API_WP}/pool_test?${apiParams.toString()}&engine=typesense`;
+    const apiUrl = `${API_WP}/pool_test?${apiParams.toString()}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
     const apiRes = await fetch(apiUrl, {
@@ -357,13 +357,19 @@ export async function middleware(request: NextRequest) {
             return render410(request);
           }
           const rawText = await apiRes.text();
-          const jsonIdx = rawText.indexOf('{"');
-          const data = JSON.parse(jsonIdx >= 0 ? rawText.substring(jsonIdx) : rawText);
-          if (!data || Object.keys(data).length === 0) {
-            productCache.set(cacheKey, { exists: false, expires: Date.now() + CACHE_TTL });
-            return render410(request);
+          const isChallenge = rawText.includes('sgcaptcha') || rawText.includes('well-known') || !rawText.includes('{"');
+          if (isChallenge) {
+            // WP origin bot-challenge (HTML page returned with 200 OK) — not a real
+            // "product missing" signal, don't cache/410 off it; let the page component handle it.
+          } else {
+            const jsonIdx = rawText.indexOf('{"');
+            const data = JSON.parse(jsonIdx >= 0 ? rawText.substring(jsonIdx) : rawText);
+            if (!data || Object.keys(data).length === 0) {
+              productCache.set(cacheKey, { exists: false, expires: Date.now() + CACHE_TTL });
+              return render410(request);
+            }
+            productCache.set(cacheKey, { exists: true, expires: Date.now() + CACHE_TTL });
           }
-          productCache.set(cacheKey, { exists: true, expires: Date.now() + CACHE_TTL });
         } catch (error: any) {
           if (error?.name !== 'AbortError') {
             console.error('Middleware product 410 check error:', error);
@@ -435,7 +441,7 @@ export async function middleware(request: NextRequest) {
         // Build API params using the same mapping as fetchListings (api/listings/api.ts).
         // Raw filter keys (minKg, maxKg, sleeps) must be converted to API names (from_atm, to_atm, sleep).
         const apiParams = buildApiParams(filters);
-        const apiUrl = `${API_WP}/pool_test?${apiParams.toString()}&engine=typesense`;
+        const apiUrl = `${API_WP}/pool_test?${apiParams.toString()}`;
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);

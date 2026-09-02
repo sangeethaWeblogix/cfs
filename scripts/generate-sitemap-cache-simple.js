@@ -221,6 +221,202 @@ async function uploadToKV(key, value, metadata = null) {
   return false;
 }
 
+// ============================================
+// POOL DATA PRE-LOADING (ported from generate-affected-html-cache.js)
+//
+// WHY THIS EXISTS: home.tsx renders sections like "Browse by Region",
+// the SEO description paragraph, and the FAQ block conditionally on client
+// -side state (isIndexed) that is normally resolved asynchronously via
+// /api/indexed-url/ AFTER hydration. A plain fetch() of the page (no browser,
+// no JS execution) captures the HTML BEFORE that async resolution happens —
+// so without this pre-load step, the cached snapshot permanently freezes in
+// the "not yet resolved" state and those sections never render for visitors
+// served straight from KV.
+//
+// Confirmed via side-by-side test: the same Central Coast region URL was
+// missing Browse-by-Region / description / FAQ when cached by this script,
+// and rendered correctly when cached by generate-affected-html-cache.js
+// (which has this pre-load step). Porting it here fixes the weekly
+// full-site rebuild and the manual post-deploy warmup-urls job.
+// ============================================
+
+/**
+ * Parse a /listings/… path into pool-listings API query params.
+ * Mirrors the parameter order of buildApiUrl() in src/app/listings/urlUtils.ts
+ * AND the slug parsing logic of parseSlugToFilters() in src/app/components/urlBuilder.ts
+ * so the injected URL matches what home.tsx constructs at runtime.
+ *
+ * MUST stay identical to buildPoolRequestUrl() in generate-affected-html-cache.js.
+ */
+function buildPoolRequestUrl(urlPath, seed) {
+  let s = urlPath;
+  if (s.startsWith('/listings/')) s = s.substring(10);
+  s = s.replace(/^\/+|\/+$/g, '');
+  const segments = s.split('/').filter(Boolean);
+
+  let category, condition, state, region, suburb, pincode;
+  let fromPrice, toPrice, minKg, maxKg, fromLength, toLength;
+  let fromSleep, toSleep, fromYear, toYear, make, model;
+
+  const hasReservedSuffix = (seg) =>
+    /-(category|condition|state|region|suburb)$/.test(seg) ||
+    /-(kg-atm|length-in-feet|people-sleeping-capacity)$/.test(seg) ||
+    /^over-\d+/.test(seg) || /^under-\d+/.test(seg) || /^between-/.test(seg) ||
+    /^\d{4}$/.test(seg) || seg.includes('-caravans-range');
+
+  for (const seg of segments) {
+    if (seg.endsWith('-category')) {
+      category = seg.replace('-category', '');
+    } else if (seg.endsWith('-condition')) {
+      const raw = seg.replace('-condition', '').toLowerCase();
+      condition = raw === 'new' ? 'New' : raw === 'used' ? 'Used' : raw;
+    } else if (seg.endsWith('-state')) {
+      state = seg.replace('-state', '').replace(/-/g, ' ').toLowerCase();
+    } else if (seg.endsWith('-region')) {
+      region = seg.replace('-region', '').replace(/-/g, ' ').toLowerCase();
+    } else if (/^([a-z0-9-]+)-(\d{4})-suburb$/.test(seg)) {
+      const m = seg.match(/^([a-z0-9-]+)-(\d{4})-suburb$/);
+      suburb = m[1].replace(/-/g, ' ').toLowerCase();
+      pincode = m[2];
+    } else if (seg.endsWith('-suburb')) {
+      suburb = seg.replace(/-suburb$/, '').replace(/-/g, ' ').toLowerCase();
+    } else if (/^\d{4}$/.test(seg)) {
+      pincode = seg;
+    } else if (seg.includes('-kg-atm')) {
+      const between = seg.match(/^between-(\d+)-kg-(\d+)-kg-atm$/);
+      if (between) { minKg = between[1]; maxKg = between[2]; }
+      else {
+        const over = seg.match(/^over-(\d+)-kg-atm$/);
+        if (over) minKg = over[1];
+        else { const under = seg.match(/^under-(\d+)-kg-atm$/); if (under) maxKg = under[1]; }
+      }
+    } else if (seg.includes('length-in-feet')) {
+      const between = seg.match(/^between-(\d+)-(\d+)-length-in-feet$/);
+      if (between) { fromLength = between[1]; toLength = between[2]; }
+      else {
+        const over = seg.match(/^over-(\d+)-length-in-feet$/);
+        if (over) fromLength = over[1];
+        else { const under = seg.match(/^under-(\d+)-length-in-feet$/); if (under) toLength = under[1]; }
+      }
+    } else if (seg.includes('-people-sleeping-capacity')) {
+      const between = seg.match(/^between-(\d+)-(\d+)-people-sleeping-capacity$/);
+      if (between) { fromSleep = between[1]; toSleep = between[2]; }
+      else {
+        const over = seg.match(/^over-(\d+)-people-sleeping-capacity$/);
+        if (over) fromSleep = over[1];
+        else {
+          const under = seg.match(/^under-(\d+)-people-sleeping-capacity$/);
+          if (under) toSleep = under[1];
+          else {
+            const single = seg.match(/^(\d+)-people-sleeping-capacity$/);
+            if (single) { fromSleep = single[1]; toSleep = single[1]; }
+          }
+        }
+      }
+    } else if (/^over-\d+$/.test(seg)) {
+      fromPrice = seg.replace('over-', '');
+    } else if (/^under-\d+$/.test(seg)) {
+      toPrice = seg.replace('under-', '');
+    } else if (/^between-\d+-\d+$/.test(seg)) {
+      const m = seg.match(/between-(\d+)-(\d+)/);
+      if (m) { fromPrice = m[1]; toPrice = m[2]; }
+    } else if (seg.includes('-caravans-range')) {
+      const both = seg.match(/^(\d{4})-(\d{4})-caravans-range$/);
+      if (both) { fromYear = both[1]; toYear = both[2]; }
+      else {
+        const from = seg.match(/^year-from-(\d{4})-caravans-range$/);
+        if (from) fromYear = from[1];
+        else { const to = seg.match(/^year-to-(\d{4})-caravans-range$/); if (to) toYear = to[1]; }
+      }
+    } else if (!hasReservedSuffix(seg) && isNaN(Number(seg))) {
+      // make / model fallback (same as urlBuilder.ts)
+      if (!make) make = seg;
+      else if (!model) model = seg;
+    }
+  }
+
+  // Build params in same order as buildApiUrl() so the string matches exactly
+  const params = new URLSearchParams();
+  params.set('orderby', 'default');
+  params.set('seed', String(seed));
+  if (state)      params.set('state',             state);
+  if (category)   params.set('category',          category);
+  if (make)       params.set('make',              make);
+  if (model)      params.set('model',             model);
+  if (region)     params.set('region',            region);
+  if (suburb)     params.set('suburb',            suburb);
+  if (pincode)    params.set('pincode',           pincode);
+  if (fromPrice)  params.set('from_price',        fromPrice);
+  if (toPrice)    params.set('to_price',          toPrice);
+  if (minKg)      params.set('from_atm',          minKg);
+  if (maxKg)      params.set('to_atm',            maxKg);
+  if (fromSleep)  params.set('from_sleep',        fromSleep);
+  if (toSleep)    params.set('to_sleep',          toSleep);
+  if (fromYear)   params.set('acustom_fromyears', fromYear);
+  if (toYear)     params.set('acustom_toyears',   toYear);
+  if (fromLength) params.set('from_length',       fromLength);
+  if (toLength)   params.set('to_length',         toLength);
+  if (condition)  params.set('condition',         condition);
+
+  // MUST match per_page=21 used by buildApiUrl() in src/app/listings/urlUtils.ts
+  // (called from home.tsx as buildApiUrl("/api/pool-listings/?per_page=21", ...)).
+  // home.tsx only consumes the preloaded PRODUCT data if preload.url === requestUrl
+  // — an exact string match including per_page. Getting this wrong doesn't break
+  // is_indexed/seo_v2 (those are read unconditionally, no URL match needed) but
+  // silently defeats the product-preload optimisation, forcing a live re-fetch.
+  return `/api/pool-listings/?per_page=21&${params.toString()}&page=1`;
+}
+
+/**
+ * Check whether a /listings/ path is in url.csv's curated indexed set by
+ * calling the Vercel /api/indexed-url/ endpoint. Returns true/false, or null
+ * on any error (caller will omit is_indexed from the preload and let the
+ * client-side async check handle it as before).
+ *
+ * MUST stay identical to fetchIsIndexed() in generate-affected-html-cache.js.
+ */
+async function fetchIsIndexed(urlPath) {
+  const fetchUrl = `${VERCEL_BASE_URL}/api/indexed-url/?path=${encodeURIComponent(urlPath)}`;
+  try {
+    const res = await fetchWithTimeout(fetchUrl, {
+      headers: { 'User-Agent': 'CFS-CacheGenerator/3.0', 'Accept': 'application/json' },
+    }, 10000);
+    if (!res.ok) return null;
+    const json = await res.json();
+    return typeof json?.indexed === 'boolean' ? json.indexed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch pool-listings JSON for one variant and return the object to embed,
+ * or null on any error (HTML will still be cached without pre-loaded data).
+ */
+async function fetchPoolData(urlPath, seed) {
+  const requestUrl = buildPoolRequestUrl(urlPath, seed);
+  const fetchUrl = `${VERCEL_BASE_URL}${requestUrl}`;
+  try {
+    const res = await fetchWithTimeout(fetchUrl, {
+      headers: { 'User-Agent': 'CFS-CacheGenerator/3.0', 'Accept': 'application/json' },
+    }, 15000);
+    if (!res.ok) {
+      console.log(`   [pool-fetch] HTTP ${res.status} for ${requestUrl}`);
+      return null;
+    }
+    const json = await res.json();
+    const products = json?.data?.products ?? json?.products ?? [];
+    if (!products.length) {
+      console.log(`   [pool-fetch] empty products for ${requestUrl}`);
+      return null;
+    }
+    return { url: requestUrl, json };
+  } catch (e) {
+    console.log(`   [pool-fetch] error for ${requestUrl}: ${e.message}`);
+    return null;
+  }
+}
+
 function injectPerformanceTags(html) {
   const imageOptimizations = `
     <link rel="dns-prefetch" href="https://caravansforsale.imagestack.net" />
@@ -283,7 +479,7 @@ function isErrorPage(html) {
 /**
  * Fetch page paths from the WordPress API for a given type.
  *
- * API: GET https://cfs.marketplacenetwork.com.au/wp-json/cfs/v1/sitemap/{type}
+ * API: GET https://admin.caravansforsale.com.au/wp-json/cfs/v1/sitemap/{type}
  * Response: { success, type, count, paths: ["family-category/", ...], generated_at }
  *
  * Each path is relative (e.g. "family-category/") and gets /listings/ prepended.
@@ -453,7 +649,7 @@ async function runDiagnosticFetch(testPath) {
   console.log('='.repeat(70) + '\n');
 }
 
-async function generatePageVariant(urlData, variantNumber) {
+async function generatePageVariant(urlData, variantNumber, isIndexed) {
   const { path } = urlData;
   const slug = convertPathToSlug(path);
 
@@ -520,6 +716,25 @@ async function generatePageVariant(urlData, variantNumber) {
     // Noindex pages carry a robots meta tag; index/follow pages have no meta robots tag at all.
 
     html = injectPerformanceTags(html);
+
+    // Fetch pool-listings data for this variant and embed it into the HTML
+    // so home.tsx can render products AND initialise isIndexed correctly on
+    // hydration, without waiting on a client-side API round trip. This is
+    // what makes Browse-by-Region, the SEO description, and the FAQ block
+    // render in the cached snapshot — see the block comment above
+    // buildPoolRequestUrl() for the full explanation.
+    const poolData = await fetchPoolData(path, variantNumber);
+    if (poolData) {
+      if (isIndexed !== null) poolData.is_indexed = isIndexed;
+      const poolJson = JSON.stringify(poolData).replace(/<\/script>/gi, '<\\/script>');
+      html = html.replace('</head>', `<script>window.__INITIAL_POOL__ = ${poolJson};</script>\n</head>`);
+      const _regularCount   = (poolData.json?.data?.products ?? poolData.json?.products ?? []).length;
+      const _exclusiveCount = (poolData.json?.data?.exclusive_products ?? poolData.json?.exclusive_products ?? []).length;
+      const _premiumCount   = (poolData.json?.data?.premium_products ?? poolData.json?.premium_products ?? []).length;
+      console.log(`   📦 Pool pre-loaded (${_regularCount} regular + ${_exclusiveCount} exclusive + ${_premiumCount} premium)`);
+    } else {
+      console.log(`   ⚠️  Pool pre-load skipped (no data) — ${path} seed=${variantNumber}`);
+    }
 
     const sizeKB = Math.round(html.length / 1024);
     console.log(`   ⬆️  Uploading (${sizeKB}KB)...`);
@@ -636,13 +851,32 @@ async function main() {
     console.log(`   Source type: ${urlData.sourceType}`);
     console.log('-'.repeat(70));
 
+    // Fetch isIndexed once per URL (same for all variants) — avoids 7x
+    // redundant calls and lets home.tsx initialise isIndexed state correctly
+    // from the preload instead of via a client-side async re-check.
+    const isIndexed = await fetchIsIndexed(urlData.path);
+    if (isIndexed !== null) {
+      console.log(`   [isIndexed] ${urlData.path} -> ${isIndexed}`);
+    }
+
+    // Noindex pages (0-result combos, band-only pages, etc.) must never be
+    // stored in the KV HTML cache — they change frequently and a stale
+    // cached copy would show wrong content. Fall through to Vercel origin.
+    if (isIndexed === false) {
+      console.log(`   ⏭️  Skipping all variants — noindex page, not caching in KV`);
+      results.skipped_error += VARIANTS_PER_URL;
+      totalProcessed += VARIANTS_PER_URL;
+      await new Promise(r => setTimeout(r, DELAY_BETWEEN_URLS));
+      continue;
+    }
+
     for (let variant = 1; variant <= VARIANTS_PER_URL; variant++) {
       totalProcessed++;
       const overallProgress = Math.round((totalProcessed / (allUrls.length * VARIANTS_PER_URL)) * 100);
 
       console.log(`\n[Variant ${variant}/${VARIANTS_PER_URL}] Overall: ${totalProcessed}/${allUrls.length * VARIANTS_PER_URL} (${overallProgress}%)`);
 
-      const result = await generatePageVariant(urlData, variant);
+      const result = await generatePageVariant(urlData, variant, isIndexed);
 
       if (result.status === 'success') {
         results.success++;

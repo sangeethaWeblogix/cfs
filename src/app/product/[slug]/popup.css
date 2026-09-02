@@ -96,8 +96,22 @@
   align-items: center;
   justify-content: center;
   background: #000000;
+  position: relative;
+  overflow: hidden;
 }
-.cfs-modal-swiper .swiper-slide img {
+
+.cfs-slide-blur-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(20px);
+  transform: scale(1.1);
+  opacity: 0.45;
+  z-index: 0;
+}
+.cfs-img-zoom-wrap img {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -120,15 +134,56 @@
   color: #ffffff;
 }
 
-/* Image counter */
+/* Image counter + zoom bar */
 .cfs-modal-counter {
   flex-shrink: 0;
-  padding: 8px 24px;
+  padding: 8px 16px 8px 24px;
   color: #ffffff;
   font-size: 13px;
-  text-align: left;
   background: #000000;
   border-top: 1px solid #181818;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cfs-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.cfs-zoom-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #fff;
+  border-radius: 4px;
+  height: 30px;
+  min-width: 30px;
+  padding: 0 10px;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.cfs-zoom-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.5);
+}
+.cfs-zoom-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.cfs-zoom-reset { font-size: 12px; letter-spacing: 0.3px; }
+.cfs-img-zoom-wrap {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+  will-change: transform;
 }
 
 /* ── Right: form panel ───────────────────────────────────────────────── */
@@ -324,12 +379,16 @@
   align-items: center;
   justify-content: center;
   background: #000;
+  position: relative;
+  overflow: hidden;
 }
-.cfs-fs-swiper .swiper-slide img {
+.cfs-fs-swiper .swiper-slide img:not(.cfs-slide-blur-bg) {
   width: 100%;
   height: 100%;
   object-fit: contain;
   touch-action: pinch-zoom;
+  position: relative;
+  z-index: 1;
 }
 .cfs-fs-swiper .swiper-button-prev,
 .cfs-fs-swiper .swiper-button-next {
@@ -342,11 +401,13 @@
 }
 .cfs-fs-counter {
   flex-shrink: 0;
-  padding: 10px 16px;
+  padding: 8px 16px;
   color: #ccc;
   font-size: 14px;
-  text-align: left;
   background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────── */

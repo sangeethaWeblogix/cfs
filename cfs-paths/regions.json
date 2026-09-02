@@ -1,14 +1,14 @@
 {
     "success": true,
     "type": "regions",
-    "count": 49,
+    "count": 46,
     "paths": [
         "australian-capital-territory-state/australian-capital-territory-region/",
-        "new-south-wales-state/capital-region/",
         "new-south-wales-state/central-coast-region/",
         "new-south-wales-state/central-west-region/",
         "new-south-wales-state/coffs-harbour-region/",
         "new-south-wales-state/hunter-region/",
+        "new-south-wales-state/hunter-valley-exc-newcastle-region/",
         "new-south-wales-state/illawarra-region/",
         "new-south-wales-state/mid-north-coast-region/",
         "new-south-wales-state/murray-region/",
@@ -21,7 +21,6 @@
         "new-south-wales-state/sydney-region/",
         "northern-territory-state/darwin-region/",
         "queensland-state/brisbane-region/",
-        "queensland-state/central-queensland-region/",
         "queensland-state/gold-coast-region/",
         "queensland-state/ipswich-region/",
         "queensland-state/logan-beaudesert-region/",
@@ -33,7 +32,6 @@
         "queensland-state/townsville-region/",
         "queensland-state/wide-bay-region/",
         "south-australia-state/adelaide-region/",
-        "south-australia-state/south-australia-outback-region/",
         "south-australia-state/south-australia-south-east-region/",
         "tasmania-state/hobart-region/",
         "tasmania-state/launceston-region/",
@@ -48,10 +46,9 @@
         "victoria-state/north-west-region/",
         "victoria-state/shepparton-region/",
         "victoria-state/warrnambool-and-south-west-region/",
-        "western-australia-state/bunbury-region/",
         "western-australia-state/mandurah-region/",
         "western-australia-state/perth-region/",
         "western-australia-state/western-australia-outback-south-region/"
     ],
-    "generated_at": "2026-07-17 15:53:54"
+    "generated_at": "2026-08-22 15:43:42"
 }

@@ -37,11 +37,12 @@ async function fetchGroupCounts(groupBy: string, scope: Record<string, string>):
 
 async function fetchBandCount(scope: Record<string, string>, query: string): Promise<number> {
   try {
-    const qs = new URLSearchParams({ per_page: "1", ...scope });
-    const res = await fetch(`/api/pool-listings/?${qs.toString()}&${query}`, { cache: "no-store" });
+    const qs = new URLSearchParams(scope);
+    new URLSearchParams(query).forEach((v, k) => qs.set(k, v));
+    const res = await fetch(`/api/product-exists-check/?${qs.toString()}`);
     if (!res.ok) return 0;
     const json = await res.json();
-    return json?.data?.pagination?.total_products ?? json?.pagination?.total_products ?? 0;
+    return json?.count ?? (json?.exists ? 1 : 0);
   } catch {
     return 0;
   }
@@ -186,7 +187,7 @@ export default function StateBrowseSection({ state, region, category, initialDat
 
   const renderFilterCols = (panels: { icon: string; title: string; links: { text: string; href: string }[] }[], rowClass: string) => (
     <div className={`lsd-browse__row2 ${rowClass}`}>
-      {panels.map((p) => (
+      {panels.filter((p) => p.links.length > 0).map((p) => (
         <div key={p.title} className="lsd-browse__filter-col">
           <div className="lsd-browse__filter-head">
             <Image src={p.icon} alt={p.title} width={20} height={20} unoptimized />
@@ -221,56 +222,73 @@ export default function StateBrowseSection({ state, region, category, initialDat
 
     const pricePanel = bandPanel(`/listings/${category}-category`, PRICE_BANDS, priceCounts);
 
+    const showStatePanel  = stateCounts === null || statePanel.length > 0;
+    const showRegionPanel = regionCounts === null || regionPanel.length > 0;
+    const showMakePanel   = makeCounts === null || makePanel.length > 0;
+    const showPricePanel  = pricePanel.length > 0;
+
     return (
       <section className="lsd-browse">
         <div className="container">
 
-          <div className="lsd-browse__row1">
-            <div className="lsd-browse__panel">
-              <h3 className="lsd-browse__panel-title">{`Browse ${label} Caravans by State`}</h3>
-              <div className="lsd-browse__pills">
-                {statePanel.map((s) => (
-                  <a key={s.text} href={s.href} className="lsd-browse__pill">{s.text}</a>
-                ))}
-              </div>
-            </div>
+          {(showStatePanel || showRegionPanel) && (
+            <div className="lsd-browse__row1">
+              {showStatePanel && (
+                <div className="lsd-browse__panel">
+                  <h3 className="lsd-browse__panel-title">{`Browse ${label} Caravans by State`}</h3>
+                  <div className="lsd-browse__pills">
+                    {statePanel.map((s) => (
+                      <a key={s.text} href={s.href} className="lsd-browse__pill">{s.text}</a>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-            <div className="lsd-browse__divider-v" />
+              {showStatePanel && showRegionPanel && <div className="lsd-browse__divider-v" />}
 
-            <div className="lsd-browse__panel">
-              <h3 className="lsd-browse__panel-title">{`Browse ${label} Caravans by Popular Region`}</h3>
-              <div className="lsd-browse__pills">
-                {regionPanel.map((r) => (
-                  <a key={r.text} href={r.href} className="lsd-browse__pill">{r.text}</a>
-                ))}
-              </div>
+              {showRegionPanel && (
+                <div className="lsd-browse__panel">
+                  <h3 className="lsd-browse__panel-title">{`Browse ${label} Caravans by Popular Region`}</h3>
+                  <div className="lsd-browse__pills">
+                    {regionPanel.map((r) => (
+                      <a key={r.text} href={r.href} className="lsd-browse__pill">{r.text}</a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
-          <div className="lsd-browse__row2 lsd-browse__row2--half">
-            <div className="lsd-browse__filter-col">
-              <div className="lsd-browse__filter-head">
-                <Image src="/images/category.svg" alt="Popular Make" width={20} height={20} unoptimized />
-                <span className="lsd-browse__filter-title">{`Browse ${label} Caravans by Popular Manufacturers`}</span>
-              </div>
-              <div className={`lsd-browse__pills${makePanel.length > 12 ? " lsd-browse__pills--scroll" : ""}`}>
-                {makeCounts === null ? pillSkeleton() : makePanel.map((l) => (
-                  <a key={l.text} href={l.href} className="lsd-browse__pill">{l.text}</a>
-                ))}
-              </div>
+          {(showMakePanel || showPricePanel) && (
+            <div className="lsd-browse__row2 lsd-browse__row2--half">
+              {showMakePanel && (
+                <div className="lsd-browse__filter-col">
+                  <div className="lsd-browse__filter-head">
+                    <Image src="/images/category.svg" alt="Popular Make" width={20} height={20} unoptimized />
+                    <span className="lsd-browse__filter-title">{`Browse ${label} Caravans by Popular Manufacturers`}</span>
+                  </div>
+                  <div className={`lsd-browse__pills${makePanel.length > 12 ? " lsd-browse__pills--scroll" : ""}`}>
+                    {makeCounts === null ? pillSkeleton() : makePanel.map((l) => (
+                      <a key={l.text} href={l.href} className="lsd-browse__pill">{l.text}</a>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {showPricePanel && (
+                <div className="lsd-browse__filter-col">
+                  <div className="lsd-browse__filter-head">
+                    <Image src="/images/Budget.png" alt="Price" width={20} height={20} unoptimized />
+                    <span className="lsd-browse__filter-title">{`Browse ${label} Caravans by Price`}</span>
+                  </div>
+                  <div className="lsd-browse__filter-links">
+                    {pricePanel.map((l) => (
+                      <a key={l.text} href={l.href} className="lsd-browse__filter-link">{l.text}</a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="lsd-browse__filter-col">
-              <div className="lsd-browse__filter-head">
-                <Image src="/images/Budget.png" alt="Price" width={20} height={20} unoptimized />
-                <span className="lsd-browse__filter-title">{`Browse ${label} Caravans by Price`}</span>
-              </div>
-              <div className="lsd-browse__filter-links">
-                {pricePanel.map((l) => (
-                  <a key={l.text} href={l.href} className="lsd-browse__filter-link">{l.text}</a>
-                ))}
-              </div>
-            </div>
-          </div>
+          )}
 
         </div>
       </section>
@@ -304,31 +322,40 @@ export default function StateBrowseSection({ state, region, category, initialDat
       { icon: "/images/Sleeping.png", title: `Browse Caravans by Sleeping Capacity in ${regionName}`, links: bandPanel(basePath, SLEEP_BANDS, sleepCounts) },
     ];
 
+    const showMakePanel     = makeCounts === null || makePanel.length > 0;
+    const showCategoryPanel = categoryCounts === null || categoryPanel.length > 0;
+
     return (
       <section className="lsd-browse">
         <div className="container">
 
-          <div className="lsd-browse__row1">
-            <div className="lsd-browse__panel">
-              <h3 className="lsd-browse__panel-title">{`Browse Caravans by Popular Manufacturers in ${regionName}`}</h3>
-              <div className="lsd-browse__pills">
-                {makeCounts === null ? pillSkeleton() : makePanel.map((m) => (
-                  <a key={m.text} href={m.href} className="lsd-browse__pill">{m.text}</a>
-                ))}
-              </div>
-            </div>
+          {(showMakePanel || showCategoryPanel) && (
+            <div className="lsd-browse__row1">
+              {showMakePanel && (
+                <div className="lsd-browse__panel">
+                  <h3 className="lsd-browse__panel-title">{`Browse Caravans by Popular Manufacturers in ${regionName}`}</h3>
+                  <div className="lsd-browse__pills">
+                    {makeCounts === null ? pillSkeleton() : makePanel.map((m) => (
+                      <a key={m.text} href={m.href} className="lsd-browse__pill">{m.text}</a>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-            <div className="lsd-browse__divider-v" />
+              {showMakePanel && showCategoryPanel && <div className="lsd-browse__divider-v" />}
 
-            <div className="lsd-browse__panel">
-              <h3 className="lsd-browse__panel-title">{`Browse Caravans by Type in ${regionName}`}</h3>
-              <div className="lsd-browse__pills">
-                {categoryPanel.map((c) => (
-                  <a key={c.text} href={c.href} className="lsd-browse__pill">{c.text}</a>
-                ))}
-              </div>
+              {showCategoryPanel && (
+                <div className="lsd-browse__panel">
+                  <h3 className="lsd-browse__panel-title">{`Browse Caravans by Type in ${regionName}`}</h3>
+                  <div className="lsd-browse__pills">
+                    {categoryPanel.map((c) => (
+                      <a key={c.text} href={c.href} className="lsd-browse__pill">{c.text}</a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
           {renderFilterCols(panels, "lsd-browse__row2--three")}
 
@@ -358,31 +385,40 @@ export default function StateBrowseSection({ state, region, category, initialDat
       { icon: "/images/Sleeping.png", title: `Browse ${label} Caravans by Sleeping Capacity in ${stateName}`, links: bandPanel(basePath, SLEEP_BANDS, sleepCounts) },
     ];
 
+    const showRegionPanel = regionCounts === null || regionPanel.length > 0;
+    const showMakePanel   = makeCounts === null || makePanel.length > 0;
+
     return (
       <section className="lsd-browse">
         <div className="container">
 
-          <div className="lsd-browse__row1">
-            <div className="lsd-browse__panel">
-              <h3 className="lsd-browse__panel-title">{`Browse ${label} Caravans by Region in ${stateName}`}</h3>
-              <div className="lsd-browse__pills">
-                {regionCounts === null ? pillSkeleton() : regionPanel.map((r) => (
-                  <a key={r.text} href={r.href} className="lsd-browse__pill">{r.text}</a>
-                ))}
-              </div>
-            </div>
+          {(showRegionPanel || showMakePanel) && (
+            <div className="lsd-browse__row1">
+              {showRegionPanel && (
+                <div className="lsd-browse__panel">
+                  <h3 className="lsd-browse__panel-title">{`Browse ${label} Caravans by Region in ${stateName}`}</h3>
+                  <div className="lsd-browse__pills">
+                    {regionCounts === null ? pillSkeleton() : regionPanel.map((r) => (
+                      <a key={r.text} href={r.href} className="lsd-browse__pill">{r.text}</a>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-            <div className="lsd-browse__divider-v" />
+              {showRegionPanel && showMakePanel && <div className="lsd-browse__divider-v" />}
 
-            <div className="lsd-browse__panel">
-              <h3 className="lsd-browse__panel-title">{`Browse ${label} Caravans by Popular Manufacturers in ${stateName}`}</h3>
-              <div className={`lsd-browse__pills${makePanel.length > 12 ? " lsd-browse__pills--scroll" : ""}`}>
-                {makeCounts === null ? pillSkeleton() : makePanel.map((m) => (
-                  <a key={m.text} href={m.href} className="lsd-browse__pill">{m.text}</a>
-                ))}
-              </div>
+              {showMakePanel && (
+                <div className="lsd-browse__panel">
+                  <h3 className="lsd-browse__panel-title">{`Browse ${label} Caravans by Popular Manufacturers in ${stateName}`}</h3>
+                  <div className={`lsd-browse__pills${makePanel.length > 12 ? " lsd-browse__pills--scroll" : ""}`}>
+                    {makeCounts === null ? pillSkeleton() : makePanel.map((m) => (
+                      <a key={m.text} href={m.href} className="lsd-browse__pill">{m.text}</a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
           {renderFilterCols(panels, "")}
 
@@ -409,16 +445,22 @@ export default function StateBrowseSection({ state, region, category, initialDat
       { icon: "/images/Sleeping.png", title: `Browse ${label} Caravans by Sleeping Capacity in ${regionName}`, links: bandPanel(basePath, SLEEP_BANDS, sleepCounts) },
     ];
 
+    const showMakePanel = makeCounts === null || makePanel.length > 0;
+
     return (
       <section className="lsd-browse">
         <div className="container">
 
-          <h3 className="lsd-browse__panel-title">{`Browse ${label} Caravans by Popular Manufacturers in ${regionName}`}</h3>
-          <div className="lsd-browse__pills" style={{ marginBottom: 20 }}>
-            {makeCounts === null ? pillSkeleton() : makePanel.map((m) => (
-              <a key={m.text} href={m.href} className="lsd-browse__pill">{m.text}</a>
-            ))}
-          </div>
+          {showMakePanel && (
+            <>
+              <h3 className="lsd-browse__panel-title">{`Browse ${label} Caravans by Popular Manufacturers in ${regionName}`}</h3>
+              <div className="lsd-browse__pills" style={{ marginBottom: 20 }}>
+                {makeCounts === null ? pillSkeleton() : makePanel.map((m) => (
+                  <a key={m.text} href={m.href} className="lsd-browse__pill">{m.text}</a>
+                ))}
+              </div>
+            </>
+          )}
 
           {renderFilterCols(panels, "")}
 

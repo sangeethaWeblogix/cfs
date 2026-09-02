@@ -1,78 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import type { Swiper as SwiperType } from "swiper";
 import "swiper/css";
 import Link from "next/link";
 import Image from "next/image";
 import { getLocationLabel } from "./locationUtils";
-
-type Listing = {
-  id: number;
-  name: string;
-  slug: string;
-  condition: string;
-  location: string;
-  state?: string;
-  regular_price: string;
-  sale_price: string;
-  categories: string[];
-  image_format: string[];
-  seller_type?: string;
-  berths?: string | number;
-};
-
-async function fetchFeaturedListings(seed?: number): Promise<Listing[]> {
-  const requestUrl = `/api/home-featured/?type=all${seed ? `&seed=${seed}` : ""}`;
-  console.log("[HomeFeatured] API:", requestUrl);
-  const res = await fetch(requestUrl, { cache: "no-store" });
-  console.log("[HomeFeatured] visitor IP forwarded:", res.headers.get("x-debug-visitor-ip"));
-  if (!res.ok) {
-    console.error(`[HomeFeatured] API error: HTTP ${res.status} for ${requestUrl}`);
-    return [];
-  }
-  const json = await res.json();
-  console.log("[HomeFeatured] API response:", json);
-  return json?.data?.products ?? json?.products ?? (Array.isArray(json?.data) ? json.data : []) ?? [];
-}
+import { type FeaturedListing as Listing } from "@/api/homeApi/featured/api";
 
 interface Props {
-  seed?: number;
+  items: Listing[];
 }
 
-export default function HomeFeatured({ seed }: Props) {
-  const [items, setItems] = useState<Listing[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function HomeFeatured({ items }: Props) {
   const swiperRef = useRef<SwiperType | null>(null);
   const [isBeginning, setIsBeginning] = useState(true);
   const [isEnd, setIsEnd] = useState(false);
-
-  useEffect(() => {
-    if (!seed) return;
-    fetchFeaturedListings(seed)
-      .then(setItems)
-      .catch((err) => {
-        console.error("[HomeFeatured] fetch failed:", err);
-        setItems([]);
-      })
-      .finally(() => setLoading(false));
-  }, [seed]);
-
-  if (loading) {
-    return (
-      <section className="hf-section">
-        <div className="container">
-          <div className="hf-header">
-            <div className="hf-title-skeleton" />
-          </div>
-          <div className="hf-skeleton-row">
-            {[...Array(4)].map((_, i) => <div key={i} className="hf-skeleton-card" />)}
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   if (!items.length) {
     return (

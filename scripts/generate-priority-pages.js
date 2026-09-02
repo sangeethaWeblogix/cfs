@@ -532,7 +532,16 @@ async function generateStaticPages() {
       });
       if (sampleRes.ok) {
         const sampleHtml = await sampleRes.text();
-        const buildIdMatch = sampleHtml.match(/"buildId":"([^"]+)"/);
+        // Pages Router embeds a real buildId in script src (/_next/static/{buildId}/_buildManifest.js)
+        // or in __NEXT_DATA__ ("buildId":"..."). This project is App Router + Turbopack, which
+        // embeds neither — instead every static asset URL carries Vercel's skew-protection
+        // dpl_xxx deployment id (/_next/static/chunks/<hash>.js?dpl=<deploymentId>), so that's
+        // used as the buildId stand-in. Must stay in sync with worker.js's extractBuildId()
+        // and scripts/update-kv-build-id.js.
+        const buildIdMatch =
+          sampleHtml.match(/\/_next\/static\/([^/]+)\/_buildManifest\.js/) ||
+          sampleHtml.match(/"buildId":"([^"]+)"/) ||
+          sampleHtml.match(/\/_next\/static\/chunks\/[^"'\s]+\?dpl=([A-Za-z0-9_-]+)/);
         if (buildIdMatch) {
           const buildId = buildIdMatch[1];
           const stored = await uploadToKV('current-build-id', buildId);

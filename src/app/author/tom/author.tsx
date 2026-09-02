@@ -149,7 +149,7 @@ const loading = !data || !blogPosts || blogPosts.length === 0 && data.totalPages
                           <div className="img img-cover">
                             <Link href={href}>
                               <Image
-                                src={post.image}
+                                src={post.image || "/images/download.svg"}
                                 alt={post.title}
                                 width={1024}
                                 height={683}

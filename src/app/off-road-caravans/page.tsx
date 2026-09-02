@@ -3,9 +3,9 @@ import Home from "./home";
 import "../globals.css";
  
 export const metadata: Metadata = {
-  title: "Off Road Caravans Australia | New & Used Off Road Caravans for Sale",
+  title: "Off Road Caravans Australia | Compare Models, Prices & Listings",
   description:
-    "Discover Australia's largest collection of off road caravans. Compare full off road, semi off road and hybrid caravans, browse live listings, reviews and expert buying guides.",
+    "Explore off road caravans across Australia. Compare new and used listings, prices, brands, models, sizes and locations, plus expert buying guides and reviews.",
 };
  import { fetchStateBasedCaravans } from "@/api/homeApi/state/api";
 import { fetchRequirements } from "@/api/postRquirements/api";
@@ -22,18 +22,22 @@ const wpHeaders = (): Record<string, string> => ({
 
 type SnapshotData = {
   total_count: number;
+  new_count: number;
+  used_count: number;
   price_min: number;
   price_max: number;
   used_price_min: number;
   used_price_max: number;
+  used_price_median: number;
+  new_price_median: number;
 };
 
 async function fetchOffRoadSnapshot(): Promise<SnapshotData> {
-  const empty = { total_count: 0, price_min: 0, price_max: 0, used_price_min: 0, used_price_max: 0 };
+  const empty = { total_count: 0, new_count: 0, used_count: 0, price_min: 0, price_max: 0, used_price_min: 0, used_price_max: 0, used_price_median: 0, new_price_median: 0 };
   try {
     const res = await fetch(
       `${API_BASE}/market_snapshot?category=off-road`,
-      { headers: wpHeaders(), next: { revalidate: 3600 } }
+      { headers: wpHeaders(), next: { revalidate: 0 } }
     );
     if (!res.ok) return empty;
     const raw = await res.text();
@@ -41,22 +45,55 @@ async function fetchOffRoadSnapshot(): Promise<SnapshotData> {
     const json = JSON.parse(jsonStart <= 0 ? raw : raw.substring(jsonStart));
     if (!json?.success) return empty;
     return {
-      total_count:    json.total_count    ?? 0,
-      price_min:      json.price_min      ?? 0,
-      price_max:      json.price_max      ?? 0,
-      used_price_min: json.used_price_min ?? 0,
-      used_price_max: json.used_price_max ?? 0,
+      total_count:      json.total_count      ?? 0,
+      new_count:        json.new_count        ?? 0,
+      used_count:       json.used_count       ?? 0,
+      price_min:        json.price_min        ?? 0,
+      price_max:        json.price_max        ?? 0,
+      used_price_min:   json.used_price_min   ?? 0,
+      used_price_max:   json.used_price_max   ?? 0,
+      used_price_median:json.used_price_median ?? 0,
+      new_price_median: json.new_price_median  ?? 0,
     };
   } catch {
     return empty;
   }
 }
 
+async function fetchOffRoadBrandCounts(): Promise<Record<string, number>> {
+  try {
+    const res = await fetch(
+      `${API_BASE}/category-makes-count?category=off-road`,
+      { headers: wpHeaders(), next: { revalidate: 0 } }
+    );
+    if (!res.ok) return {};
+    const raw = await res.text();
+    const jsonStart = raw.indexOf("{");
+    const json = JSON.parse(jsonStart <= 0 ? raw : raw.substring(jsonStart));
+    const makes: any[] = json?.makes ?? [];
+    return Object.fromEntries(makes.map((m: any) => [m.make, m.count]));
+  } catch { return {}; }
+}
+
+async function fetchOffRoadStateBands(): Promise<any[]> {
+  try {
+    const res = await fetch(
+      `${API_BASE}/off-road-state-caravans-list`,
+      { headers: wpHeaders(), next: { revalidate: 0 } }
+    );
+    if (!res.ok) return [];
+    const raw = await res.text();
+    const jsonStart = raw.indexOf("{");
+    const json = JSON.parse(jsonStart <= 0 ? raw : raw.substring(jsonStart));
+    return json?.states ?? [];
+  } catch { return []; }
+}
+
 async function fetchOffRoadBlogs(): Promise<any[]> {
   try {
     const res = await fetch(
       `${API_BASE}/blog?product_category=off-road&per_page=20&page=1`,
-      { headers: wpHeaders(), next: { revalidate: 3600 } }
+      { headers: wpHeaders(), next: { revalidate: 0 } }
     );
     if (!res.ok) return [];
     const raw = await res.text();
@@ -70,7 +107,7 @@ async function fetchOffRoadPopularBlogs(seed: number): Promise<any[]> {
   try {
     const res = await fetch(
       `${API_BASE}/blog-shuffle?popular=off-road&seed=${seed}`,
-      { headers: wpHeaders(), next: { revalidate: 3600 } }
+      { headers: wpHeaders(), next: { revalidate: 0 } }
     );
     if (!res.ok) return [];
     const raw = await res.text();
@@ -84,7 +121,7 @@ async function fetchOffRoadBrandBlogs(seed: number): Promise<any[]> {
   try {
     const res = await fetch(
       `${API_BASE}/blog-shuffle?make=off-road&seed=${seed}`,
-      { headers: wpHeaders(), next: { revalidate: 3600 } }
+      { headers: wpHeaders(), next: { revalidate: 0 } }
     );
     if (!res.ok) return [];
     const raw = await res.text();
@@ -98,7 +135,7 @@ async function fetchOffRoadModelBlogs(seed: number): Promise<any[]> {
   try {
     const res = await fetch(
       `${API_BASE}/blog-shuffle?model=off-road&seed=${seed}`,
-      { headers: wpHeaders(), next: { revalidate: 3600 } }
+      { headers: wpHeaders(), next: { revalidate: 0 } }
     );
     if (!res.ok) return [];
     const raw = await res.text();
@@ -109,7 +146,7 @@ async function fetchOffRoadModelBlogs(seed: number): Promise<any[]> {
 }
 
 
-export const revalidate = 86400;
+export const revalidate = 0;
 
 const CANONICAL = "https://www.caravansforsale.com.au/off-road-caravans/";
 
@@ -176,7 +213,7 @@ export default async function OffRoadCaravansDemoPage() {
   const seed = Math.floor(Math.random() * 7) + 1;
 
   const [
-     stateBands,
+    stateBands,
     requirements,
     homeblog,
     snapshot,
@@ -184,8 +221,9 @@ export default async function OffRoadCaravansDemoPage() {
     offRoadPopularBlogs,
     offRoadBrandBlogs,
     offRoadModelBlogs,
+    offRoadStateBands,
+    offRoadBrandCounts,
   ] = await Promise.all([
-    
     fetchStateBasedCaravans(),
     fetchRequirements(),
     fetchHomePage(),
@@ -194,6 +232,8 @@ export default async function OffRoadCaravansDemoPage() {
     fetchOffRoadPopularBlogs(seed),
     fetchOffRoadBrandBlogs(seed),
     fetchOffRoadModelBlogs(seed),
+    fetchOffRoadStateBands(),
+    fetchOffRoadBrandCounts(),
   ]);
 
   return (
@@ -203,18 +243,23 @@ export default async function OffRoadCaravansDemoPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaJsonLd) }}
       />
       <Home
-       stateBands={stateBands}
+      stateBands={offRoadStateBands.length > 0 ? offRoadStateBands : stateBands}
       requirements={requirements}
       homeblog={homeblog?.latest_posts ?? []}
       offRoadCount={snapshot.total_count}
+      offRoadNewCount={snapshot.new_count}
+      offRoadUsedCount={snapshot.used_count}
       offRoadPriceMin={snapshot.price_min}
       offRoadPriceMax={snapshot.price_max}
       offRoadUsedPriceMin={snapshot.used_price_min}
       offRoadUsedPriceMax={snapshot.used_price_max}
+      offRoadUsedPriceMedian={snapshot.used_price_median}
+      offRoadNewPriceMedian={snapshot.new_price_median}
       offRoadBlogs={offRoadBlogs}
       offRoadPopularBlogs={offRoadPopularBlogs}
       offRoadBrandBlogs={offRoadBrandBlogs}
       offRoadModelBlogs={offRoadModelBlogs}
+      offRoadBrandCounts={offRoadBrandCounts}
     />
     </>
   );

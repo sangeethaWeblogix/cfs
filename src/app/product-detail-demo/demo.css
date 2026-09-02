@@ -1225,3 +1225,15 @@
     pointer-events: none;
   }
 }
+
+/* ── Off Road Extra Content ── */
+.lsd-offroad-extra { padding: 32px 0 0; background: #fff; }
+.lsd-offroad-extra__title { font-size: 20px; font-weight: 700; color: #1a1a1a; margin-bottom: 10px; }
+.lsd-offroad-extra__body {
+    color: #191919;
+    /* max-width: 820px; */
+    font-size: 16px;
+    line-height: 1.7;
+}
+.lsd-offroad-extra__body a { color: #1153a6; text-decoration: none; }
+.lsd-offroad-extra__body a:hover { text-decoration: underline; }

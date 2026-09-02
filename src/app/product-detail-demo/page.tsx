@@ -37,7 +37,7 @@ async function fetchSimilarProducts(productId: string | number, seed: number) {
   const API_KEY = process.env.CFS_API_KEY;
   try {
     const res = await fetch(
-      `https://cfs.marketplacenetwork.com.au/wp-json/cfs/v1/similar_products?product_id=${productId}&seed=${seed}`,
+      `https://admin.caravansforsale.com.au/wp-json/cfs/v1/similar_products?product_id=${productId}&seed=${seed}`,
       {
         cache: "no-store",
         headers: {

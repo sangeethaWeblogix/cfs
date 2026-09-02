@@ -230,7 +230,13 @@ function buildPoolRequestUrl(urlPath, seed) {
   if (toLength)   params.set('to_length',         toLength);
   if (condition)  params.set('condition',         condition);
 
-  return `/api/pool-listings/?per_page=24&${params.toString()}&page=1`;
+  // MUST match per_page=21 used by buildApiUrl() in src/app/listings/urlUtils.ts
+  // (home.tsx calls buildApiUrl("/api/pool-listings/?per_page=21", ...)). home.tsx
+  // only consumes the preloaded PRODUCT data if preload.url === requestUrl — an
+  // exact string match including per_page. Getting this wrong doesn't break
+  // is_indexed/seo_v2 (those are read unconditionally, no URL match needed) but
+  // silently defeats the product-preload optimisation, forcing a live re-fetch.
+  return `/api/pool-listings/?per_page=21&${params.toString()}&page=1`;
 }
 
 /**
@@ -264,12 +270,19 @@ async function fetchPoolData(urlPath, seed) {
     const res = await fetchWithTimeout(fetchUrl, {
       headers: { 'User-Agent': 'CFS-AffectedCacheGenerator/1.0', 'Accept': 'application/json' },
     }, 15000);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.log(`   [pool-fetch] HTTP ${res.status} for ${requestUrl}`);
+      return null;
+    }
     const json = await res.json();
     const products = json?.data?.products ?? json?.products ?? [];
-    if (!products.length) return null;
+    if (!products.length) {
+      console.log(`   [pool-fetch] empty products for ${requestUrl}`);
+      return null;
+    }
     return { url: requestUrl, json };
-  } catch {
+  } catch (e) {
+    console.log(`   [pool-fetch] error for ${requestUrl}: ${e.message}`);
     return null;
   }
 }
@@ -284,6 +297,14 @@ const ERROR_SIGNATURES = [
   'temporarily unavailable',
   'Application error: a client-side exception has occurred',
   'This page could not be found',
+  // Cloudflare challenge / block pages — these must never be cached in KV.
+  // Occurs when VERCEL_BASE_URL points to www (behind Cloudflare) and the
+  // GitHub Actions runner IP is blocked by the geo-security rule.
+  'Sorry, you have been blocked',
+  'Checking your browser before accessing',
+  'Attention Required! | Cloudflare',
+  'cf-error-details',
+  'cloudflare-static/email-decode.min.js',
 ];
 
 function isErrorPage(html) {
@@ -311,7 +332,8 @@ function injectPerformanceTags(html) {
     .map(u => `<link rel="preload" as="image" href="${u}" fetchpriority="high" />`)
     .join('\n');
 
-  html = html.replace(/<meta\s+name="robots"\s+content="noindex[^"]*"\s*\/?>/gi, '');
+  // Note: do NOT strip noindex meta tags — by this point only indexed pages
+  // reach here (the isIndexed === false early-return above guards against it).
   html = html.replace('</head>', `${imageOptimizations}\n    ${preloadLinks}\n</head>`);
   return html;
 }
@@ -379,6 +401,15 @@ async function generateHtmlVariants(urlPath, slug) {
     console.log(`   [isIndexed] ${urlPath} -> ${isIndexed}`);
   }
 
+  // Noindex pages (0-result combos, band-only pages, etc.) must never be
+  // stored in the KV HTML cache — they change frequently and serving a
+  // stale cached copy would show wrong listings or a Cloudflare block page.
+  // Fall through to Vercel origin so every request is fresh.
+  if (isIndexed === false) {
+    console.log(`   [SKIP] noindex page — not caching in KV`);
+    return [];
+  }
+
   for (let v = 1; v <= HTML_VARIANTS; v++) {
     const fetchUrl = `${VERCEL_BASE_URL}${urlPath}?shuffle_seed=${v}`;
     const kvKey    = `${slug}-v${v}`;
@@ -420,7 +451,7 @@ async function generateHtmlVariants(urlPath, slug) {
         const _premiumCount   = (poolData.json?.data?.premium_products ?? poolData.json?.premium_products ?? []).length;
         console.log(`   [HTML-v${v}] Pool pre-loaded (${_regularCount} regular + ${_exclusiveCount} exclusive + ${_premiumCount} premium = ${_regularCount + _exclusiveCount + _premiumCount} total products)`);
       } else {
-        console.log(`   [HTML-v${v}] Pool pre-load skipped (no data)`);
+        console.log(`   [HTML-v${v}] Pool pre-load skipped (no data) — ${urlPath} seed=${v}`);
       }
 
       await uploadToKV(kvKey, html, 'text/html', {

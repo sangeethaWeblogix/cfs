@@ -4,7 +4,7 @@ type Banner = {
   id: number;
 };
 
-export function useBannerTracking(banners: Banner[]) {
+export function useBannerTracking(banners: Banner[], visitorIp?: string) {
   const bannerRefs = useRef<(HTMLAnchorElement | null)[]>([]);
 
   const getSessionId = () => {
@@ -25,6 +25,7 @@ export function useBannerTracking(banners: Banner[]) {
   };
 
   const getIP = async () => {
+    if (typeof visitorIp !== "undefined") return visitorIp;
     try {
       const res = await fetch("https://api.ipify.org?format=json");
       const data = await res.json();
@@ -39,7 +40,7 @@ export function useBannerTracking(banners: Banner[]) {
 
     try {
       await fetch(
-        `${process.env.NEXT_PUBLIC_CF7_BASE || "https://cfs.marketplacenetwork.com.au"}/wp-json/ads-manager/v1/banners/track`,
+        `${process.env.NEXT_PUBLIC_CF7_BASE || "https://admin.caravansforsale.com.au"}/wp-json/ads-manager/v1/banners/track`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

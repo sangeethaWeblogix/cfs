@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const revalidate = 3600;
-export const dynamic = "force-dynamic";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.caravansforsale.com.au";
@@ -21,7 +20,9 @@ const auth = Buffer.from(
     {
       headers: {
         Authorization: `Basic ${auth}`,
+        "User-Agent": "Mozilla/5.0 (CaravansForSale Sitemap Bot)",
       },
+      next: { revalidate: 3600 },
     },
   );
 
@@ -40,9 +41,13 @@ export async function GET() {
     let allProducts = [...firstPage.items];
 
     if (firstPage.totalPages > 1) {
-      for (let page = 2; page <= firstPage.totalPages; page++) {
-        const nextPage = await fetchProducts(page);
-        allProducts = [...allProducts, ...nextPage.items];
+      const remainingPages = await Promise.all(
+        Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
+          fetchProducts(i + 2),
+        ),
+      );
+      for (const page of remainingPages) {
+        allProducts = [...allProducts, ...page.items];
       }
     }
 

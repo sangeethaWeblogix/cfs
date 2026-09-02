@@ -27,7 +27,7 @@ const MINOR_CITIES = [
 const FILTERS = [
   {
     icon: <Image src="/images/Budget.png" alt="Budget" width={24} height={24} unoptimized />,
-    label: "By Your Budget",
+    label: "By Price",
     items: [
       { text: "Under $30,000",       href: "/listings/off-road-category/under-30000/" },
       { text: "$30,000 – $40,000",   href: "/listings/off-road-category/between-30000-40000/" },
@@ -51,7 +51,7 @@ const FILTERS = [
   },
   {
     icon: <Image src="/images/Length.png" alt="Length" width={24} height={24} unoptimized />,
-    label: "By Size (Length)",
+    label: "By Length",
     items: [
       { text: "Under 16ft",     href: "/listings/off-road-category/under-16-length-in-feet/" },
       { text: "16ft – 18ft",    href: "/listings/off-road-category/between-16-18-length-in-feet/" },
@@ -101,9 +101,9 @@ export default function HomeLocationSection() {
                   unoptimized
                 />
               </div>
-              <h3 className="hloc-city-name">
+              <span className="hloc-city-name">
                 {city.name} <span className="hloc-city-arrow"></span>
-              </h3>
+              </span>
             </a>
           ))}
         </div>
@@ -115,7 +115,7 @@ export default function HomeLocationSection() {
               href={city.href}
               className={`hloc-minor-pill${idx === 0 ? " hloc-minor-pill--active" : ""}`}
             >
-              <h3>{city.name}</h3>
+              {city.name}
             </a>
           ))}
         </div>
@@ -131,16 +131,14 @@ export default function HomeLocationSection() {
             <div key={f.label} className="hloc-filter-row">
               <div className="hloc-filter-label">
                 <span className="hloc-filter-icon-box">{f.icon}</span>
-                <span className="hloc-filter-text">{f.label}</span>
+                <h3 className="hloc-filter-text">{f.label}</h3>
               </div>
               <div className="hloc-filter-chips">
-                <h3>
-                {f.items.map((item,) => (
-
+                {f.items.map((item) => (
                   <a key={item.text} href={item.href} className="hloc-chip">
-                   {item.text}</a>
+                    {item.text}
+                  </a>
                 ))}
-                </h3>
               </div>
             </div>
           ))}

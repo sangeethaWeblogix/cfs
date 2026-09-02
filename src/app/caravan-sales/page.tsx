@@ -10,6 +10,7 @@ export const metadata: Metadata = {
  import { fetchStateBasedCaravans } from "@/api/homeApi/state/api";
 import { fetchRequirements } from "@/api/postRquirements/api";
 import { fetchHomePage } from "@/api/home/api";
+import { fetchBlogs } from "@/api/blog/api";
 
 export const revalidate = 86400;
 
@@ -41,15 +42,17 @@ const schemaJsonLd = {
 
 export default async function OffRoadCaravansDemoPage() {
   const [
-   
+
     stateBands,
     requirements,
     homeblog,
+    blogPosts,
   ] = await Promise.all([
-    
+
     fetchStateBasedCaravans(),
     fetchRequirements(),
     fetchHomePage(),
+    fetchBlogs(1),
   ]);
 
   return (
@@ -59,10 +62,11 @@ export default async function OffRoadCaravansDemoPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaJsonLd) }}
       />
       <Home
-      
+
       stateBands={stateBands}
       requirements={requirements}
       homeblog={homeblog?.latest_posts ?? []}
+      blogPosts={blogPosts.items}
     />
     </>
   );

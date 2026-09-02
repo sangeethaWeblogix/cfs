@@ -230,6 +230,21 @@ export default function BlogDetailsPage({
   const [tocItems, setTocItems] = useState<Element[]>([]);
   const [showFullToc, setShowFullToc] = useState(false);
   const [browseTab, setBrowseTab] = useState(0);
+  const [copyDone, setCopyDone] = useState(false);
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: plainTitle, url });
+      } catch {}
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopyDone(true);
+        setTimeout(() => setCopyDone(false), 2000);
+      });
+    }
+  };
 
   // ✅ Run DOMParser only on client
   const post = data?.data?.blog_detail;
@@ -417,6 +432,10 @@ export default function BlogDetailsPage({
             <div className="blog-hero__meta">
               <span><i className="bi bi-calendar3" />{formatPostDate(post.date)}</span>
               {readingTime && <span><i className="bi bi-clock" />{readingTime}</span>}
+              <button onClick={handleShare} className="blog-share-btn">
+                <i className={`bi ${copyDone ? "bi-check-lg" : "bi-share"}`} />
+                {copyDone ? "Copied!" : "Share"}
+              </button>
             </div>
           </div>
         </div>
@@ -551,6 +570,13 @@ export default function BlogDetailsPage({
                   __html: post.content || "<p>No content available</p>",
                 }}
               />
+              <div className="blog-content-share">
+                <span className="blog-content-share__label">Share this article</span>
+                <button onClick={handleShare} className="blog-content-share__btn">
+                  <i className={`bi ${copyDone ? "bi-check-lg" : "bi-share"}`} />
+                  {copyDone ? "Copied!" : "Share"}
+                </button>
+              </div>
             </div>
 
             {/* Sidebar: TOC + CTA cards */}

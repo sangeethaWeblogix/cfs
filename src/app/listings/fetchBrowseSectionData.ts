@@ -17,7 +17,7 @@ const wpHeaders = (): Record<string, string> => ({
 });
 
 /** KV first (shared pre-warmed cache), WP params_count fallback. */
-async function fetchGroupCountsServer(
+export async function fetchGroupCountsServer(
   groupBy: string,
   scope: Record<string, string>
 ): Promise<CountItem[]> {
@@ -38,52 +38,40 @@ async function fetchGroupCountsServer(
   }
 }
 
-/** Same pool_test endpoint used for SEO head data — just needs total_products. */
-async function fetchBandCountServer(scope: Record<string, string>, query: string): Promise<number> {
-  try {
-    const qs = new URLSearchParams({ per_page: "1", ...scope });
-    const res = await fetch(`${API_BASE}/pool_test?${qs.toString()}&${query}&engine=typesense`, {
-      headers: wpHeaders(),
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return 0;
-    const raw = await res.text();
-    const jsonStart = raw.indexOf("{");
-    const json = JSON.parse(jsonStart <= 0 ? raw : raw.substring(jsonStart));
-    return json?.data?.pagination?.total_products ?? json?.pagination?.total_products ?? 0;
-  } catch {
-    return 0;
-  }
-}
-
 /**
- * Lightweight exists-check for noindex pages — avoids the full pool_test
- * overhead. Returns 1 if at least one listing matches, 0 otherwise.
- * Used instead of fetchBandCountServer on pages that are not in the indexed set.
+ * Band count for all pages — KV first (total_products if warmer stores it),
+ * then product_exists_check live fallback which returns { count, exists }.
+ * Replaces both the old pool_test (indexed) and exists-only (noindex) paths.
  */
-async function fetchBandExistsServer(scope: Record<string, string>, query: string): Promise<number> {
+async function fetchBandCountServer(scope: Record<string, string>, query: string): Promise<number> {
+  // 1. Try KV cache (warmer may store total_products for non-group_by combos)
+  const bandParams: Record<string, string> = { ...scope };
+  new URLSearchParams(query).forEach((v, k) => { bandParams[k] = v; });
+  const kv = await fetchParamsCountFromKV(bandParams);
+  if (kv?.total_products != null) return kv.total_products;
+
+  // 2. Live fallback — product_exists_check returns { success, exists, count }
   try {
-    const qs = new URLSearchParams({ ...scope });
-    new URLSearchParams(query).forEach((v, k) => qs.set(k, v));
+    const qs = new URLSearchParams(bandParams);
+    console.warn(`[band] KV miss — calling product_exists_check | params="${qs.toString()}"`);
     const res = await fetch(`${API_BASE}/product_exists_check?${qs.toString()}`, {
       headers: wpHeaders(),
       next: { revalidate: 3600 },
     });
     if (!res.ok) return 0;
     const json = await res.json();
-    return json?.exists ? 1 : 0;
+    return json?.count ?? (json?.exists ? 1 : 0);
   } catch {
     return 0;
   }
 }
 
-async function fetchAllBandCountsServer(scope: Record<string, string>, isIndexed: boolean) {
-  const fetchBand = isIndexed ? fetchBandCountServer : fetchBandExistsServer;
+async function fetchAllBandCountsServer(scope: Record<string, string>) {
   const [price, atm, length, sleep] = await Promise.all([
-    Promise.all(PRICE_BANDS.map((b) => fetchBand(scope, b.query))),
-    Promise.all(ATM_BANDS.map((b) => fetchBand(scope, b.query))),
-    Promise.all(LENGTH_BANDS.map((b) => fetchBand(scope, b.query))),
-    Promise.all(SLEEP_BANDS.map((b) => fetchBand(scope, b.query))),
+    Promise.all(PRICE_BANDS.map((b) => fetchBandCountServer(scope, b.query))),
+    Promise.all(ATM_BANDS.map((b) => fetchBandCountServer(scope, b.query))),
+    Promise.all(LENGTH_BANDS.map((b) => fetchBandCountServer(scope, b.query))),
+    Promise.all(SLEEP_BANDS.map((b) => fetchBandCountServer(scope, b.query))),
   ]);
   return { price, atm, length, sleep };
 }
@@ -92,13 +80,11 @@ async function fetchAllBandCountsServer(scope: Record<string, string>, isIndexed
  * during SSR/ISR so the section's links land in the initial HTML instead of
  * only appearing after the client's useEffect fetches finish.
  *
- * isIndexed controls which band-count strategy is used:
- *   true  → pool_test (full count, used for indexed/SEO pages)
- *   false → product_exists_check (boolean, lightweight — used for noindex pages)
+ * Band counts use KV cache first, falling back to product_exists_check live API
+ * (returns { count, exists }) — same path for both indexed and noindex pages.
  */
 export async function fetchBrowseSectionData(
   filters: { state?: string; region?: string; category?: string },
-  isIndexed = true,
 ): Promise<BrowseSectionData> {
   const { state, region, category } = filters;
   const hasState = !!state;
@@ -110,16 +96,13 @@ export async function fetchBrowseSectionData(
   const categoryStateMode       = hasState && hasCategory && !hasRegion;
   const categoryStateRegionMode = hasState && hasCategory && hasRegion;
 
-  // Choose band-count fetcher based on whether this page is indexed
-  const fetchBand = isIndexed ? fetchBandCountServer : fetchBandExistsServer;
-
   if (categoryOnly) {
     const scope = { category: category! };
     const [makeCounts, stateCounts, regionCounts, priceCounts] = await Promise.all([
       fetchGroupCountsServer("make", scope),
       fetchGroupCountsServer("state", scope),
       fetchGroupCountsServer("region", scope),
-      Promise.all(PRICE_BANDS.map((b) => fetchBand(scope, b.query))),
+      Promise.all(PRICE_BANDS.map((b) => fetchBandCountServer(scope, b.query))),
     ]);
     return { makeCounts, stateCounts, regionCounts, priceCounts };
   }
@@ -129,9 +112,9 @@ export async function fetchBrowseSectionData(
     const [makeCounts, categoryCounts, priceCounts, atmCounts, sleepCounts] = await Promise.all([
       fetchGroupCountsServer("make", scope),
       fetchGroupCountsServer("category", scope),
-      Promise.all(PRICE_BANDS.map((b) => fetchBand(scope, b.query))),
-      Promise.all(ATM_BANDS.map((b) => fetchBand(scope, b.query))),
-      Promise.all(SLEEP_BANDS.map((b) => fetchBand(scope, b.query))),
+      Promise.all(PRICE_BANDS.map((b) => fetchBandCountServer(scope, b.query))),
+      Promise.all(ATM_BANDS.map((b) => fetchBandCountServer(scope, b.query))),
+      Promise.all(SLEEP_BANDS.map((b) => fetchBandCountServer(scope, b.query))),
     ]);
     return { makeCounts, categoryCounts, priceCounts, atmCounts, sleepCounts };
   }
@@ -141,7 +124,7 @@ export async function fetchBrowseSectionData(
     const [regionCounts, makeCounts, bands] = await Promise.all([
       fetchGroupCountsServer("region", scope),
       fetchGroupCountsServer("make", scope),
-      fetchAllBandCountsServer(scope, isIndexed),
+      fetchAllBandCountsServer(scope),
     ]);
     return {
       regionCounts,
@@ -157,7 +140,7 @@ export async function fetchBrowseSectionData(
     const scope = { category: category!, state: state!, region: region! };
     const [makeCounts, bands] = await Promise.all([
       fetchGroupCountsServer("make", scope),
-      fetchAllBandCountsServer(scope, isIndexed),
+      fetchAllBandCountsServer(scope),
     ]);
     return {
       makeCounts,

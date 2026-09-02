@@ -4,8 +4,10 @@ import path from "path";
 import StateHome from "../home";
 import { parseDemoFilters, buildListingsSlug } from "../urlUtils";
 import { metaFromSlug } from "@/utils/seo/meta";
-import { fetchBrowseSectionData } from "../fetchBrowseSectionData";
+import { fetchBrowseSectionData, fetchGroupCountsServer } from "../fetchBrowseSectionData";
 import { fetchInitialPool } from "../fetchInitialPool";
+import { fetchProductList, fetchMakeDetails } from "@/api/productList/api";
+import { buildCategoryCountScope, buildMakeCountScope } from "../paramsCountScope";
 import "../../globals.css";
 
 export const revalidate = 86400;
@@ -41,7 +43,10 @@ export async function generateMetadata({
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const slugArr = slug ?? [];
   const meta = await metaFromSlug(slugArr, query);
-  return slugArr.length === 0 ? meta : { title: meta.title };
+  // Only title is returned here — description/canonical/robots/og/twitter are
+  // injected directly into <head> JSX by the root layout (see src/app/layout.tsx)
+  // to avoid the Next.js 15 async-metadata + streaming = metadata-in-body issue.
+  return { title: meta.title };
 }
 
 export default async function LocationStateDemoPage({
@@ -68,10 +73,34 @@ export default async function LocationStateDemoPage({
     ? (parseInt(query.shuffle_seed, 10) || 0)
     : 0;
 
-  const [browseData, initialPool] = await Promise.all([
-    fetchBrowseSectionData(initialFilters, isIndexed),
+  // Category/make counts, scoped to initialFilters via the exact same
+  // buildCategoryCountScope/buildMakeCountScope StateFilterBar uses client-side
+  // — so whatever filters this URL landed on, the server fetches the identical
+  // query the client would have fetched on mount, and StateFilterBar's
+  // isInitialFilters guard skips the redundant client refetch.
+  const categoryCountScope = Object.fromEntries(buildCategoryCountScope(initialFilters));
+  const makeCountScope = Object.fromEntries(buildMakeCountScope(initialFilters));
+
+  const [browseData, initialPool, productList, makeOptions, categoryCounts, makeCounts] = await Promise.all([
+    fetchBrowseSectionData(initialFilters),
     fetchInitialPool(initialFilters, isIndexed, shuffleSeed),
+    fetchProductList(),
+    fetchMakeDetails(),
+    fetchGroupCountsServer("category", categoryCountScope),
+    fetchGroupCountsServer("make", makeCountScope),
   ]);
 
-  return <StateHome initialFilters={initialFilters} browseData={browseData} initialPool={initialPool} serverIsIndexed={isIndexed} />;
+  return (
+    <StateHome
+      initialFilters={initialFilters}
+      browseData={browseData}
+      initialPool={initialPool}
+      serverIsIndexed={isIndexed}
+      initialCategories={productList?.data?.all_categories ?? []}
+      initialStates={productList?.data?.states ?? []}
+      initialMakes={makeOptions}
+      initialCategoryCounts={categoryCounts}
+      initialMakeCounts={makeCounts}
+    />
+  );
 }

@@ -46,11 +46,15 @@ export function BannerProvider({ children }: { children: ReactNode }) {
     async function fetchAllBanners() {
       try {
         setIsLoading(true);
-        const cached = sessionStorage.getItem("banners_cache");
-        if (cached) {
-          setAllBanners(JSON.parse(cached));
-          setIsLoading(false);
-          return;
+        const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+        const raw = sessionStorage.getItem("banners_cache");
+        if (raw) {
+          const { data, ts } = JSON.parse(raw);
+          if (Date.now() - ts < CACHE_TTL) {
+            setAllBanners(data);
+            setIsLoading(false);
+            return;
+          }
         }
         const res = await fetch("/api/banners/");
         if (!res.ok) {
@@ -60,6 +64,7 @@ export function BannerProvider({ children }: { children: ReactNode }) {
         const data = await res.json();
         const banners = Array.isArray(data) ? data : [];
         setAllBanners(banners);
+        sessionStorage.setItem("banners_cache", JSON.stringify({ data: banners, ts: Date.now() }));
       } catch (error) {
         console.error("Banner fetch error:", error);
       } finally {

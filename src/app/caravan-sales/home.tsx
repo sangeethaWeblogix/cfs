@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { type BlogPost } from "@/api/blog/api";
 import HomeFeatured from "./HomeFeatured";
 import HomeTypeSection from "./HomeTypeSection";
 import HomeStateSection from "./HomeStateSection";
@@ -29,6 +30,7 @@ interface Props {
   stateBands: Item[];
   requirements: any;
   homeblog: any[];
+  blogPosts: BlogPost[];
 }
 
 const CITY_LINKS = [
@@ -98,7 +100,7 @@ const SEARCH_FILTERS = [
   },
 ];
 
-export default function OffRoadCaravansPage({ stateBands }: Props) {
+export default function OffRoadCaravansPage({ stateBands, blogPosts }: Props) {
   return (
     <div style={{ overflowX: "hidden" }}>
 
@@ -186,7 +188,7 @@ export default function OffRoadCaravansPage({ stateBands }: Props) {
       <HomeBuyerGuide />
 
       {/* ── Latest Blogs ── */}
-      <BlogSection />
+      <BlogSection posts={blogPosts} />
 
 
     </div>

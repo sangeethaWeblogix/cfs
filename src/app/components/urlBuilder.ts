@@ -1,4 +1,4 @@
- // utils/parseFilters.ts
+  // utils/parseFilters.ts
 
 export interface Filters {
   category?: string;

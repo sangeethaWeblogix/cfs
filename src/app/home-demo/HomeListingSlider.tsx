@@ -1,81 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import type { Swiper as SwiperType } from "swiper";
 import "swiper/css";
 import Link from "next/link";
 import Image from "next/image";
 import { getLocationLabel } from "./locationUtils";
-
-type Listing = {
-  id: number;
-  name: string;
-  slug: string;
-  condition: string;
-  location: string;
-  state?: string;
-  regular_price: string;
-  sale_price: string;
-  categories: string[];
-  image_format: string[];
-  seller_type?: string;
-  berths?: string | number;
-};
+import { type FeaturedListing as Listing } from "@/api/homeApi/featured/api";
 
 interface Props {
   title: string;
   viewAllHref: string;
-  apiUrl: string;
+  items: Listing[];
   badgeVariant: "new" | "used";
-  seed?: number;
 }
 
-export default function HomeListingSlider({ title, viewAllHref, apiUrl, badgeVariant, seed }: Props) {
-  const [items, setItems] = useState<Listing[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function HomeListingSlider({ title, viewAllHref, items, badgeVariant }: Props) {
   const swiperRef = useRef<SwiperType | null>(null);
   const [isBeginning, setIsBeginning] = useState(true);
   const [isEnd, setIsEnd] = useState(false);
-
-  useEffect(() => {
-    if (!seed) return;
-    const requestUrl = `${apiUrl}&seed=${seed}`;
-    console.log(`[HomeListingSlider] "${title}" API:`, requestUrl);
-    fetch(requestUrl, { cache: "no-store" })
-      .then((r) => {
-        console.log(`[HomeListingSlider] "${title}" visitor IP forwarded:`, r.headers.get("x-debug-visitor-ip"));
-        if (!r.ok) {
-          console.error(`[HomeListingSlider] "${title}" API error: HTTP ${r.status} for ${requestUrl}`);
-          return null;
-        }
-        return r.json();
-      })
-      .then((json) => {
-        console.log(`[HomeListingSlider] "${title}" API response:`, json);
-        setItems(json?.data?.products ?? json?.products ?? (Array.isArray(json?.data) ? json.data : []) ?? []);
-      })
-      .catch((err) => {
-        console.error(`[HomeListingSlider] "${title}" fetch failed:`, err);
-        setItems([]);
-      })
-      .finally(() => setLoading(false));
-  }, [apiUrl, title, seed]);
-
-  if (loading) {
-    return (
-      <section className="hf-section">
-        <div className="container">
-          <div className="hf-header">
-            <h2 className="hf-title">{title}</h2>
-          </div>
-          <div className="hf-skeleton-row">
-            {[...Array(4)].map((_, i) => <div key={i} className="hf-skeleton-card" />)}
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   if (!items.length) {
     return (

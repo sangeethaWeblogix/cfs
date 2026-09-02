@@ -1,0 +1,32 @@
+name: Clear KV Cache Entry
+
+on:
+  workflow_dispatch:
+    inputs:
+      url_path:
+        description: 'Listings path to remove from KV (e.g. /listings/australian-off-road/used-condition/touring-category/victoria-state/)'
+        required: true
+        type: string
+
+jobs:
+  clear-kv:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Clear KV entries
+        env:
+          CF_ACCOUNT_ID:      ${{ secrets.CF_ACCOUNT_ID }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+          CF_API_TOKEN:       ${{ secrets.CF_API_TOKEN }}
+        run: node scripts/clear-noindex-kv-entries.js "${{ github.event.inputs.url_path }}"
+
+      - name: Done
+        if: success()
+        run: echo "::notice::KV entries cleared for ${{ github.event.inputs.url_path }}"

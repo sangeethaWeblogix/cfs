@@ -1,4 +1,4 @@
-// utils/slugBuilter.ts
+ // utils/slugBuilter.ts
 import { toSlug } from "../../utils/seo/slug";
 import type { FilterState as Filters } from "@/app/listings/StateFilterBar";
 
@@ -122,10 +122,9 @@ if (fromYear !== undefined && toYear !== undefined) {
 }
   const query = new URLSearchParams();
 
-  // Add radius_kms to query only if it's number greater than default
-  // if (typeof f.radius_kms === "number" && f.radius_kms > DEFAULT_RADIUS) {
-  //   query.set("radius_kms", String(f.radius_kms));
-  // }
+  // Radius search only makes sense relative to a suburb center point.
+  const radiusKms = asNum(f.radius_kms as string | number | undefined);
+  if (suburb && radiusKms) query.set("radius_kms", String(radiusKms));
   // 9) Search (APPEND at the end — never replace other segments)
   if (f.search) {
     // Normalize for SEO URL: spaces → hyphen, remove junk

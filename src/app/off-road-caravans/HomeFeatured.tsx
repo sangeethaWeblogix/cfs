@@ -18,7 +18,8 @@ type Listing = {
 };
 
 async function fetchFeaturedListings(): Promise<Listing[]> {
-  const res = await fetch("/api/home-featured/?type=all&category=off-road", { cache: "no-store" });
+  const seed = Math.floor(Math.random() * 7) + 1;
+  const res = await fetch(`/api/home-featured/?type=all&category=off-road&seed=${seed}`, { cache: "no-store" });
   if (!res.ok) return [];
   const json = await res.json();
   return json?.products ?? json?.data?.products ?? [];

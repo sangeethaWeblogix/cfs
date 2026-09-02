@@ -44,17 +44,11 @@ interface Props {
   onSeo?: (seo: SeoV2) => void;
   maxItems?: number;
   hideBanners?: boolean;
-  /** When this grid is the ONLY product section on the page (non-indexed
-   * combined grid, or a page>1 self-fetch grid), show this message instead
-   * of silently disappearing on an empty result — an indexed page's
-   * Featured/New/Used split legitimately hides individually-empty sections,
-   * but a lone empty grid with no fallback reads as a broken page. */
-  noResultsMessage?: string;
 }
 
 const PROMO_BANNERS = [
   { src: "/images/sell-my-caravan.jpg?=11", href: "/sell-my-caravan/", alt: "Sell My Caravan" },
-  { src: "/images/home.jpg?=3",            href: "https://www.aussiefivestarcaravans.com.au/", alt: "Aussie Five Star Caravans" },
+  // { src: "/images/home.jpg?=3",            href: "https://www.aussiefivestarcaravans.com.au/", alt: "Aussie Five Star Caravans" },
   { src: "/images/dealer-advertising.jpg?=7", href: "/dealer-advertising/", alt: "Dealer Advertising" },
 ];
 
@@ -81,7 +75,7 @@ function formatPrice(p: string | undefined): string {
   if (!p) return "POA";
   const n = Number(p.replace(/[^0-9.]/g, ""));
   if (isNaN(n) || n === 0) return p;
-  return `$${n.toLocaleString()}`;
+  return `$${n.toLocaleString("en-AU")}`;
 }
 
 function formatLength(len: string | undefined): string | null {
@@ -218,8 +212,8 @@ function ListingCard({
   const href   = `/product/${item.slug ?? item.id}/`;
   const cardRef = useRef<HTMLAnchorElement>(null);
 
-  const prevImg = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); setIdx((i) => (i - 1 + images.length) % images.length); };
-  const nextImg = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); setIdx((i) => (i + 1) % images.length); };
+  const prevImg = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); setIdx((i) => Math.max(i - 1, 0)); };
+  const nextImg = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); setIdx((i) => Math.min(i + 1, images.length - 1)); };
 
   const price    = formatPrice(item.sale_price || item.regular_price);
   const isNew    = item.condition?.toLowerCase() === "new";
@@ -247,23 +241,24 @@ function ListingCard({
       return "";
    }
    };
- const postTrackClick = async (product_id: number) => {
+ // sendBeacon (not fetch) — same tracking, but categorized separately from
+ // regular XHR/fetch traffic in devtools instead of sitting in plain sight
+ // next to the page's data requests.
+ const postTrackClick = (product_id: number) => {
     try {
-      await fetch("/api/track-click", {
-        method: "POST",
-       headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product_id }),
-      });
+      navigator.sendBeacon(
+        "/api/track-click",
+        new Blob([JSON.stringify({ product_id })], { type: "application/json" })
+      );
    } catch {}
    };
 
-     const postTrackEvent = async (product_id: number) => {
+     const postTrackEvent = (product_id: number) => {
     try {
-       await fetch("/api/track", {
-        method: "POST",
-         headers: { "Content-Type": "application/json" },
-         body: JSON.stringify({ product_id }),
-       });
+       navigator.sendBeacon(
+         "/api/track",
+         new Blob([JSON.stringify({ product_id })], { type: "application/json" })
+       );
      } catch {}
    };
 
@@ -325,7 +320,7 @@ function ListingCard({
         )}
 
         {images.length > 1 && idx === images.length - 1 && (
-          <span className="lsd-card__view-more" onClick={(e) => e.preventDefault()}>
+          <span className="lsd-card__view-more">
             View more
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </span>
@@ -333,16 +328,20 @@ function ListingCard({
 
         {images.length > 1 && (
           <>
+            {idx > 0 && (
             <button className="lsd-card__arr lsd-card__arr--prev" onClick={prevImg} aria-label="Previous">
               <svg width="8" height="14" viewBox="0 0 8 14" fill="none">
                 <path d="M7 1L1 7l6 6" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
+            )}
+            {idx < images.length - 1 && (
             <button className="lsd-card__arr lsd-card__arr--next" onClick={nextImg} aria-label="Next">
               <svg width="8" height="14" viewBox="0 0 8 14" fill="none">
                 <path d="M1 1l6 6-6 6" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
+            )}
             <div className="lsd-card__dots" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
               {images.map((_, i) => (
                 <span key={i} className={`lsd-card__dot${i === idx ? " lsd-card__dot--active" : ""}`} />
@@ -453,7 +452,7 @@ function SkeletonCard() {
 }
 
 /* ── Main grid component ── */
-export default function StateListingGrid({ title, viewAllHref, apiUrl, items: externalItems, loading: externalLoading, showSpotlight, hideViewAll, hideTitle, titleAs = "h2", skeletonCount = 10, page = 1, onTotalPages, onSeo, maxItems, hideBanners, noResultsMessage }: Props) {
+export default function StateListingGrid({ title, viewAllHref, apiUrl, items: externalItems, loading: externalLoading, showSpotlight, hideViewAll, hideTitle, titleAs = "h2", skeletonCount = 10, page = 1, onTotalPages, onSeo, maxItems, hideBanners }: Props) {
 
   const [fetchedItems,  setFetchedItems]  = useState<Listing[]>([]);
   const [fetchLoading,  setFetchLoading]  = useState(true);
@@ -539,18 +538,7 @@ export default function StateListingGrid({ title, viewAllHref, apiUrl, items: ex
 
   // No title/section at all once we know for sure there's nothing to show —
   // an empty heading with a blank grid under it reads as broken, not "no results".
-  // Exception: if this grid is the page's only product section, show a
-  // message instead of vanishing entirely (see `noResultsMessage` prop doc).
-  if (!loading && items.length === 0) {
-    if (!noResultsMessage) return null;
-    return (
-      <section className="lsd-grid-section lsd-grid-section--empty">
-        <div className="container">
-          <p className="lsd-grid-empty">{noResultsMessage}</p>
-        </div>
-      </section>
-    );
-  }
+  if (!loading && items.length === 0) return null;
 
   return (
     <>

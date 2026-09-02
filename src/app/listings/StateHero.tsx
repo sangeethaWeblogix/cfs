@@ -56,10 +56,14 @@ export default function StateHero({ title, description, loading, breadcrumbs }: 
           <a href="/">Home</a>
           <svg width="12" height="20" viewBox="0 0 24 24" fill="none" stroke="#3e3e3e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,display:"block"}} aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
           <a href="/listings/">Caravans for Sale</a>
-          {breadcrumbs?.map((crumb) => (
+          {breadcrumbs?.map((crumb, i) => (
             <span key={crumb.href}>
               <svg width="12" height="20" viewBox="0 0 24 24" fill="none" stroke="#3e3e3e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,display:"block"}} aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-              <a href={crumb.href}>{crumb.label}</a>
+              {i === breadcrumbs.length - 1 ? (
+                <span aria-current="page">{crumb.label}</span>
+              ) : (
+                <a href={crumb.href}>{crumb.label}</a>
+              )}
             </span>
           ))}
         </nav>

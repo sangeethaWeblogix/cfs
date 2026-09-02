@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import HomeFeatured from "./HomeFeatured";
 import HomeStateSection from "./HomeStateSection";
 import HomeLocationSection from "./HomeLocationSection";
-import "./main.css";
+import "./main.css?=1";
 
 const OR_FAQ = [
   { q: "What is an off road caravan?", a: "An off road caravan is a caravan built to handle rough, unsealed tracks and remote terrain. They typically feature heavy-duty chassis, independent suspension, reinforced bodywork, larger water and battery capacity, and off-road tyres to handle Australia's outback and bush conditions." },
@@ -21,7 +21,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
   return (
     <div className={`or-faq__item${open ? " or-faq__item--open" : ""}`}>
       <button className="or-faq__q" onClick={() => setOpen(!open)}>
-        <span>{q}</span>
+        <h3 className="or-faq__q-text">{q}</h3>
         <i className={`bi ${open ? "bi-chevron-up" : "bi-chevron-down"} or-faq__icon`} />
       </button>
       {open && <div className="or-faq__a">{a}</div>}
@@ -31,11 +31,6 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, "").replace(/&[a-z]+;/gi, " ").trim();
-}
-
-function fixLink(link?: string): string {
-  if (!link) return "";
-  return link.replace(/^(https?:\/\/)(www\.)+/i, "$1www.");
 }
 
 interface OffRoadBlog {
@@ -71,10 +66,15 @@ interface Props {
   offRoadBrandBlogs: OffRoadBlog[];
   offRoadModelBlogs: OffRoadBlog[];
   offRoadCount: number;
+  offRoadNewCount: number;
+  offRoadUsedCount: number;
   offRoadPriceMin: number;
   offRoadPriceMax: number;
   offRoadUsedPriceMin: number;
   offRoadUsedPriceMax: number;
+  offRoadUsedPriceMedian: number;
+  offRoadNewPriceMedian: number;
+  offRoadBrandCounts: Record<string, number>;
 }
 
 const CITY_LINKS = [
@@ -144,7 +144,7 @@ const SEARCH_FILTERS = [
   },
 ];
 
-export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadPopularBlogs, offRoadBrandBlogs, offRoadModelBlogs, offRoadCount, offRoadPriceMin, offRoadPriceMax, offRoadUsedPriceMin, offRoadUsedPriceMax }: Props) {
+export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadPopularBlogs, offRoadBrandBlogs, offRoadModelBlogs, offRoadCount, offRoadNewCount, offRoadUsedCount, offRoadPriceMin, offRoadPriceMax, offRoadUsedPriceMin, offRoadUsedPriceMax, offRoadUsedPriceMedian, offRoadNewPriceMedian, offRoadBrandCounts }: Props) {
   const carouselRef = useRef<HTMLDivElement>(null);
   const scrollCarousel = (dir: number) => {
     carouselRef.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
@@ -164,7 +164,7 @@ export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadP
             <span className="hd-banner__divider-line" />
           </div>
           <p className="hd-banner__subtitle">
-            Discover Australia’s largest collection of off road caravans. Compare full off road, semi off road and hybrid caravans, browse live listings, read expert reviews and explore detailed buying guides to find the right caravan for your next adventure.
+            Compare off road caravans from dealers and private sellers across Australia. Browse full off-road, semi-off-road and hybrid caravans, compare current prices and specifications, research leading manufacturers and models, and use our buying guides to find the right caravan for remote touring, family travel or off-grid adventures.
           </p>
           <div className="hd-banner__trust">
             <div className="hd-banner__trust-item">
@@ -172,8 +172,8 @@ export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadP
                 <img src="/images/category.svg" alt="" className="hd-banner__trust-icon" width={26} height={26} />
               </div>
               <div className="hd-banner__trust-text">
-                <strong>Thousands of Listings</strong>
-                <span>New &amp; used off road caravans across Australia</span>
+                <strong>{offRoadCount > 0 ? `${offRoadCount.toLocaleString()}+` : "3,219+"}</strong>
+                <span>Off Road Caravans Live Listings</span>
               </div>
             </div>
             <div className="hd-banner__trust-item">
@@ -182,7 +182,7 @@ export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadP
               </div>
               <div className="hd-banner__trust-text">
                 <strong>Australia Wide</strong>
-                <span>Find off road caravans from every state &amp; territory</span>
+                <span>From dealers &amp; private sellers nationwide</span>
               </div>
             </div>
             <div className="hd-banner__trust-item">
@@ -190,8 +190,17 @@ export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadP
                 <img src="/images/seller.svg" alt="" className="hd-banner__trust-icon" width={26} height={26} />
               </div>
               <div className="hd-banner__trust-text">
-                <strong>Dealers &amp; Private Sellers</strong>
-                <span>Buy with confidence from trusted sellers</span>
+                <strong>New &amp; Used</strong>
+                <span>All makes, models and layouts</span>
+              </div>
+            </div>
+            <div className="hd-banner__trust-item">
+              <div className="hd-banner__trust-icon-wrap">
+                <img src="/images/dollar.png" alt="" className="hd-banner__trust-icon" width={26} height={26} />
+              </div>
+              <div className="hd-banner__trust-text">
+                <strong>Daily Updated</strong>
+                <span>Live pricing &amp; market data updated daily</span>
               </div>
             </div>
           </div>
@@ -199,26 +208,8 @@ export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadP
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            Explore Off Road Caravans
+            Off Road Caravan Listings
           </a>
-          <div className="hd-banner__bottom">
-            <div className="hd-banner__bottom-item">
-              <img src="/images/icon1.png" alt="" className="hd-banner__bottom-icon" />
-              <div><strong>Trusted Marketplace</strong><span>Safe &amp; secure platform</span></div>
-            </div>
-            <div className="hd-banner__bottom-item">
-              <img src="/images/icon2.png" alt="" className="hd-banner__bottom-icon" />
-              <div><strong>Great Prices</strong><span>Compare &amp; save</span></div>
-            </div>
-            <div className="hd-banner__bottom-item">
-              <img src="/images/icon3.png" alt="" className="hd-banner__bottom-icon" />
-              <div><strong>Buy with Confidence</strong><span>Verified dealers &amp; sellers</span></div>
-            </div>
-            <div className="hd-banner__bottom-item">
-              <img src="/images/icon4.png" alt="" className="hd-banner__bottom-icon" />
-              <div><strong>Coast to Country</strong><span>Caravans Australia wide</span></div>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -231,43 +222,167 @@ export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadP
       {/* ── Location + Search Your Way ── */}
       <HomeLocationSection />
 
-      {/* ── Market Snapshot ── */}
-      <section className="or-snapshot">
+      {/* ── Types + Snapshot + Brands + Choose ── */}
+      <section className="or-redesign-section">
         <div className="container">
-          <div className="or-snapshot__card">
-            <h2 className="or-snapshot__title">Off Road Caravan Market Snapshot</h2>
-            <div className="or-snapshot__row">
-              <div className="or-snapshot__item">
-                <img src="/images/caravan_black.png" alt="" className="or-snapshot__icon" />
-                <div className="or-snapshot__value">{offRoadCount.toLocaleString()}</div>
-                <div className="or-snapshot__label">Off Road Caravans<br />For Sale Now</div>
+
+          {/* Row 1: Types Explained + Market Snapshot */}
+          <div className="or-redesign-grid">
+
+            {/* Types Explained */}
+            <div className="or-panel">
+              
+              <h2 className="or-panel__title text-center">Off Road Caravan Types Explained</h2>
+              <p className="or-panel__sub text-center">Not sure which off road caravan is right for you? Here&apos;s a quick guide.</p>
+              <div className="or-types-grid">
+                {[
+                  { label: "Semi Off Road",    img: "Full-Off-Road.png",    desc: "Built for gravel roads and light corrugations. Ideal for touring and occasional dirt tracks." },
+                  { label: "Full Off Road",    img: "Full-Off-Road.png",    desc: "Built for rough roads and remote travel. Stronger suspension and chassis." },
+                  { label: "Extreme Off Road", img: "Full-Off-Road.png", desc: "Designed for the toughest terrain and remote expeditions. Maximum durability." },
+                  { label: "Hybrid Off Road",  img: "Full-Off-Road.png",  desc: "Lightweight and low profile with off road capability. Great for couples & small families." },
+                ].map(t => (
+                  <div key={t.label} className="or-type-card">
+                    <div className="or-type-card__img-wrap">
+                      <img src={`/images/${t.img}`} alt={t.label} className="or-type-card__img" />
+                    </div>
+                    <h3 className="or-type-card__label">{t.label}</h3>
+                    <div className="or-type-card__underline" />
+                    <p className="or-type-card__desc">{t.desc}</p>
+                  </div>
+                ))}
               </div>
-              <div className="or-snapshot__divider" />
-              <div className="or-snapshot__item">
-                <img src="/images/dollar_au.png" alt="" className="or-snapshot__icon or-snapshot__icon--sm" />
-                <div className="or-snapshot__value">{offRoadPriceMin && offRoadPriceMax ? `$${offRoadPriceMin.toLocaleString()} – $${offRoadPriceMax.toLocaleString()}` : "–"}</div>
-                <div className="or-snapshot__label">Off Road Caravan<br />Price Range</div>
+              <div className="or-compare-btn-wrap">
+                <a href="/off-road-caravan-types/" className="or-compare-btn">
+                  Compare Off Road Caravan Types
+                </a>
               </div>
-              <div className="or-snapshot__divider" />
-              <div className="or-snapshot__item">
-                <img src="/images/good.png" alt="" className="or-snapshot__icon" />
-                <div className="or-snapshot__value">{offRoadUsedPriceMin && offRoadUsedPriceMax ? `$${offRoadUsedPriceMin.toLocaleString()} – $${offRoadUsedPriceMax.toLocaleString()}` : "–"}</div>
-                <div className="or-snapshot__label">Used Off Road<br />Price Range</div>
+            </div>
+
+            {/* Market Snapshot */}
+            <div className="or-panel">
+              <h2 className="or-panel__title text-center">Off Road Caravan Market Snapshot</h2>
+              <p className="or-panel__sub text-center">Live data from our marketplace – updated daily</p>
+              <div className="or-stats-grid">
+                <div className="or-stat-card">
+                  <div className="or-stat-card__icon-wrap"><img src="/images/caravan_black.png" alt="" className="or-stat-card__img-icon" /></div>
+                  <span className="or-stat-card__val">{offRoadCount > 0 ? `${offRoadCount.toLocaleString()}+` : "3,219+"}</span>
+                  <span className="or-stat-card__label">Total Off Road Caravans</span>
+                </div>
+                <div className="or-stat-card">
+                  <div className="or-stat-card__icon-wrap"><img src="/images/caravan_black.png" alt="" className="or-stat-card__img-icon" /></div>
+                  <span className="or-stat-card__val">{offRoadUsedCount > 0 ? `${offRoadUsedCount.toLocaleString()}+` : "598+"}</span>
+                  <span className="or-stat-card__label">Used Off Road Caravans</span>
+                </div>
+                <div className="or-stat-card">
+                  <div className="or-stat-card__icon-wrap"><img src="/images/caravan_black.png" alt="" className="or-stat-card__img-icon" /></div>
+                  <span className="or-stat-card__val">{offRoadNewCount > 0 ? `${offRoadNewCount.toLocaleString()}+` : "2,580+"}</span>
+                  <span className="or-stat-card__label">New Off Road Caravans</span>
+                </div>
+                <div className="or-stat-card">
+                  <div className="or-stat-card__icon-wrap"><img src="/images/good.png" alt="" className="or-stat-card__img-icon" /></div>
+                  <span className="or-stat-card__val">{offRoadPriceMin && offRoadPriceMax ? `$${offRoadPriceMin.toLocaleString()} – $${offRoadPriceMax.toLocaleString()}` : "$18,990 – $278,000"}</span>
+                  <span className="or-stat-card__label">Advertised Price Range</span>
+                </div>
+                <div className="or-stat-card">
+                  <div className="or-stat-card__icon-wrap"><img src="/images/dollar_au.png" alt="" className="or-stat-card__img-icon" /></div>
+                  <span className="or-stat-card__val">{offRoadUsedPriceMedian > 0 ? `$${offRoadUsedPriceMedian.toLocaleString()}` : "$67,990"}</span>
+                  <span className="or-stat-card__label">Median Price (Used)</span>
+                </div>
+                <div className="or-stat-card">
+                  <div className="or-stat-card__icon-wrap"><img src="/images/dollar_au.png" alt="" className="or-stat-card__img-icon" /></div>
+                  <span className="or-stat-card__val">{offRoadNewPriceMedian > 0 ? `$${offRoadNewPriceMedian.toLocaleString()}` : "$94,890"}</span>
+                  <span className="or-stat-card__label">Median Price (New)</span>
+                </div>
+                <div className="or-stat-card">
+                  <div className="or-stat-card__icon-wrap"><img src="/images/ruler.png" alt="" className="or-stat-card__img-icon" /></div>
+                  <span className="or-stat-card__val">18ft</span>
+                  <span className="or-stat-card__label">Most Common Length</span>
+                </div>
+                <div className="or-stat-card">
+                  <div className="or-stat-card__icon-wrap"><img src="/images/weight.png" alt="" className="or-stat-card__img-icon" /></div>
+                  <span className="or-stat-card__val">2,500kg</span>
+                  <span className="or-stat-card__label">Most Common ATM</span>
+                </div>
+                <div className="or-stat-card">
+                  <div className="or-stat-card__icon-wrap"><img src="/images/double.png" alt="" className="or-stat-card__img-icon" /></div>
+                  <span className="or-stat-card__val">4 Berth</span>
+                  <span className="or-stat-card__label">Most Common Sleeps</span>
+                </div>
               </div>
-              <div className="or-snapshot__divider" />
-              <div className="or-snapshot__item">
-                <img src="/images/ruler.png" alt="" className="or-snapshot__icon" />
-                <div className="or-snapshot__value">18 – 22 ft</div>
-                <div className="or-snapshot__label">Most Popular<br />Length</div>
-              </div>
-              <div className="or-snapshot__divider" />
-              <div className="or-snapshot__item">
-                <img src="/images/double.png" alt="" className="or-snapshot__icon" />
-                <div className="or-snapshot__value">2 – 4 People</div>
-                <div className="or-snapshot__label">Most Popular<br />Sleeps</div>
+              <div className="or-compare-btn-wrap">
+                <a href="/off-road-caravan-market-report/" className="or-compare-btn">
+                  View Full Market Report →
+                </a>
               </div>
             </div>
           </div>
+
+          {/* Row 2: Popular Brands + How to Choose */}
+          <div className="or-redesign-grid">
+
+            {/* Popular Brands */}
+            <div className="or-panel">
+              
+              <h2 className="or-panel__title">Popular Off Road Caravan Brands</h2>
+              <p className="or-panel__sub">Browse listings and reviews for Australia&apos;s leading brands.</p>
+              <div className="or-brands-grid">
+                {[
+                  { name: "Jayco",       logo: "Jayco.png",       makeKey: "jayco",       fallback: "146+", listHref: "/listings/jayco/off-road-category/",               reviewHref: "/jayco-journey-outback-review/" },
+                  { name: "Lotus",       logo: "lotus.svg",       makeKey: "lotus",       fallback: "68+",  listHref: "/listings/lotus/off-road-category/",       reviewHref: "/lotus-caravans-freelander-indepth-review/" },
+                  { name: "Retreat",     logo: "Retreat.webp",    makeKey: "retreat",     fallback: "48+",  listHref: "/listings/retreat/off-road-category/",     reviewHref: "/retreat-caravans-erv-comprehensive-analysis/" },
+                  { name: "Masterpiece", logo: "masterpiece.png", makeKey: "masterpiece", fallback: "40+",  listHref: "/listings/masterpiece/off-road-category/", reviewHref: "/masterpiece-caravans-optimum-in-depth-review/" },
+                  { name: "JB Caravans", logo: "JB-caravans.png", makeKey: "jb",          fallback: "121+", listHref: "/listings/jb/off-road-category/",          reviewHref: "/jb-caravans-dirt-roader-analysis/" },
+                ].map(b => (
+                  <div key={b.name} className="or-brand-card">
+                    <div className="or-brand-card__logo-wrap">
+                      <img src={`/images/${b.logo}`} alt={b.name} className="or-brand-card__logo-img" />
+                    </div>
+                    <span className="or-brand-card__count">{offRoadBrandCounts[b.makeKey] ? `${offRoadBrandCounts[b.makeKey]}+` : b.fallback}</span>
+                    <span className="or-brand-card__listings-label">Listings</span>
+                    <a href={b.listHref} className="or-brand-card__view-btn">View Listings </a>
+                    <a href={b.reviewHref} className="or-brand-card__link">Read Reviews </a>
+                  </div>
+                ))}
+              </div>
+              {/* <div style={{ textAlign: "center", marginTop: "24px" }}>
+                <a href="/listings/?category=off-road" className="or-view-brands-btn">View All Brands →</a>
+              </div> */}
+            </div>
+
+            {/* How to Choose */}
+            <div className="or-panel">
+              
+              <h2 className="or-panel__title">How to Choose an Off Road Caravan</h2>
+              <p className="or-panel__sub">Key factors to consider before you buy.</p>
+              <div className="or-choose-grid">
+                {[
+                  { icon: "",                      img: "off_road_icon1.png", label: "Chassis & Construction" },
+                  { icon: "bi-sun",        img: "off_road_icon2.png",                                   label: "Solar Capacity" },
+                  { icon: "bi-activity",      img: "off_road_icon3.png",                                      label: "Suspension & Clearance" },
+                  { icon: "bi-disc",          img: "off_road_icon4.png",                                          label: "Tyres & Wheels" },
+                  { icon: "bi-speedometer",   img: "off_road_icon5.png",                                   label: "ATM, Tare & Payload" },
+                  { icon: "bi-wind",          img: "off_road_icon6.png",                                          label: "Dust Sealing" },
+                  { icon: "bi-truck",         img: "off_road_icon7.png",                                         label: "Tow Vehicle Compatibility" },
+                  { icon: "bi-link-45deg",    img: "off_road_icon8.png",                                         label: "Off Road Coupling" },
+                  { icon: "bi-droplet",       img: "off_road_icon9.png",                                         label: "Water Storage" },
+                  { icon: "bi-shield",        img: "off_road_icon10.png",                                        label: "Underbody Protection" },
+                  { icon: "bi-battery-charging", img: "off_road_icon11.png",                                     label: "Battery & Power" },
+                  { icon: "bi-layout-text-window", img: "off_road_icon12.png",                                   label: "Layout & Comfort" },
+                ].map(f => (
+                  <div key={f.label} className="or-choose-item">
+                    <span className="or-choose-item__icon-wrap">
+                      {f.img
+                        ? <img src={`/images/${f.img}`} alt="" className="or-choose-item__img-icon" />
+                        : <i className={`bi ${f.icon} or-choose-item__icon`} />}
+                    </span>
+                    <h4>{f.label}</h4>
+                  </div>
+                ))}
+              </div>
+              {/* <a href="/off-road-caravans-buying-guide/" className="or-panel__link">View Detailed Buying Guide →</a> */}
+            </div>
+          </div>
+
         </div>
       </section>
 
@@ -278,9 +393,9 @@ export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadP
             <h2 className="or-section-title">Popular Buying Guides</h2>
             <div className="or-pop-guides__grid">
               {offRoadPopularBlogs.slice(0, 10).map((b) => (
-                <a key={b.id} href={fixLink(b.link) || `/${b.slug}/`} className="or-pop-guides__card">
+                <a key={b.id} href={`/${b.slug}/`} className="or-pop-guides__card">
                   <div className="or-pop-guides__img-wrap">
-                    <img src={b.image || "/images/placeholder.jpg"} alt={b.title} className="or-pop-guides__img" loading="lazy" />
+                    <img src={b.image || "/images/download.svg"} alt={b.title} className="or-pop-guides__img" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/download.svg"; }} />
                   </div>
                   <div className="or-pop-guides__body">
                     <h3 className="or-pop-guides__title">{b.title}</h3>
@@ -301,10 +416,10 @@ export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadP
               <div className="or-reviews-col">
                 <h2 className="or-section-title">Brand Reviews</h2>
                 {offRoadBrandBlogs.slice(0, 4).map((b) => (
-                  <a key={b.id} href={fixLink(b.link) || `/${b.slug}/`} className="or-reviews-item">
-                    <img src={b.image || "/images/placeholder.jpg"} alt={b.title} className="or-reviews-thumb" loading="lazy" />
+                  <a key={b.id} href={`/${b.slug}/`} className="or-reviews-item">
+                    <img src={b.image || "/images/download.svg"} alt={b.title} className="or-reviews-thumb" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/download.svg"; }} />
                     <div className="or-reviews-item__body">
-                      <span className="or-reviews-item__title">{b.title}</span>
+                      <h3 className="or-reviews-item__title">{b.title}</h3>
                     </div>
                   </a>
                 ))}
@@ -312,10 +427,10 @@ export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadP
               <div className="or-reviews-col">
                 <h2 className="or-section-title">Model Reviews</h2>
                 {offRoadModelBlogs.slice(0, 4).map((b) => (
-                  <a key={b.id} href={fixLink(b.link) || `/${b.slug}/`} className="or-reviews-item">
-                    <img src={b.image || "/images/placeholder.jpg"} alt={b.title} className="or-reviews-thumb" loading="lazy" />
+                  <a key={b.id} href={`/${b.slug}/`} className="or-reviews-item">
+                    <img src={b.image || "/images/download.svg"} alt={b.title} className="or-reviews-thumb" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/download.svg"; }} />
                     <div className="or-reviews-item__body">
-                      <span className="or-reviews-item__title">{b.title}</span>
+                      <h3 className="or-reviews-item__title">{b.title}</h3>
                     </div>
                   </a>
                 ))}
@@ -334,9 +449,9 @@ export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadP
               <button className="or-latest-arrow or-latest-arrow--prev" onClick={() => scrollCarousel(-1)} aria-label="Previous"><i className="bi bi-chevron-left" /></button>
               <div className="or-latest-carousel" ref={carouselRef}>
                 {offRoadBlogs.map((b) => (
-                  <a key={b.id} href={fixLink(b.link) || `/${b.slug}/`} className="or-latest-card">
+                  <a key={b.id} href={`/${b.slug}/`} className="or-latest-card">
                     <div className="or-latest-img-wrap">
-                      <img src={b.image || "/images/placeholder.jpg"} alt={b.title} className="or-latest-img" loading="lazy" />
+                      <img src={b.image || "/images/download.svg"} alt={b.title} className="or-latest-img" loading="lazy" />
                     </div>
                     <div className="or-latest-body">
                       <h3 className="or-latest-title">{b.title}</h3>
@@ -360,7 +475,7 @@ export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadP
                 <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
               </svg>
               <div>
-                <strong className="or-cta-sell-title">Looking to Sell Your Off Road Caravan?</strong>
+                <h2 className="or-cta-sell-title">Looking to Sell Your Off Road Caravan?</h2>
                 <span className="or-cta-sell-sub">Reach thousands of serious buyers across Australia.</span>
               </div>
             </div>

@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "wb79vudhmjvv4ng6.public.blob.vercel-storage.com", pathname: "/**" },
     ],
     formats: ["image/avif", "image/webp"],
-    minimumCacheTTL: 86400,
+    minimumCacheTTL: 3600,
   },
   compress: true,
 
@@ -46,11 +46,11 @@ const nextConfig: NextConfig = {
   },
 
   
-  // compiler: {
-  //  removeConsole: {
-  //    exclude: ["error"],
-  //   },
-  // },
+  compiler: {
+   removeConsole: {
+     exclude: ["error"],
+    },
+  },
 
   // ✅ Redirects: malformed URLs + old sell-my-caravan URL structure → new nested URLs
   async redirects() {

@@ -24,8 +24,11 @@ title: "Latest News, Reviews & Advice",
   alternates: {
     canonical: "https://www.caravansforsale.com.au/author/tom/",
   },
-   
+
 };
+
+export const dynamic = "force-dynamic";
+
 export default async function Page() {
   const data = await fetchBlogs(1); // ✅ Server-side fetch
   return <Autor  data={data} currentPage={1} />;

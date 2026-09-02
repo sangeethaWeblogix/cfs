@@ -9,7 +9,7 @@ const SITE_URL =
 export async function GET() {
   try {
     const res = await fetch(
-      "https://cfs.marketplacenetwork.com.au/wp-json/cfs/v1/sitemap/categories",
+      "https://admin.caravansforsale.com.au/wp-json/cfs/v1/sitemap/categories",
        {
         headers: {
           Accept: "application/json",

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
 import StateHero from "./StateHero";
@@ -10,9 +10,9 @@ import StateListingGrid, { SeoV2, Listing, buildFeaturedOrder } from "./StateLis
 import StateBrowseSection from "./StateBrowseSection";
 import type { BrowseSectionData } from "./browseSectionShared";
 import StateContent from "./StateContent";
-import { buildApiUrl, buildListingsSlug, buildFilterBreadcrumbs } from "./urlUtils";
-import { useBanners } from "@/components/BannerHandler";
-import { useBannerTracking } from "@/hooks/useBannerTracking";
+import { buildApiUrl, buildListingsSlug, buildFilterBreadcrumbs, parseDemoFilters } from "./urlUtils";
+// import { useBanners } from "@/components/BannerHandler";
+// import { useBannerTracking } from "@/hooks/useBannerTracking";
 import "./main.css?=7";
 
 // clickid pagination — same scheme as /listings/: no ?page=N in the URL,
@@ -24,17 +24,46 @@ const readPage = (id: string): number | null => {
   try {
     const v = localStorage.getItem(PAGE_KEY(id));
     if (v) return parseInt(v, 10);
-  } catch {}
+  } catch { }
   const match = id.match(/p(\d+)$/);
   return match ? parseInt(match[1], 10) : null;
 };
 
 const SEED_MAX = 15;
 
+// ── Seeded shuffle ────────────────────────────────────────────────────────────
+// Mulberry32 PRNG — deterministic, fast, well-distributed.
+// Used to shuffle the pool in the live-fetch path so that even when the
+// pool-listings KV cache serves identical JSON for every seed (the cache key
+// strips `seed`), each refresh still displays a different product order.
+function mulberry32(seed: number) {
+  return () => {
+    seed += 0x6D2B79F5;
+    let t = seed ^ (seed >>> 15);
+    t = Math.imul(t, 1 | seed);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  if (arr.length <= 1) return arr;
+  const out = [...arr];
+  const rand = mulberry32(seed);
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 /** Full pool data fetched server-side in page.tsx and passed as a prop so the
  *  SSR / KV-cached HTML contains real product listings from the first byte. */
 export type InitialPool = {
   seo: SeoV2 | null;
+  /** Condition-locked seo_v2 for the New/Used grid headings — indexed pages only. */
+  newSeo?: SeoV2 | null;
+  usedSeo?: SeoV2 | null;
   featured: Listing[];
   new: Listing[];
   used: Listing[];
@@ -58,19 +87,38 @@ interface Props {
    * extra pool re-fetch when it flips the default true → false).
    */
   serverIsIndexed?: boolean;
+  /** Server-fetched (SSR) static filter data — passed through to StateFilterBar
+   * so it skips the redundant client-side /api/product-list/ + /api/make-details/
+   * mount fetch. */
+  initialCategories?: { name: string; slug: string }[];
+  initialStates?: any[];
+  initialMakes?: { name: string; slug: string; models?: { name: string; slug: string }[] }[];
+  /** Server-fetched (SSR) category/make counts — only present for the plain
+   * /listings/ page (no active filters). See StateFilterBar for the guard
+   * that keeps every other filter combination fetching live, unchanged. */
+  initialCategoryCounts?: { name: string; slug: string; count: number }[];
+  initialMakeCounts?: { name: string; slug: string; count: number }[];
 }
 
-export default function StateHome({ initialFilters, browseData, initialPool, initialSeo, serverIsIndexed }: Props) {
-  const [filters,  setFilters]  = useState<FilterState>(initialFilters);
-  const [page,     setPage]     = useState(1);
+export default function StateHome({
+  initialFilters, browseData, initialPool, initialSeo, serverIsIndexed,
+  initialCategories, initialStates, initialMakes, initialCategoryCounts, initialMakeCounts,
+}: Props) {
+  const [filters, setFilters] = useState<FilterState>(initialFilters ?? {});
+  const [page, setPage] = useState(1);
   const [maxPages, setMaxPages] = useState(initialPool?.maxPages ?? 1);
-  const [clickid,  setClickid]  = useState<string | null>(null);
-  const [ready,    setReady]    = useState(false);
-  const [seo,      setSeo]      = useState<SeoV2 | null>(initialPool?.seo ?? initialSeo ?? null);
-  const [newSeo,   setNewSeo]   = useState<SeoV2 | null>(null);
-  const [usedSeo,  setUsedSeo]  = useState<SeoV2 | null>(null);
-  const [seed,     setSeed]     = useState(1);
-  const [pool,     setPool]     = useState<{ featured: Listing[]; new: Listing[]; used: Listing[] }>(
+  const [clickid, setClickid] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const [seo, setSeo] = useState<SeoV2 | null>(initialPool?.seo ?? initialSeo ?? null);
+  const [newSeo, setNewSeo] = useState<SeoV2 | null>(initialPool?.newSeo ?? null);
+  const [usedSeo, setUsedSeo] = useState<SeoV2 | null>(initialPool?.usedSeo ?? null);
+  // Skip the very first New/Used seo_v2 fetch when the server already
+  // provided it (indexed pages with SSR pool data) — same redundancy-removal
+  // pattern as indexedUrlConsumed above. Non-indexed / missing-SSR-data pages
+  // fetch live immediately, unchanged.
+  const conditionSeoConsumed = useRef(!(initialPool?.isIndexed && (initialPool?.newSeo !== undefined || initialPool?.usedSeo !== undefined)));
+  const [seed, setSeed] = useState(1);
+  const [pool, setPool] = useState<{ featured: Listing[]; new: Listing[]; used: Listing[] }>(
     initialPool
       ? { featured: initialPool.featured, new: initialPool.new, used: initialPool.used }
       : { featured: [], new: [], used: [] }
@@ -90,13 +138,11 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
   // (i.e., the first pool useEffect run has been skipped). After that, normal
   // live fetches run on filter/seed changes.
   //
-  // For non-indexed pages (serverIsIndexed === false) we start as already-consumed
-  // even when initialPool is non-null. This means the pool effect never skips and
-  // always fires a live fetch with the fresh random seed picked on every mount —
-  // giving different products on each refresh. The SSR initialPool still provides
-  // a fallback render while the fetch is in flight, preventing the blank-page
-  // problem that occurs when initialPool is null and the API is slow or errors.
-  const initialPropConsumed = useRef(initialPool == null || serverIsIndexed === false);
+  // Whenever the server provided initialPool, it's trusted as-is and the mount
+  // effect below skips its live refetch entirely — no client-side reshuffle.
+  // Only a missing initialPool (SSR fetch failed/empty) forces a live fetch,
+  // so the page still has something to render.
+  const initialPropConsumed = useRef(initialPool == null);
   // Snapshot of the most-recently-consumed preload data, keyed by poolApiUrl.
   // Used to re-bucket without a live fetch when only `isIndexed` changes (e.g.
   // the async /api/indexed-url/ check resolves to a different value than the
@@ -118,46 +164,51 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
   // the layout before the preload is even consumed. Cleared when the pool effect
   // first runs (at which point preloadSnapshotRef takes over as the guard).
   const preloadReadRef = useRef(false);
+  // Skip the very first /api/indexed-url/ check when the server already
+  // determined isIndexed (serverIsIndexed prop) — re-fetching the identical
+  // url.csv lookup client-side on mount is redundant. Later filter changes
+  // (client-side navigation, no fresh SSR) still need the live check.
+  const indexedUrlConsumed = useRef(serverIsIndexed === undefined);
   console.log("seoo89", seo)
 
-  // ── Top banner ad (impression + click tracking) ──
-  const { matchedBanners } = useBanners();
-  const topBanners = useMemo(
-    () => matchedBanners.filter((b) => b.placement === "listings" && b.position === "top"),
-    [matchedBanners],
-  );
-  const [topBanner, setTopBanner] = useState<(typeof topBanners)[0] | null>(null);
-  const topBannerInitRef = useRef(false);
+  // ── Top banner ad (impression + click tracking) ── commented out: banner API call disabled on listing page
+  // const { matchedBanners } = useBanners();
+  // const topBanners = useMemo(
+  //   () => matchedBanners.filter((b) => b.placement === "listings" && b.position === "top"),
+  //   [matchedBanners],
+  // );
+  // const [topBanner, setTopBanner] = useState<(typeof topBanners)[0] | null>(null);
+  // const topBannerInitRef = useRef(false);
 
-  useEffect(() => {
-    if (topBannerInitRef.current || topBanners.length === 0) return;
-    topBannerInitRef.current = true;
-    setTopBanner(topBanners[Math.floor(Math.random() * topBanners.length)]);
-  }, [topBanners]);
+  // useEffect(() => {
+  //   if (topBannerInitRef.current || topBanners.length === 0) return;
+  //   topBannerInitRef.current = true;
+  //   setTopBanner(topBanners[Math.floor(Math.random() * topBanners.length)]);
+  // }, [topBanners]);
 
-  const topBannerList = useMemo(() => (topBanner ? [topBanner] : []), [topBanner]);
-  // Impression tracking (IntersectionObserver) — same hook/API as the rest of the site.
-  const { bannerRefs, trackClick } = useBannerTracking(topBannerList);
+  // const topBannerList = useMemo(() => (topBanner ? [topBanner] : []), [topBanner]);
+  // // Impression tracking (IntersectionObserver) — same hook/API as the rest of the site.
+  // const { bannerRefs, trackClick } = useBannerTracking(topBannerList);
 
-  const handleTopBannerClick = useCallback(() => {
-    if (!topBanner) return;
-    trackClick(topBanner.id);
-  }, [topBanner, trackClick]);
+  // const handleTopBannerClick = useCallback(() => {
+  //   if (!topBanner) return;
+  //   trackClick(topBanner.id);
+  // }, [topBanner, trackClick]);
 
-  const topBannerBlock = topBanner && (
-    <div className="container lsd-top-banner">
-      <a
-        href={topBanner.target_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        data-banner-id={topBanner.id}
-        ref={(el) => { bannerRefs.current[0] = el; }}
-        onClick={handleTopBannerClick}
-      >
-        <img src={topBanner.image_url} alt={topBanner.name} style={{ width: "100%", height: "auto", display: "block" }} />
-      </a>
-    </div>
-  );
+  // const topBannerBlock = topBanner && (
+  //   <div className="container lsd-top-banner">
+  //     <a
+  //       href={topBanner.target_url}
+  //       target="_blank"
+  //       rel="noopener noreferrer"
+  //       data-banner-id={topBanner.id}
+  //       ref={(el) => { bannerRefs.current[0] = el; }}
+  //       onClick={handleTopBannerClick}
+  //     >
+  //       <img src={topBanner.image_url} alt={topBanner.name} style={{ width: "100%", height: "auto", display: "block" }} />
+  //     </a>
+  //   </div>
+  // );
 
   // Push the API's seo_v2 into the browser tab title + meta description.
   useEffect(() => {
@@ -183,6 +234,22 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
   // Restore page from ?clickid= on mount (hard refresh / shared link) before
   // the grids below fetch anything, so they fetch the right page just once.
   useEffect(() => {
+    // Stale-build self-heal: the Cloudflare Worker injects window.__STALE_BUILD_ID__=true
+    // into KV HTML served on a buildId mismatch, along with a script that sets a
+    // 'CFS-Stale-Bypass=1' cookie and calls location.reload() after 2 s if the flag
+    // is still set (React never mounted — hydration failed). The reload goes to the same
+    // URL; the worker detects the cookie, bypasses KV, and serves fresh Vercel HTML.
+    // Deleting the flag HERE is the signal that hydration succeeded — this effect only
+    // runs after React has mounted all components and attached all event handlers.
+    // Clearing the cookie client-side is a belt-and-suspenders guard; the worker's
+    // Set-Cookie response header already clears it server-side.
+    try {
+      delete (window as unknown as Record<string, unknown>)["__STALE_BUILD_ID__"];
+      document.cookie = "CFS-Stale-Bypass=; path=/; max-age=0; SameSite=Lax";
+    } catch {
+      // ignore — non-critical cleanup
+    }
+
     const cid = new URLSearchParams(window.location.search).get("clickid");
     if (cid) {
       const saved = readPage(cid);
@@ -219,9 +286,10 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
     // with setReady means the pool effect fires once with the correct isIndexed
     // value, preventing the secondary pool re-fetch that occurs when the async
     // /api/indexed-url/ check resolves to a different value than the default.
+
     try {
       const win = window as unknown as Record<string, unknown>;
-      const preload = win.__INITIAL_POOL__ as { url?: string; is_indexed?: boolean } | undefined;
+      const preload = win.__INITIAL_POOL__ as { url?: string; is_indexed?: boolean; json?: unknown } | undefined;
       if (preload?.url) {
         // Raise the sentinel SYNCHRONOUSLY whenever __INITIAL_POOL__ exists —
         // regardless of whether is_indexed is present (pool_test doesn't return
@@ -233,6 +301,16 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
         if (typeof preload.is_indexed === "boolean") {
           setIsIndexed(preload.is_indexed);
         }
+        // The cache warmer fetches fresh pool data at warm-time and embeds it as
+        // __INITIAL_POOL__, but the pool effect's URL-match check (which includes
+        // the shuffle seed) never fires for KV-cached pages because the client
+        // always generates a new random seed. As a result, the stale seo_v2 baked
+        // into the SSR HTML (from when the KV cache was generated) was used
+        // permanently — showing an out-of-date listing count on every page load.
+        // seo_v2 (heading, count, description) is seed-agnostic, so update it here
+        // unconditionally from the fresh preload data without needing a URL match.
+        const freshSeo = (preload.json as any)?.data?.seo_v2 ?? (preload.json as any)?.seo_v2;
+        if (freshSeo) setSeo(freshSeo);
       }
     } catch {
       // ignore — isIndexed will be corrected by the async /api/indexed-url/ check
@@ -243,7 +321,23 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
 
   useEffect(() => {
     const handlePopState = () => {
-      const cid = new URLSearchParams(window.location.search).get("clickid");
+      // Back/forward only changes window.location — it doesn't re-render
+      // StateFilterBar or fire handleFilterChange, so `filters` state was
+      // previously left stale (still holding the filters from just before
+      // the browser navigated away), and no re-fetch was triggered even
+      // though the URL now points at a different filter combination.
+      // Re-derive filters from the new URL the same way the server does
+      // (parseDemoFilters), so popping back/forward re-fetches matching data.
+      const slug = window.location.pathname
+        .replace(/^\/listings\/?/, "")
+        .replace(/\/$/, "")
+        .split("/")
+        .filter(Boolean);
+      const query: Record<string, string> = {};
+      new URLSearchParams(window.location.search).forEach((v, k) => { query[k] = v; });
+      setFilters(parseDemoFilters(slug, query));
+
+      const cid = query.clickid;
       if (cid) {
         const saved = readPage(cid);
         setClickid(cid);
@@ -262,9 +356,33 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
 
   const handleTotalPages = (n: number) => setMaxPages(prev => Math.max(prev, n));
 
+  useEffect(() => {
+    if (page !== 1) return;
+    if (!indexedUrlConsumed.current) {
+      indexedUrlConsumed.current = true;
+      return;
+    }
+    const canonicalPath = buildListingsSlug(filters);
+    fetch(`/api/indexed-url/?path=${encodeURIComponent(canonicalPath)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        // Suppress if either:
+        //  (a) preloadSnapshotRef is set — snapshot already consumed, authoritative
+        //  (b) preloadReadRef is set — preload detected on mount but pool effect
+        //      macro task hasn't run yet; this covers cached-response microtasks
+        //      that fire before the pool effect saves the snapshot
+        if (preloadSnapshotRef.current !== null || preloadReadRef.current) return;
+        setIsIndexed(json?.indexed ?? false);
+      })
+      .catch(() => {
+        if (preloadSnapshotRef.current !== null || preloadReadRef.current) return;
+        setIsIndexed(false);
+      });
+  }, [filters, page]);
+
   // Page 1 uses ONE shared pool call, split by slot_bucket into
   // Featured/New/Used — instead of 3 separate condition-locked API calls.
-  const poolApiUrl = buildApiUrl("/api/pool-listings/?per_page=24", filters, seed);
+  const poolApiUrl = buildApiUrl("/api/pool-listings/?per_page=21", filters, seed);
 
   useEffect(() => {
     // Wait for the real session seed to load (see the mount effect above) —
@@ -280,12 +398,15 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
       initialPropConsumed.current = true;
       return;
     }
-    // `isIndexed` for the current filter context is resolved inline inside
-    // the "filter changed" branch below (via /api/indexed-url/) BEFORE the
-    // pool is fetched — not read from state — so bucketing never uses a
-    // stale isIndexed value left over from the previous filter. `cancelled`
-    // still lets a newer run of this effect discard an in-flight older one's
-    // result if the filter/page changes again before this run finishes.
+    // `isIndexed` starts as the `true` default and flips to its real value
+    // once the async /api/indexed-url/ check resolves — since this effect
+    // depends on `isIndexed`, it fires once with that stale default and
+    // again with the real value. The two requests race with no cancellation,
+    // so if the stale-`isIndexed` response happens to land last, it overwrites
+    // the correct one with a near-empty result (that branch's slot_bucket
+    // filtering finds nothing, since this endpoint never sends slot_bucket).
+    // `cancelled` lets a newer run of this effect discard an in-flight older
+    // one's result instead of letting it win the race.
     const requestUrl = `${poolApiUrl}&page=${page}`;
     const absoluteUrl = new URL(requestUrl, window.location.origin).toString();
 
@@ -306,20 +427,20 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
       const seoData = (json as any)?.data?.seo_v2 ?? (json as any)?.seo_v2;
       if (seoData) setSeo(seoData);
 
-      const products: Listing[]        = (json as any)?.data?.products ?? (json as any)?.products ?? [];
-      const premiumsRaw: Listing[]     = (json as any)?.data?.premium_products ?? (json as any)?.premium_products ?? [];
-      const exclusivesRaw: Listing[]   = (json as any)?.data?.exclusive_products ?? (json as any)?.exclusive_products ?? [];
-      const empExclusivesRaw: Listing[]= (json as any)?.data?.emp_exclusive_products ?? (json as any)?.emp_exclusive_products ?? [];
-      const totalCount: number         = (json as any)?.data?.counts?.total_count ?? (json as any)?.counts?.total_count ?? products.length;
+      const products: Listing[] = (json as any)?.data?.products ?? (json as any)?.products ?? [];
+      const premiumsRaw: Listing[] = (json as any)?.data?.premium_products ?? (json as any)?.premium_products ?? [];
+      const exclusivesRaw: Listing[] = (json as any)?.data?.exclusive_products ?? (json as any)?.exclusive_products ?? [];
+      const empExclusivesRaw: Listing[] = (json as any)?.data?.emp_exclusive_products ?? (json as any)?.emp_exclusive_products ?? [];
+      const totalCount: number = (json as any)?.data?.counts?.total_count ?? (json as any)?.counts?.total_count ?? products.length;
 
       if (totalCount === 0 && empExclusivesRaw.length > 0) {
         const empItems = empExclusivesRaw.map((p) => ({ ...p, is_exclusive: true }));
         setPool({ featured: empItems, new: [], used: [] });
       } else if (isIndexed) {
         const featuredSource = products.filter((p) => p.slot_bucket === "featured");
-        const featuredItems  = buildFeaturedOrder(featuredSource, premiumsRaw, exclusivesRaw);
-        const featuredIds    = new Set(featuredItems.map((p) => p.id));
-        const newItems  = products.filter((p) => p.slot_bucket === "new"  && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
+        const featuredItems = buildFeaturedOrder(featuredSource, premiumsRaw, exclusivesRaw);
+        const featuredIds = new Set(featuredItems.map((p) => p.id));
+        const newItems = products.filter((p) => p.slot_bucket === "new" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
         const usedItems = products.filter((p) => p.slot_bucket === "used" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
         setPool({ featured: featuredItems, new: newItems, used: usedItems });
       } else {
@@ -366,9 +487,9 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
         setPool({ featured: empExclusivesRaw.map((p) => ({ ...p, is_exclusive: true })), new: [], used: [] });
       } else if (snapIsIndexed) {
         const featuredSource = products.filter((p) => p.slot_bucket === "featured");
-        const featuredItems  = buildFeaturedOrder(featuredSource, premiumsRaw, exclusivesRaw);
-        const featuredIds    = new Set(featuredItems.map((p) => p.id));
-        const newItems  = products.filter((p) => p.slot_bucket === "new"  && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
+        const featuredItems = buildFeaturedOrder(featuredSource, premiumsRaw, exclusivesRaw);
+        const featuredIds = new Set(featuredItems.map((p) => p.id));
+        const newItems = products.filter((p) => p.slot_bucket === "new" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
         const usedItems = products.filter((p) => p.slot_bucket === "used" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
         setPool({ featured: featuredItems, new: newItems, used: usedItems });
       } else {
@@ -383,8 +504,8 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
     }
 
     // Filter changed (or no snapshot) — clear the snapshot and do a live fetch.
-    // Also clear preloadReadRef so subsequent /api/indexed-url/ checks (for
-    // the new filter context) apply normally.
+    // Also clear preloadReadRef so subsequent /api/indexed-url/ callbacks (for
+    // the new filter context) can update isIndexed normally.
     preloadSnapshotRef.current = null;
     preloadReadRef.current = false;
 
@@ -395,66 +516,62 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
     // on screen (e.g. Victoria's copy lingering after switching to NSW).
     setSeo(null);
 
-    // Resolve isIndexed for the NEW filter context FIRST, then fetch the
-    // pool using that resolved value directly (not the possibly-stale
-    // `isIndexed` state) — sequential instead of racing two independent
-    // effects. This is what previously could bucket a fresh filter's
-    // products by slot_bucket using the PREVIOUS filter's isIndexed value,
-    // leaving Featured/New/Used all empty until a hard refresh recomputed
-    // isIndexed server-side.
-    const canonicalPath = buildListingsSlug(filters);
-    fetch(`/api/indexed-url/?path=${encodeURIComponent(canonicalPath)}`)
+    console.log("[StateHome] shared pool API:", absoluteUrl);
+    fetch(requestUrl, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((json) => json?.indexed ?? false)
-      .catch(() => false)
-      .then((resolvedIsIndexed) => {
-        if (cancelled) return null;
-        setIsIndexed(resolvedIsIndexed);
+      .then((json) => {
+        if (cancelled) return;
+        console.log("[StateHome] shared pool API response:", json);
 
-        console.log("[StateHome] shared pool API:", absoluteUrl);
-        return fetch(requestUrl, { cache: "no-store" })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((json) => {
-            if (cancelled) return;
-            console.log("[StateHome] shared pool API response:", json);
+        // seo_v2 is set first, independently of the product-pool bucketing
+        // below, so a bad product shape can never suppress the title/description.
+        const seoData = json?.data?.seo_v2 ?? json?.seo_v2;
+        if (seoData) setSeo(seoData);
 
-            // seo_v2 is set first, independently of the product-pool bucketing
-            // below, so a bad product shape can never suppress the title/description.
-            const seoData = json?.data?.seo_v2 ?? json?.seo_v2;
-            if (seoData) setSeo(seoData);
+        const products: Listing[] = json?.data?.products ?? json?.products ?? [];
+        const premiumsRaw: Listing[] = json?.data?.premium_products ?? json?.premium_products ?? [];
+        const exclusivesRaw: Listing[] = json?.data?.exclusive_products ?? json?.exclusive_products ?? [];
+        const empExclusivesRaw: Listing[] = json?.data?.emp_exclusive_products ?? json?.emp_exclusive_products ?? [];
+        const totalCount: number = json?.data?.counts?.total_count ?? json?.counts?.total_count ?? products.length;
+        console.log("shared  premium:", premiumsRaw);
+        if (totalCount === 0 && empExclusivesRaw.length > 0) {
+          // No products at all — fall back to the emp_exclusive_products pool
+          // so the page isn't empty, all shown with the Spotlight Van design.
+          const empItems = empExclusivesRaw.map((p) => ({ ...p, is_exclusive: true }));
+          setPool({ featured: empItems, new: [], used: [] });
+        } else if (isIndexed) {
+          // Indexed pages split by slot_bucket into Featured/New/Used.
+          // seededShuffle reorders each bucket using the client's random seed so
+          // different products appear on each refresh even when the pool-listings
+          // KV cache serves the same JSON for every seed value.
+          const featuredSource = seededShuffle(
+            products.filter((p) => p.slot_bucket === "featured"),
+            seed
+          );
+          const featuredItems = buildFeaturedOrder(featuredSource, premiumsRaw, exclusivesRaw);
+          const featuredIds = new Set(featuredItems.map((p) => p.id));
 
-            const products: Listing[]      = json?.data?.products ?? json?.products ?? [];
-            const premiumsRaw: Listing[]   = json?.data?.premium_products ?? json?.premium_products ?? [];
-            const exclusivesRaw: Listing[] = json?.data?.exclusive_products ?? json?.exclusive_products ?? [];
-            const empExclusivesRaw: Listing[] = json?.data?.emp_exclusive_products ?? json?.emp_exclusive_products ?? [];
-            const totalCount: number = json?.data?.counts?.total_count ?? json?.counts?.total_count ?? products.length;
+          const newItems = seededShuffle(
+            products.filter((p) => p.slot_bucket === "new" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id)),
+            seed + 1000
+          );
+          const usedItems = seededShuffle(
+            products.filter((p) => p.slot_bucket === "used" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id)),
+            seed + 2000
+          );
 
-            if (totalCount === 0 && empExclusivesRaw.length > 0) {
-              // No products at all — fall back to the emp_exclusive_products pool
-              // so the page isn't empty, all shown with the Spotlight Van design.
-              const empItems = empExclusivesRaw.map((p) => ({ ...p, is_exclusive: true }));
-              setPool({ featured: empItems, new: [], used: [] });
-            } else if (resolvedIsIndexed) {
-              // Indexed pages split by slot_bucket into Featured/New/Used.
-              // Premium and exclusive vans always come from their own top-level
-              // arrays and only render on the Featured tab (position 3 =
-              // exclusive, 4-5 = premium).
-              const featuredSource = products.filter((p) => p.slot_bucket === "featured");
-              const featuredItems  = buildFeaturedOrder(featuredSource, premiumsRaw, exclusivesRaw);
-              const featuredIds    = new Set(featuredItems.map((p) => p.id));
+          setPool({ featured: featuredItems, new: newItems, used: usedItems });
+        } else {
+          // Non-indexed pages get one combined grid instead of a split.
+          const combined = buildFeaturedOrder(
+            seededShuffle(products, seed),
+            premiumsRaw,
+            exclusivesRaw
+          );
+          setPool({ featured: combined, new: [], used: [] });
+        }
 
-              const newItems  = products.filter((p) => p.slot_bucket === "new"  && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
-              const usedItems = products.filter((p) => p.slot_bucket === "used" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
-
-              setPool({ featured: featuredItems, new: newItems, used: usedItems });
-            } else {
-              // Non-indexed pages get one combined grid instead of a split.
-              const combined = buildFeaturedOrder(products, premiumsRaw, exclusivesRaw);
-              setPool({ featured: combined, new: [], used: [] });
-            }
-
-            handleTotalPages(json?.pagination?.total_pages ?? 1);
-          });
+        handleTotalPages(json?.pagination?.total_pages ?? 1);
       })
       .catch((err) => {
         console.warn('[StateHome] pool fetch failed, retaining existing data:', (err as any)?.message);
@@ -465,28 +582,7 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
       .finally(() => { if (!cancelled) setPoolLoading(false); });
 
     return () => { cancelled = true; };
-  }, [poolApiUrl, page, ready]);
-
-  // Pre-warm the next page's pool-listings response in the background so the
-  // Cloudflare Worker serves it from KV before the user clicks "Next".
-  // - No `cache: "no-store"` here — this is a warm call, not a live fetch.
-  //   The Cloudflare Worker always intercepts /api/pool-listings/ and checks
-  //   the json:pool: KV key first regardless of request cache headers.
-  // - De-duped by poolApiUrl + page so a filter change always re-prefetches
-  //   the correct next page for the new filter context.
-  const prefetchedPoolKeyRef = useRef<string>("");
-  useEffect(() => {
-    // Skip pre-warm for non-indexed pages: page=2+ requests are never in KV
-    // (worker keeps `page` in its cache key; warmer only warms page=1), so
-    // every pre-warm call hits WordPress directly. Rapid refreshes on non-indexed
-    // URLs pile up WordPress hits → SiteGround rate-limiting → 502.
-    if (!ready || page >= maxPages || !isIndexed) return;
-    const nextPage = page + 1;
-    const key = `${poolApiUrl}::page=${nextPage}`;
-    if (prefetchedPoolKeyRef.current === key) return;
-    prefetchedPoolKeyRef.current = key;
-    fetch(`${poolApiUrl}&page=${nextPage}`).catch(() => {});
-  }, [poolApiUrl, page, maxPages, ready, isIndexed]);
+  }, [poolApiUrl, page, isIndexed, ready]);
 
   // New/Used grid headings need their own condition-locked seo_v2 (the shared
   // pool call above is unlocked, so its seo_v2 only covers the page overall).
@@ -499,7 +595,11 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
       setUsedSeo(null);
       return;
     }
-    const newUrl  = `${buildApiUrl("/api/pool-listings/?per_page=1", filters, seed, "New")}&page=1`;
+    if (!conditionSeoConsumed.current) {
+      conditionSeoConsumed.current = true;
+      return;
+    }
+    const newUrl = `${buildApiUrl("/api/pool-listings/?per_page=1", filters, seed, "New")}&page=1`;
     const usedUrl = `${buildApiUrl("/api/pool-listings/?per_page=1", filters, seed, "Used")}&page=1`;
 
     fetch(newUrl, { cache: "no-store" })
@@ -537,7 +637,7 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
     if (page >= maxPages) return;
     const nextPage = page + 1;
     const id = uuidv4();
-    try { localStorage.setItem(PAGE_KEY(id), String(nextPage)); } catch {}
+    try { localStorage.setItem(PAGE_KEY(id), String(nextPage)); } catch { }
     const url = new URL(window.location.href);
     url.searchParams.set("clickid", id);
     window.history.pushState({}, "", url.toString());
@@ -556,7 +656,7 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
       setClickid(null);
     } else {
       const id = uuidv4();
-      try { localStorage.setItem(PAGE_KEY(id), String(prevPage)); } catch {}
+      try { localStorage.setItem(PAGE_KEY(id), String(prevPage)); } catch { }
       url.searchParams.set("clickid", id);
       setClickid(id);
     }
@@ -573,7 +673,7 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
           <li>
             <button className="prev-icon" onClick={handlePrevPage} disabled={page === 1}>
               <svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 1L1 6l5 5"/>
+                <path d="M6 1L1 6l5 5" />
               </svg>
               Back
             </button>
@@ -583,7 +683,7 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
             <button className="next-icon" onClick={handleNextPage} disabled={page === maxPages}>
               Next
               <svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 1l5 5-5 5"/>
+                <path d="M1 1l5 5-5 5" />
               </svg>
             </button>
           </li>
@@ -610,12 +710,12 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
             <div className="container lsd-standalone-breadcrumb-wrap">
               <nav className="lsd-breadcrumb" aria-label="Breadcrumb">
                 <Link href="/">Home</Link>
-                <svg width="12" height="20" viewBox="0 0 24 24" fill="none" stroke="#3e3e3e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,display:"block"}} aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                <svg width="12" height="20" viewBox="0 0 24 24" fill="none" stroke="#3e3e3e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, display: "block" }} aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
                 <Link href="/listings/">Caravans for Sale</Link>
-                {buildFilterBreadcrumbs(filters).map((crumb) => (
+                {buildFilterBreadcrumbs(filters).map((crumb, i, arr) => (
                   <span key={crumb.href}>
-                    <svg width="12" height="20" viewBox="0 0 24 24" fill="none" stroke="#3e3e3e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,display:"block"}} aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-                    <Link href={crumb.href}>{crumb.label}</Link>
+                    <svg width="12" height="20" viewBox="0 0 24 24" fill="none" stroke="#3e3e3e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, display: "block" }} aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+                    {i === arr.length - 1 ? <span aria-current="page">{crumb.label}</span> : <Link href={crumb.href}>{crumb.label}</Link>}
                   </span>
                 ))}
               </nav>
@@ -625,6 +725,11 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
             currentFilters={filters}
             onFilterChange={handleFilterChange}
             onClearAll={handleClearAll}
+            initialCategories={initialCategories}
+            initialStates={initialStates}
+            initialMakes={initialMakes}
+            initialCategoryCounts={initialCategoryCounts}
+            initialMakeCounts={initialMakeCounts}
           />
           {ip.isIndexed ? (
             <>
@@ -664,19 +769,26 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
               showSpotlight={true}
               hideViewAll
               hideBanners={!!filters.make}
-              noResultsMessage="No caravans currently match this search. Try adjusting your filters."
             />
           )}
           <StateBrowseSection state={filters.state} region={filters.region} category={filters.category} initialData={browseData} />
           <StateContent footerDescription={ip.seo?.footer_description} faq={ip.seo?.faq} />
+          {filters.category === 'off-road' && (
+            <section className="lsd-offroad-extra"><div className="container">
+              <h2 className="lsd-offroad-extra__title">Find Your Ideal Off Road Caravan</h2>
+              <p className="lsd-offroad-extra__body">Need help choosing the right off road caravan? Visit our <a href="https://www.caravansforsale.com.au/off-road-caravans/">Off Road Caravans</a> hub to compare caravan types, current prices, brands, models, market data, reviews and buying guides.</p>
+            </div></section>
+          )}
           <div className="lsd-sell-cta">
-            <div className="lsd-sell-cta__inner">
-              <h2 className="lsd-sell-cta__title">Looking to Sell Your Caravan?</h2>
-              <p className="lsd-sell-cta__body">
-                If you&apos;re upgrading or no longer need your current caravan,{" "}
-                <a href="/sell-my-caravan/" className="lsd-sell-cta__link">sell your caravan</a>{" "}
-                by creating a listing on CaravansForSale.com.au and connect with active buyers across Australia. Your advertisement stays online until it&apos;s sold for a one-time fee of $49.
-              </p>
+            <div className="container">
+              <div className="lsd-sell-cta__inner">
+                <h2 className="lsd-sell-cta__title">Looking to Sell Your Caravan?</h2>
+                <p className="lsd-sell-cta__body">
+                  If you&apos;re upgrading or no longer need your current caravan,{" "}
+                  <a href="/sell-my-caravan/" className="lsd-sell-cta__link">sell your caravan</a>{" "}
+                  by creating a listing on CaravansForSale.com.au and connect with active buyers across Australia. Your advertisement stays online until it&apos;s sold for a one-time fee of $49.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -695,6 +807,11 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
           currentFilters={filters}
           onFilterChange={handleFilterChange}
           onClearAll={handleClearAll}
+          initialCategories={initialCategories}
+          initialStates={initialStates}
+          initialMakes={initialMakes}
+          initialCategoryCounts={initialCategoryCounts}
+          initialMakeCounts={initialMakeCounts}
         />
         <StateListingGrid
           title={initialSeo.meta_title ? `Featured ${initialSeo.meta_title}` : ""}
@@ -707,23 +824,28 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
         <StateBrowseSection state={filters.state} region={filters.region} category={filters.category} initialData={browseData} />
         <StateContent footerDescription={initialSeo.footer_description} faq={initialSeo.faq} />
         <div className="lsd-sell-cta">
-          <div className="lsd-sell-cta__inner">
-            <h2 className="lsd-sell-cta__title">Looking to Sell Your Caravan?</h2>
-            <p className="lsd-sell-cta__body">
-              If you&apos;re upgrading or no longer need your current caravan,{" "}
-              <a href="/sell-my-caravan/" className="lsd-sell-cta__link">sell your caravan</a>{" "}
-              by creating a listing on CaravansForSale.com.au and connect with active buyers across Australia. Your advertisement stays online until it&apos;s sold for a one-time fee of $49.
-            </p>
+          <div className="container">
+            <div className="lsd-sell-cta__inner">
+              <h2 className="lsd-sell-cta__title">Looking to Sell Your Caravan?</h2>
+              <p className="lsd-sell-cta__body">
+                If you&apos;re upgrading or no longer need your current caravan,{" "}
+                <a href="/sell-my-caravan/" className="lsd-sell-cta__link">sell your caravan</a>{" "}
+                by creating a listing on CaravansForSale.com.au and connect with active buyers across Australia. Your advertisement stays online until it&apos;s sold for a one-time fee of $49.
+              </p>
+            </div>
           </div>
         </div>
       </div>
     );
     // No server data at all — minimal white overlay (mobile flash prevention).
+    // IMPORTANT: must return a <div> (not a Fragment) so the root element matches
+    // the server-rendered HTML root on KV-cached pages. A Fragment root here causes
+    // React to abandon hydration, leaving the DOM without event listeners attached.
     return (
-      <>
+      <div className="lsd-page">
         <style>{`.lsd-mob-white{display:none}@media(max-width:767px){.lsd-mob-white{display:block}}`}</style>
         <div className="lsd-mob-white" style={{ minHeight: "100vh", background: "#fff" }} />
-      </>
+      </div>
     );
   }
 
@@ -740,12 +862,12 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
           <div className="container lsd-standalone-breadcrumb-wrap">
             <nav className="lsd-breadcrumb" aria-label="Breadcrumb">
               <Link href="/">Home</Link>
-              <svg width="12" height="20" viewBox="0 0 24 24" fill="none" stroke="#3e3e3e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,display:"block"}} aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+              <svg width="12" height="20" viewBox="0 0 24 24" fill="none" stroke="#3e3e3e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, display: "block" }} aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
               <Link href="/listings/">Caravans for Sale</Link>
-              {buildFilterBreadcrumbs(filters).map((crumb) => (
+              {buildFilterBreadcrumbs(filters).map((crumb, i, arr) => (
                 <span key={crumb.href}>
-                  <svg width="12" height="20" viewBox="0 0 24 24" fill="none" stroke="#3e3e3e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,display:"block"}} aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-                  <Link href={crumb.href}>{crumb.label}</Link>
+                  <svg width="12" height="20" viewBox="0 0 24 24" fill="none" stroke="#3e3e3e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, display: "block" }} aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+                  {i === arr.length - 1 ? <span aria-current="page">{crumb.label}</span> : <Link href={crumb.href}>{crumb.label}</Link>}
                 </span>
               ))}
             </nav>
@@ -756,6 +878,11 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
           currentFilters={filters}
           onFilterChange={handleFilterChange}
           onClearAll={handleClearAll}
+          initialCategories={initialCategories}
+          initialStates={initialStates}
+          initialMakes={initialMakes}
+          initialCategoryCounts={initialCategoryCounts}
+          initialMakeCounts={initialMakeCounts}
         />
 
         {isIndexed ? (
@@ -797,7 +924,6 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
             showSpotlight={true}
             hideViewAll
             hideBanners={!!filters.make}
-            noResultsMessage="No caravans currently match this search. Try adjusting your filters."
           />
         )}
 
@@ -805,14 +931,22 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
 
         <StateBrowseSection state={filters.state} region={filters.region} category={filters.category} initialData={browseData} />
         <StateContent footerDescription={seo?.footer_description} faq={seo?.faq} />
+        {filters.category === 'off-road' && (
+          <section className="lsd-offroad-extra"><div className="container">
+            <h2 className="lsd-offroad-extra__title">Find Your Ideal Off Road Caravan</h2>
+            <p className="lsd-offroad-extra__body">Need help choosing the right off road caravan? Visit our <a href="https://www.caravansforsale.com.au/off-road-caravans/">Off Road Caravans</a> hub to compare caravan types, current prices, brands, models, market data, reviews and buying guides.</p>
+          </div></section>
+        )}
         <div className="lsd-sell-cta">
-          <div className="lsd-sell-cta__inner">
-            <h2 className="lsd-sell-cta__title">Looking to Sell Your Caravan?</h2>
-            <p className="lsd-sell-cta__body">
-              If you&apos;re upgrading or no longer need your current caravan,{" "}
-              <a href="/sell-my-caravan/" className="lsd-sell-cta__link">sell your caravan</a>{" "}
-              by creating a listing on CaravansForSale.com.au and connect with active buyers across Australia. Your advertisement stays online until it&apos;s sold for a one-time fee of $49.
-            </p>
+          <div className="container">
+            <div className="lsd-sell-cta__inner">
+              <h2 className="lsd-sell-cta__title">Looking to Sell Your Caravan?</h2>
+              <p className="lsd-sell-cta__body">
+                If you&apos;re upgrading or no longer need your current caravan,{" "}
+                <a href="/sell-my-caravan/" className="lsd-sell-cta__link">sell your caravan</a>{" "}
+                by creating a listing on CaravansForSale.com.au and connect with active buyers across Australia. Your advertisement stays online until it&apos;s sold for a one-time fee of $49.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -820,7 +954,7 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
   }
 
   // page > 1 — single combined grid, StateListingGrid self-fetches via apiUrl
-  const allUrl = buildApiUrl("/api/pool-listings/?per_page=24", filters, seed);
+  const allUrl = buildApiUrl("/api/pool-listings/?per_page=21", filters, seed);
 
   return (
     <div className="lsd-page">
@@ -828,12 +962,12 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
         <div className="container">
           <nav className="lsd-paged-breadcrumb" aria-label="Breadcrumb">
             <Link href="/">Home</Link>
-            <svg width="10" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+            <svg width="10" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
             <Link href="/listings/">Caravans for Sale</Link>
-            {buildFilterBreadcrumbs(filters).map((crumb) => (
+            {buildFilterBreadcrumbs(filters).map((crumb, i, arr) => (
               <span key={crumb.href}>
-                <svg width="10" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-                <Link href={crumb.href}>{crumb.label}</Link>
+                <svg width="10" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+                {i === arr.length - 1 ? <span aria-current="page">{crumb.label}</span> : <Link href={crumb.href}>{crumb.label}</Link>}
               </span>
             ))}
           </nav>
@@ -845,6 +979,11 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
         currentFilters={filters}
         onFilterChange={handleFilterChange}
         onClearAll={handleClearAll}
+        initialCategories={initialCategories}
+        initialStates={initialStates}
+        initialMakes={initialMakes}
+        initialCategoryCounts={initialCategoryCounts}
+        initialMakeCounts={initialMakeCounts}
       />
 
       <StateListingGrid
@@ -854,7 +993,6 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
         page={page}
         showSpotlight={true}
         hideViewAll
-        noResultsMessage="No caravans currently match this search. Try adjusting your filters."
         onTotalPages={(n) => setMaxPages((prev) => Math.max(prev, n))}
       />
 
@@ -862,14 +1000,22 @@ export default function StateHome({ initialFilters, browseData, initialPool, ini
 
       <StateBrowseSection state={filters.state} region={filters.region} category={filters.category} initialData={browseData} />
       <StateContent footerDescription={seo?.footer_description} faq={seo?.faq} />
+      {filters.category === 'off-road' && (
+        <section className="lsd-offroad-extra"><div className="container">
+          <h2 className="lsd-offroad-extra__title">Find Your Ideal Off Road Caravan</h2>
+          <p className="lsd-offroad-extra__body">Need help choosing the right off road caravan? Visit our <a href="https://www.caravansforsale.com.au/off-road-caravans/">Off Road Caravans</a> hub to compare caravan types, current prices, brands, models, market data, reviews and buying guides.</p>
+        </div></section>
+      )}
       <div className="lsd-sell-cta">
-        <div className="lsd-sell-cta__inner">
-          <h2 className="lsd-sell-cta__title">Looking to Sell Your Caravan?</h2>
-          <p className="lsd-sell-cta__body">
-            If you&apos;re upgrading or no longer need your current caravan,{" "}
-            <a href="/sell-my-caravan/" className="lsd-sell-cta__link">sell your caravan</a>{" "}
-            by creating a listing on CaravansForSale.com.au and connect with active buyers across Australia. Your advertisement stays online until it&apos;s sold for a one-time fee of $49.
-          </p>
+        <div className="container">
+          <div className="lsd-sell-cta__inner">
+            <h2 className="lsd-sell-cta__title">Looking to Sell Your Caravan?</h2>
+            <p className="lsd-sell-cta__body">
+              If you&apos;re upgrading or no longer need your current caravan,{" "}
+              <a href="/sell-my-caravan/" className="lsd-sell-cta__link">sell your caravan</a>{" "}
+              by creating a listing on CaravansForSale.com.au and connect with active buyers across Australia. Your advertisement stays online until it&apos;s sold for a one-time fee of $49.
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -24,6 +24,13 @@
  */
 
 const VARIANT_COUNT = 7; // Must match generation scripts (HTML_VARIANTS in generate-affected-html-cache.js)
+
+// Secret header added to every Worker subrequest so the Cloudflare WAF geo-block
+// rule can skip it. Without this, fetchFresh() subrequests arrive at the WAF with
+// a Cloudflare Worker IP (non-AU, not in $whitelist_ips) and get blocked.
+// Add a WAF Skip rule: http.request.headers["x-cfs-worker-token"][0] eq "<same value>"
+// NOTE: In Module-format Workers, secrets are on `env`, not global scope.
+// fetchFresh(request, env) reads env.CFS_WORKER_TOKEN directly.
 const IMAGE_CACHE_TTL = 2592000; // 30 days
 // HTML_CACHE_TTL intentionally removed — KV HTML must NOT be cached by browser or CDN.
 // Caching the HTML response would lock users into the same variant for the cache duration,
@@ -93,7 +100,7 @@ export default {
       // - React hydration always matches server HTML
       // ============================================
       if (url.search && url.search.length > 0) {
-        const response = await fetchFresh(request);
+        const response = await fetchFresh(request, env);
         return addDebugHeaders(response, 'BYPASS-HAS-PARAMS', null, null);
       }
 
@@ -113,14 +120,45 @@ export default {
         // RSC payloads must always come from Vercel origin — never from Cloudflare's edge
         // cache, which may hold an RSC response for the previous buildId. A stale RSC
         // response makes the client render nothing (silent failure) until hard-refresh.
-        const response = await fetchFresh(request);
+        const response = await fetchFresh(request, env);
         return addDebugHeaders(response, 'BYPASS-RSC', null, null);
+      }
+
+      // ============================================
+      // PRIORITY 3c: Cookie-based stale bypass (no visible URL change)
+      // ============================================
+      // When stale KV HTML is served and React hydration fails (buildId mismatch),
+      // the injected recovery script sets a short-lived 'CFS-Stale-Bypass=1' cookie
+      // and calls location.reload() — same URL, no ?_r=1 in the address bar.
+      // Here we detect that cookie and bypass KV so the user gets a fresh Vercel
+      // render with the correct module IDs.  The Set-Cookie on the response clears
+      // the bypass cookie so subsequent visits go through KV normally.
+      const requestCookies = request.headers.get('Cookie') || '';
+      if (requestCookies.includes('CFS-Stale-Bypass=1')) {
+        const freshResp = await fetchFresh(request, env);
+        const bypassHeaders = new Headers(freshResp.headers);
+        bypassHeaders.append('Set-Cookie', 'CFS-Stale-Bypass=; path=/; max-age=0; SameSite=Lax');
+        return addDebugHeaders(
+          new Response(freshResp.body, { status: freshResp.status, headers: bypassHeaders }),
+          'BYPASS-STALE-COOKIE', null, null
+        );
       }
 
       // ============================================
       // PRIORITY 4: Serve Static HTML from KV (clean paths only)
       // ============================================
-      const cachedHtml = await getStaticHtmlFromKV(url, env);
+      const { response: cachedHtml, missReason, staleKvKey } = await getStaticHtmlFromKV(url, env);
+
+      // Stale-while-revalidate: schedule background KV update BEFORE returning so
+      // ctx.waitUntil is always called when a stale variant was served.
+      // The user gets the stale HTML immediately (content visible, no backend errors).
+      // The background fetch from Vercel updates KV so the NEXT visitor gets fresh,
+      // correctly-hydrating HTML. If Vercel/WP is down the background fetch fails
+      // silently — KV keeps serving stale, next request retries — never a 500 to users.
+      if (staleKvKey) {
+        ctx.waitUntil(revalidateKvEntry(env, request.url, staleKvKey));
+      }
+
       if (cachedHtml) {
         return cachedHtml;
       }
@@ -128,13 +166,12 @@ export default {
       // ============================================
       // PRIORITY 5: Pass Through to Origin
       // ============================================
-      // Use fetchFresh (Cache-Control: no-cache) so Cloudflare does not serve
-      // a stale edge-cached copy of the page from a previous buildId.  This is
-      // the most common cause of "all pages blank on navigation, works after
-      // hard-refresh": the BYPASS path returns old Cloudflare-cached HTML with
-      // the old buildId, the client loads old JS, and RSC navigation fails.
-      const response = await fetchFresh(request);
-      return addDebugHeaders(response, 'BYPASS-NO-CACHE', null, null);
+      // Only reached when KV has no entry at all for this path (not-in-routes-mapping,
+      // all variants missing, etc.) — never when there was a buildId mismatch (that case
+      // returns stale HTML above). Use fetchFresh so Cloudflare's edge cache does not
+      // serve a stale copy from a previous buildId.
+      const freshResponse = await fetchFresh(request, env);
+      return addDebugHeaders(freshResponse, 'BYPASS-NO-CACHE', null, missReason);
 
     } catch (error) {
       console.error('Worker error:', error.message);
@@ -228,7 +265,7 @@ async function handlePoolApiCache(request, url, env) {
   // fires the "Allow wp-json API calls with key" Skip rule → SiteGround receives the
   // request with a Vercel IP (not a Worker IP) → sgcaptcha does not trigger → 200 JSON.
   try {
-    const vercelResponse = await fetchFresh(request);
+    const vercelResponse = await fetchFresh(request, env);
 
     const responseHeaders = new Headers(vercelResponse.headers);
     responseHeaders.set('X-Cache', 'MISS');
@@ -286,6 +323,11 @@ async function handleImageRequest(request, ctx) {
 // ============================================
 // KV STATIC HTML RETRIEVAL
 // ============================================
+// Returns { response, missReason, staleKvKey }.
+// response is non-null on a KV hit; missReason explains why we fell through
+// (surfaces as X-CFS-Error on BYPASS-NO-CACHE for easy debugging).
+// staleKvKey is non-null when the miss was caused by a buildId mismatch — the
+// main handler uses it to trigger a background KV revalidation (stale-while-revalidate).
 async function getStaticHtmlFromKV(url, env) {
   try {
     // Normalize path - ensure it ends with /
@@ -293,107 +335,261 @@ async function getStaticHtmlFromKV(url, env) {
     if (!normalizedPath.endsWith('/')) {
       normalizedPath += '/';
     }
-    
+
     // Load routes mapping (with in-memory caching)
     const routesMapping = await getRoutesMapping(env);
     if (!routesMapping) {
-      return null;
+      return { response: null, missReason: 'no-routes-mapping', staleKvKey: null };
     }
-    
+
     const variantKeys = routesMapping[normalizedPath];
-    
+
     if (!variantKeys) {
-      return null;
+      return { response: null, missReason: 'path-not-in-routes-mapping', staleKvKey: null };
     }
-    
-    // Select a random variant
-    let kvKey;
+
+    // Build the ordered list of variant keys to try, starting at a random index
+    // so the shuffle effect is preserved, but falling back to other variants
+    // when a randomly chosen key is missing from KV (e.g. a partial cache-warm
+    // run wrote routes-mapping but failed to upload all HTML entries).
+    let candidates;
     if (Array.isArray(variantKeys) && variantKeys.length > 0) {
-      const randomIndex = Math.floor(Math.random() * variantKeys.length);
-      kvKey = variantKeys[randomIndex];
+      const startIndex = Math.floor(Math.random() * variantKeys.length);
+      candidates = [
+        ...variantKeys.slice(startIndex),
+        ...variantKeys.slice(0, startIndex),
+      ];
     } else if (typeof variantKeys === 'string') {
-      // Legacy: single string value (shouldn't happen with current generation, but safe fallback)
-      kvKey = variantKeys;
+      // Legacy: single string value
+      candidates = [variantKeys];
     } else {
-      return null;
-    }
-    
-    // Fetch from KV
-    const rawHtml = await env.CFS_STATIC_PAGES.get(kvKey);
-
-    if (!rawHtml) {
-      return null;
+      return { response: null, missReason: 'invalid-variant-keys', staleKvKey: null };
     }
 
-    // Build-ID handling:
-    //
-    // "current-build-id" is written to KV by scripts/update-kv-build-id.js on
-    // every Vercel deployment. The KV HTML still embeds the OLD buildId until the
-    // next cache warmup regenerates it.
-    //
-    // Old behaviour (bypassing KV on mismatch) caused BYPASS-NO-CACHE for every
-    // page after every deployment. With a dev team doing 10 deployments/day, the
-    // site was never served from KV — always cold Vercel SSR.
-    //
-    // New behaviour: when buildIds differ, patch the old buildId strings inside the
-    // KV HTML and serve the patched version. This keeps KV warm across all
-    // deployments. The page content (listings, layout, text) is from the last cache
-    // warmup (slightly stale until the evening scheduled run — acceptable). The JS/CSS
-    // paths now point to the current Vercel build's files so the page loads and
-    // hydrates correctly.
-    //
-    // The buildId only appears in two places in the HTML:
-    //   1. __NEXT_DATA__ JSON  →  "buildId":"OLD"
-    //   2. Script src attrs    →  /_next/static/OLD/_buildManifest.js
-    //                             /_next/static/OLD/_ssgManifest.js
-    // replaceAll is safe because the buildId is a unique cryptographic hash.
-    //
-    // Only bypass (return null → PRIORITY 5) if current-build-id is missing entirely —
-    // that signals a misconfigured environment, not a routine deployment gap.
+    // Read current-build-id once (shared across all variant attempts)
     const currentBuildId = await env.CFS_STATIC_PAGES.get('current-build-id');
     if (!currentBuildId) {
-      console.log(`No current-build-id in KV — bypassing KV HTML conservatively for ${kvKey}`);
-      return null; // Falls through to PRIORITY 5 (Vercel origin)
+      console.log(`No current-build-id in KV — bypassing KV HTML for ${normalizedPath}`);
+      return { response: null, missReason: 'no-current-build-id', staleKvKey: null };
     }
 
-    const htmlBuildId = rawHtml.match(/"buildId":"([^"]+)"/)?.[1];
-    let html = rawHtml;
-    if (htmlBuildId && htmlBuildId !== currentBuildId) {
-      // Patch stale buildId → current buildId so the client loads the right JS/CSS.
-      html = rawHtml.replaceAll(htmlBuildId, currentBuildId);
-      console.log(`Build-ID patched in KV HTML: ${htmlBuildId} → ${currentBuildId} (${kvKey})`);
-    }
-
-    // Inject shuffle seed so React hydration uses the same variant order.
-    // e.g. kvKey = "listings-home-v3" → seed = 3
-    const variantNumber = kvKey.match(/-v(\d+)$/)?.[1] || '1';
-    const htmlWithSeed = html.replace(
-      '</head>',
-      `<script>window.__SHUFFLE_SEED__ = ${variantNumber};</script>\n</head>`
-    );
-    
-    // Return with appropriate headers.
-    // IMPORTANT: Cache-Control must be no-store so neither the browser nor Cloudflare's
-    // CDN edge caches this response. If it were cached (e.g. max-age=3600), the browser
-    // would serve the exact same variant for 1 hour on every refresh, and the worker's
-    // random variant selection would have no effect after the first request.
-    // The KV store is already the cache — no second caching layer is needed here.
-    return new Response(htmlWithSeed, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/html;charset=UTF-8',
-        'Cache-Control': 'no-store',
-        'X-CFS-Cache': 'HIT-KV',
-        'X-CFS-Route': normalizedPath,
-        'X-CFS-Key': kvKey,
-        'X-CFS-Source': 'cloudflare-kv',
-        'Vary': 'Accept-Encoding'
+    // Try each variant in order; skip missing/invalid entries rather than
+    // falling all the way through to Vercel origin immediately.
+    for (const kvKey of candidates) {
+      // Fetch from KV
+      const rawHtml = await env.CFS_STATIC_PAGES.get(kvKey);
+      if (!rawHtml) {
+        console.log(`KV miss for variant ${kvKey} — trying next variant`);
+        continue;
       }
-    });
-    
+
+      // Guard: if the stored HTML is a Cloudflare challenge/block page (happens when
+      // the cache generator ran from a non-AU IP and fetched through www instead of
+      // the Vercel preview URL), skip this variant and try the next.
+      // Real Next.js pages (both Pages Router and App Router) always reference
+      // /_next/static/ for their JS/CSS assets; challenge pages never do.
+      if (!rawHtml.includes('/_next/static/')) {
+        console.log(`KV HTML for ${kvKey} is not a valid Next.js page — trying next variant`);
+        continue;
+      }
+
+      // Build-ID handling:
+      //
+      // "current-build-id" is written to KV by generate-priority-pages.js on every
+      // successful post-deploy canary run (and auto-updated by revalidateKvEntry on
+      // every buildId-mismatch request). KV HTML entries are regenerated by the
+      // nightly generate-index-cache.js run or by the WP-triggered generate-affected-cache.
+      // Between a new deployment and those jobs running, some KV entries will have
+      // the OLD buildId — those are detected below and trigger stale-while-revalidate.
+      const htmlBuildId = extractBuildId(rawHtml);
+
+      // Build-ID mismatch: KV HTML was cached before the latest Vercel deployment.
+      //
+      // Serving old KV HTML with new JS bundles is broken: the RSC __next_f payload
+      // in the HTML references OLD module chunk IDs, but the browser loads NEW JS
+      // bundles. React cannot resolve the client component references → hydration
+      // silently fails → server HTML is visible but no event listeners are attached
+      // (filters, buttons, navigation all appear to work visually but do nothing).
+      //
+      // However, we MUST NOT bypass to Vercel here — if the WP backend is having
+      // issues, exposing users to live Vercel renders defeats the purpose of KV
+      // (indexed pages should never show backend errors to real visitors).
+      //
+      // Fix: serve the stale HTML anyway (content is visible, no 500 errors) and
+      // signal the main handler to run revalidateKvEntry() in the background via
+      // ctx.waitUntil(). The background fetch from Vercel overwrites this KV entry
+      // so the NEXT visitor gets fresh, correctly-hydrating HTML from KV.
+      if (htmlBuildId && htmlBuildId !== currentBuildId) {
+        console.log(`Build-ID mismatch for ${kvKey}: cached=${htmlBuildId} current=${currentBuildId} — serving stale, scheduling background revalidation`);
+        const variantNumber = kvKey.match(/-v(\d+)$/)?.[1] || '1';
+
+        // Self-healing script: if React fails to hydrate (old RSC module IDs + new JS bundles),
+        // this script detects it after 2 s and triggers a cookie-based bypass reload.
+        //
+        // How it works:
+        //   1. Sets window.__STALE_BUILD_ID__ = true (flag hydration hasn't confirmed success)
+        //   2. home.tsx's mount useEffect deletes the flag as its FIRST action — so if React
+        //      hydrated successfully, the flag is gone before the 2 s timer fires → no reload.
+        //   3. If the flag is still true after 2 s: sets 'CFS-Stale-Bypass=1' cookie and calls
+        //      location.reload() — same URL, no query params, URL never changes in the address bar.
+        //   4. The worker detects the cookie (PRIORITY 3c) before the KV lookup and bypasses to
+        //      Vercel, which serves fresh HTML with the correct module IDs → hydration succeeds.
+        //
+        // Loop guard: checks document.cookie before attaching the timer — if the bypass cookie
+        // already exists (e.g. the fresh Vercel render is also broken), the timer is not set.
+        //
+        // WP-down trade-off: the initial response always comes from KV (no backend errors).
+        // The reload is a best-effort recovery for hydration-failure; if WP is completely down
+        // the reloaded page may return a 500 — but content was visible for 2 s and WP being
+        // down breaks data loading regardless.
+        const staleRecoveryScript = `<script>
+window.__STALE_BUILD_ID__=true;
+if(!/CFS-Stale-Bypass/.test(document.cookie)){
+  addEventListener('load',function(){
+    setTimeout(function(){
+      if(window.__STALE_BUILD_ID__){
+        document.cookie='CFS-Stale-Bypass=1; path=/; max-age=30; SameSite=Lax';
+        location.reload();
+      }
+    },2000);
+  });
+}
+</script>`;
+
+        const staleHtmlWithSeed = rawHtml
+          .replace('</head>', `<script>window.__SHUFFLE_SEED__ = ${variantNumber};</script>\n</head>`)
+          .replace('</body>', staleRecoveryScript + '\n</body>');
+        return {
+          response: new Response(staleHtmlWithSeed, {
+            status: 200,
+            headers: {
+              'Content-Type': 'text/html;charset=UTF-8',
+              'Cache-Control': 'no-store',
+              'X-CFS-Cache': 'HIT-KV-STALE',
+              'X-CFS-Route': normalizedPath,
+              'X-CFS-Key': kvKey,
+              'X-CFS-Source': 'cloudflare-kv',
+              'Vary': 'Accept-Encoding'
+            }
+          }),
+          missReason: null,
+          staleKvKey: kvKey, // main handler will ctx.waitUntil(revalidateKvEntry)
+        };
+      }
+      const html = rawHtml;
+
+      // Inject shuffle seed so React hydration uses the same variant order.
+      // e.g. kvKey = "listings-home-v3" → seed = 3
+      const variantNumber = kvKey.match(/-v(\d+)$/)?.[1] || '1';
+      const htmlWithSeed = html.replace(
+        '</head>',
+        `<script>window.__SHUFFLE_SEED__ = ${variantNumber};</script>\n</head>`
+      );
+
+      // Return with appropriate headers.
+      // IMPORTANT: Cache-Control must be no-store so neither the browser nor Cloudflare's
+      // CDN edge caches this response. If it were cached (e.g. max-age=3600), the browser
+      // would serve the exact same variant for 1 hour on every refresh, and the worker's
+      // random variant selection would have no effect after the first request.
+      // The KV store is already the cache — no second caching layer is needed here.
+      return {
+        response: new Response(htmlWithSeed, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/html;charset=UTF-8',
+            'Cache-Control': 'no-store',
+            'X-CFS-Cache': 'HIT-KV',
+            'X-CFS-Route': normalizedPath,
+            'X-CFS-Key': kvKey,
+            'X-CFS-Source': 'cloudflare-kv',
+            'Vary': 'Accept-Encoding'
+          }
+        }),
+        missReason: null,
+        staleKvKey: null,
+      };
+    }
+
+    // All variants were missing or had invalid HTML (no stale-buildId case reaches here —
+    // the buildId mismatch block returns early with the stale response + staleKvKey set).
+    console.log(`All ${candidates.length} KV variants missing/invalid for ${normalizedPath}`);
+    return { response: null, missReason: `all-${candidates.length}-variants-missing`, staleKvKey: null };
+
   } catch (error) {
     console.error('KV lookup error:', error.message);
-    return null;
+    return { response: null, missReason: `kv-error:${error.message.substring(0, 80)}`, staleKvKey: null };
+  }
+}
+
+// ============================================
+// STALE-WHILE-REVALIDATE: update KV after a buildId mismatch
+// ============================================
+// Called via ctx.waitUntil() — executes after the stale response is sent to the
+// user, so it never adds latency to the triggering request.
+//
+// Flow:
+//   1. Fetches fresh HTML from Vercel for this page URL (background subrequest —
+//      Cloudflare Worker subrequests bypass the worker itself, no infinite loop).
+//   2. Validates the response is a real Next.js page (not a 500/block page).
+//   3. Overwrites the stale KV variant with the fresh HTML.
+//   4. Updates current-build-id so other isolates and other stale pages start
+//      detecting the mismatch and scheduling their own revalidations.
+//
+// If Vercel/WP is down the fetch fails silently — KV keeps serving stale HTML,
+// the next request retries — users never see a backend error.
+// The revalidated KV entry omits window.__INITIAL_POOL__ (added by the generate
+// scripts, not the worker) — the pool effect in home.tsx falls through to a live
+// API fetch for that one visit, which is invisible to the user.
+async function revalidateKvEntry(env, pageUrl, kvKey) {
+  try {
+    // Build a fresh subrequest to Vercel. No RSC/prefetch headers so Vercel returns
+    // a full HTML page (not an RSC payload). Cache-Control: no-cache bypasses any
+    // Cloudflare edge cache that might still hold a copy with the old buildId.
+    const headers = new Headers();
+    headers.set('Cache-Control', 'no-cache');
+    if (env.CFS_WORKER_TOKEN) headers.set('X-CFS-Worker-Token', env.CFS_WORKER_TOKEN);
+
+    const freshResponse = await fetch(new Request(pageUrl, { headers }));
+
+    if (!freshResponse.ok) {
+      console.log(`[revalidate] Skipping ${kvKey}: origin returned ${freshResponse.status} — will retry on next mismatch request`);
+      return;
+    }
+
+    const freshHtml = await freshResponse.text();
+
+    // Sanity check: must be a real Next.js page, not a Cloudflare challenge or WP error.
+    if (!freshHtml.includes('/_next/static/')) {
+      console.log(`[revalidate] Skipping ${kvKey}: response is not a valid Next.js page`);
+      return;
+    }
+
+    // Extract the new buildId from the fresh HTML so we can update current-build-id.
+    const newBuildId = extractBuildId(freshHtml);
+
+    if (!newBuildId) {
+      console.log(`[revalidate] Could not extract buildId from fresh response for ${kvKey} — skipping KV write`);
+      return;
+    }
+
+    // Overwrite the stale KV variant with the fresh HTML.
+    // Do NOT inject window.__SHUFFLE_SEED__ — the worker adds it at serve-time based
+    // on the kvKey suffix (e.g. -v3 → seed=3), so the raw KV value stays seed-free.
+    await env.CFS_STATIC_PAGES.put(kvKey, freshHtml);
+    console.log(`[revalidate] Stored fresh HTML for ${kvKey} (buildId=${newBuildId})`);
+
+    // Update current-build-id so other Cloudflare isolates (and other pages) also start
+    // detecting the mismatch and scheduling their own revalidations.
+    // Multiple concurrent revalidations writing the same value are safe (idempotent).
+    const storedBuildId = await env.CFS_STATIC_PAGES.get('current-build-id');
+    if (storedBuildId !== newBuildId) {
+      await env.CFS_STATIC_PAGES.put('current-build-id', newBuildId);
+      console.log(`[revalidate] Updated current-build-id: ${storedBuildId} → ${newBuildId}`);
+    }
+  } catch (err) {
+    // Silently absorb all errors — this runs in the background and must never
+    // propagate to throw inside ctx.waitUntil (which would be swallowed anyway).
+    console.error(`[revalidate] Failed for ${kvKey}:`, err.message);
   }
 }
 
@@ -425,6 +621,29 @@ async function getRoutesMapping(env) {
 // ============================================
 
 /**
+ * Extracts a per-deployment identifier from rendered Next.js HTML so the
+ * Worker can tell whether a KV-cached page still matches the live deployment.
+ *
+ * Pages Router embeds a real "buildId" (script src /_next/static/{buildId}/_buildManifest.js,
+ * or "buildId":"..." inside __NEXT_DATA__). App Router (this project, built with
+ * Turbopack) embeds NEITHER of those — there is no __NEXT_DATA__ and no
+ * _buildManifest.js reference in the HTML at all, so both legacy patterns always
+ * return null and the mismatch check below silently never fires.
+ *
+ * What App Router HTML DOES contain is Vercel's skew-protection query param on
+ * every static asset URL: /_next/static/chunks/<hash>.js?dpl=<deploymentId>. That
+ * dpl_xxx value changes on every deployment, so it's used as the buildId stand-in.
+ * scripts/update-kv-build-id.js and scripts/generate-priority-pages.js must stay
+ * in sync with this — they write/extract the same dpl_xxx value into current-build-id.
+ */
+function extractBuildId(html) {
+  return html.match(/\/_next\/static\/([^/]+)\/_buildManifest\.js/)?.[1] // Pages Router
+    || html.match(/"buildId":"([^"]+)"/)?.[1] // Pages Router (__NEXT_DATA__) fallback
+    || html.match(/\/_next\/static\/chunks\/[^"'\s]+\?dpl=([A-Za-z0-9_-]+)/)?.[1] // App Router / Turbopack
+    || null;
+}
+
+/**
  * Fetch from origin while bypassing Cloudflare's edge cache.
  *
  * Plain `fetch(request)` inside a Worker checks Cloudflare's edge cache first.
@@ -439,9 +658,14 @@ async function getRoutesMapping(env) {
  * Used for every BYPASS path (RSC, HAS-PARAMS, NO-CACHE) so that post-deployment
  * transitions are always served with the correct buildId HTML.
  */
-function fetchFresh(request) {
+function fetchFresh(request, env) {
   const headers = new Headers(request.headers);
   headers.set('Cache-Control', 'no-cache');
+  // Identify this as a Worker subrequest so the Cloudflare WAF geo-block rule
+  // can skip it (WAF Skip rule: http.request.headers["x-cfs-worker-token"][0] eq "<token>").
+  // In Module-format Workers, secrets live on env — NOT as global variables.
+  const bypassToken = env?.CFS_WORKER_TOKEN;
+  if (bypassToken) headers.set('X-CFS-Worker-Token', bypassToken);
   return fetch(new Request(request, { headers }));
 }
 

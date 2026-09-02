@@ -1,5 +1,5 @@
 import Blogs from "./page/[page]/BlogListClient";
-import "./blog.css?=2";
+import "./blog.css?=3";
 import { Metadata } from "next";
 import { fetchBlogs } from "@/api/blog/api";
 

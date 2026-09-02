@@ -7,13 +7,22 @@ import { Card, CardContent, Typography, Button } from "@mui/material";
 import Link from "next/link";
 import TickIcon from "../../../public/images/tick.jpg";
 import Image from "next/image";
-import { redirect } from "next/navigation"; // ✅ Import notFound
+import { redirect, notFound } from "next/navigation";
 import Thankyou from './ThankYouClient '
 import { Metadata } from "next";
 import { fetchBlogDetail } from "./fetchBlogDetail";
 
- type RouteParams = { slug: string };
+type RouteParams = { slug: string };
 type PageProps = { params: Promise<RouteParams> };
+
+// Slugs that browsers/crawlers request automatically — never real blog posts.
+// Bail out before touching the API to avoid noisy 404 log spam.
+const NON_BLOG_SLUG_PATTERN = /\.(png|jpg|jpeg|gif|ico|svg|xml|txt|json|webp|bmp|css|js|woff|woff2|ttf|eot|mov|mp4|avi|mkv|webm|wmv|flv|mp3|wav|pdf|zip)$/i;
+const NON_BLOG_EXACT = new Set(['wp-json', 'wp-admin', 'wp-login', 'wp-login.php', 'favicon.ico', 'robots.txt', 'sitemap.xml']);
+
+function isNonBlogSlug(slug: string): boolean {
+  return NON_BLOG_SLUG_PATTERN.test(slug) || NON_BLOG_EXACT.has(slug);
+}
 
 // ✅ SEO from product.seo (NO images)
 export async function generateMetadata({
@@ -22,6 +31,9 @@ export async function generateMetadata({
   params: Promise<RouteParams>;
 }): Promise<Metadata> {
   const { slug } = await params;
+  if (isNonBlogSlug(slug)) {
+    return { robots: "noindex, nofollow" };
+  }
   if (slug.startsWith("thank-you-")) {
     return {
       title: "Thank You",
@@ -80,6 +92,10 @@ export async function generateMetadata({
 
 export default async function ProductDetailPage({ params }: PageProps) {
   const { slug } = await params;
+
+  if (isNonBlogSlug(slug)) {
+    notFound();
+  }
 
   if (slug.startsWith("thank-you-")) {
     return (
@@ -150,8 +166,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
       </div>
     );
   }
-  const seed = Math.ceil(Math.random() * 10);
-  const data = await fetchBlogDetail(slug, seed);
+  const data = await fetchBlogDetail(slug);
 
   if (slug.startsWith("thank-you-")) {
     return <Thankyou />;

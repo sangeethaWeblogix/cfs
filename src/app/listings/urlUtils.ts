@@ -18,6 +18,7 @@ export function buildApiUrl(base: string, filters: FilterState, seed: number, lo
   if (filters.region)             params.set("region",             filters.region);
   if (filters.suburb)             params.set("suburb",             filters.suburb);
   if (filters.pincode)            params.set("pincode",            filters.pincode);
+  if (filters.suburb && filters.radius_kms) params.set("radius_kms", String(filters.radius_kms));
   if (filters.from_price)         params.set("from_price",         String(filters.from_price));
   if (filters.to_price)           params.set("to_price",           String(filters.to_price));
   if (filters.minKg)              params.set("from_atm",           String(filters.minKg));
@@ -105,7 +106,10 @@ const BREADCRUMB_PRIORITY: Array<{
   {
     label: (f) => {
       if (!f.from_sleep && !f.to_sleep) return null;
-      if (f.from_sleep && f.to_sleep) return `${f.from_sleep} – ${f.to_sleep} Berths`;
+      if (f.from_sleep && f.to_sleep) {
+        if (String(f.from_sleep) === String(f.to_sleep)) return `${f.from_sleep} Berth`;
+        return `${f.from_sleep} – ${f.to_sleep} Berths`;
+      }
       if (f.from_sleep) return `From ${f.from_sleep} Berths`;
       return `Upto ${f.to_sleep} Berths`;
     },

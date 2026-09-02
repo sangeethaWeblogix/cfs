@@ -497,13 +497,12 @@ export default function ClientLogger({
   // }
  
 
-  const postTrackEvent = async (product_id: number) => {
+  const postTrackEvent = (product_id: number) => {
   try {
-    await fetch("/api/track-product/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ product_id }),
-    });
+    navigator.sendBeacon(
+      "/api/track-product/",
+      new Blob([JSON.stringify({ product_id })], { type: "application/json" })
+    );
   } catch {}
 };
  useEffect(() => {
@@ -1165,7 +1164,7 @@ export default function ClientLogger({
                         <div className="product-card">
                           <div className="img">
                             <Image
-                              src={post.image}
+                              src={post.image || "/images/download.svg"}
                               alt={post.title}
                               width={400}
                               height={250}

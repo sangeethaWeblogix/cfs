@@ -1,5 +1,5 @@
 .all-news.blog-listing .section-head.style-5 h2 {
-  font-size: 30px;
+  font-size: 25px;
   font-weight: 700;
   margin-bottom: 35px;
 }
@@ -17,7 +17,7 @@
   max-width: unset;
   margin-top: 0;
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
 }
 .all-news.blog-listing p {
   font-size: 15px;
@@ -25,6 +25,12 @@
   text-align: initial;
   margin-bottom: 12px;
 }
+
+.all-news.blog-listing p.blog-sidebar-cta__desc {
+  color: #fff;
+  margin-bottom: 50px;
+}
+
 
 .all-news.blog-listing .btn {
   text-align: center;
@@ -165,4 +171,96 @@
   .card {
     margin-bottom: 0;
   }
+}
+
+/* ── Blog Listing Sidebar CTA Banners ── */
+.blog-sidebar-cta {
+  background: #0f0d0d linear-gradient(135deg, #181717 0%, #000000 100%);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  padding: 28px 24px;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+}
+.blog-sidebar-cta--sell {
+  background: url('/images/seller_caravan.jpg') center/cover no-repeat;
+}
+.blog-sidebar-cta.blog-sidebar-cta--sell::before {
+  background: linear-gradient(135deg, #000000a6 0%, #0000 100%);
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  right: 0;
+  bottom: 0;
+}
+.blog-sidebar-cta::before {
+  content: '';
+  position: absolute;
+  bottom: -20px;
+  right: -20px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(245, 131, 51, 0.08);
+}
+.blog-sidebar-cta::after {
+  content: '';
+  position: absolute;
+  top: -30px;
+  right: 20px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(245, 131, 51, 0.05);
+}
+.blog-sidebar-cta.blog-sidebar-cta--sell .blog-sidebar-cta__heading {
+  color: #fff !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+  margin: 0 0 80px !important;
+  padding: 0 !important;
+  border: none !important;
+  position: relative;
+  text-align: left;
+}
+.blog-sidebar-cta.blog-sidebar-cta--sell p {
+  color:#fff;
+}
+.blog-sidebar-cta__heading {
+  color: #fff !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+  margin: 0 0 12px !important;
+  padding: 0 !important;
+  border: none !important;
+  position: relative;
+}
+.blog-sidebar-cta__desc {
+  color: #f5f5f5;
+  margin: 0 0 50px;
+  font-size: 14px;
+  line-height: 1.6;
+  position: relative;
+}
+.blog-sidebar-cta__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f58333;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 1;
+}
+.blog-sidebar-cta__btn:hover {
+  background: #d96e1f;
+  color: #fff;
 }

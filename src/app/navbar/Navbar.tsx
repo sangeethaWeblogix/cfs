@@ -1,7 +1,7 @@
 ﻿
 "use client";
 
-import "./navbar.css?=60";
+import "./navbar.css?=70";
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 
@@ -20,6 +20,9 @@ export default function Navbar() {
   const sidenavRef = useRef<HTMLDivElement | null>(null);
   const [hamOpen, setHamOpen] = useState(false);
   const hamRef = useRef<HTMLDivElement | null>(null);
+  const [exploreOpen, setExploreOpen] = useState(false);
+  const exploreRef = useRef<HTMLLIElement | null>(null);
+  const [mobileExploreOpen, setMobileExploreOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -33,6 +36,9 @@ export default function Navbar() {
       }
       if (hamRef.current && !hamRef.current.contains(e.target as Node)) {
         setHamOpen(false);
+      }
+      if (exploreRef.current && !exploreRef.current.contains(e.target as Node)) {
+        setExploreOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -98,7 +104,25 @@ export default function Navbar() {
                 <li className="nav-item">
                   <a className="nav-link" href="/listings/">Buy</a>
                 </li>
-                
+
+                {/* ── Explore dropdown ── */}
+                <li className="nav-item explore-nav-item" ref={exploreRef}>
+                  <button
+                    className="nav-link explore-nav-btn"
+                    onClick={() => setExploreOpen(prev => !prev)}
+                    aria-expanded={exploreOpen}
+                  >
+                    Explore <i className={`bi ${exploreOpen ? "bi-chevron-up" : "bi-chevron-down"} explore-chevron`} />
+                  </button>
+                  {exploreOpen && (
+                    <div className="explore-dropdown">
+                      <a href="/off-road-caravans/" className="explore-item" onClick={() => setExploreOpen(false)}>
+                        Off Road Caravans
+                      </a>
+                    </div>
+                  )}
+                </li>
+
                 <li className="nav-item">
                   <a className="nav-link" href="/sell-my-caravan/">Sell My Caravan</a>
                 </li>
@@ -187,6 +211,19 @@ export default function Navbar() {
                 <ul>
                   <li><a href="/" onClick={closeNav}>Home</a></li>
                   <li><a href="/listings/" onClick={closeNav}>Buy</a></li>
+                  <li className="sidenav-explore-item">
+                    <button
+                      className="sidenav-explore-btn"
+                      onClick={() => setMobileExploreOpen(prev => !prev)}
+                    >
+                      Explore <i className={`bi ${mobileExploreOpen ? "bi-chevron-up" : "bi-chevron-down"}`} />
+                    </button>
+                    {mobileExploreOpen && (
+                      <div className="sidenav-explore-sub">
+                        <a href="/off-road-caravans/" onClick={closeNav}>Off Road Caravans</a>
+                      </div>
+                    )}
+                  </li>
                   <li><a href="/blog/" onClick={closeNav}>Blog</a></li>
                   <li><a href="/about-us/" onClick={closeNav}>About</a></li>
                   <li><a href="/contact/" onClick={closeNav}>Contact</a></li>

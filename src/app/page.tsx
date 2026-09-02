@@ -1,11 +1,16 @@
 import Home from "./home-demo/home";
 import "./globals.css?=1";
 import { Metadata } from "next";
- 
+import { headers } from "next/headers";
+
 import { fetchStateBasedCaravans } from "@/api/homeApi/state/api";
 import { fetchRequirements } from "@/api/postRquirements/api";
 import { fetchHomePage } from "@/api/home/api";
 import { fetchTypeCounts } from "@/api/homeApi/typeCounts/api";
+import { fetchHomeFeatured } from "@/api/homeApi/featured/api";
+import { fetchBlogs } from "@/api/blog/api";
+
+const FEATURED_SEED_MAX = 15;
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +23,9 @@ export const metadata: Metadata = {
     "Browse caravans for sale across Australia. Compare prices on off-road, hybrid, pop top, touring, luxury models with size, weight & sleeping capacity.",
   icons: { icon: "/favicon.ico" },
   robots: "index, follow",
-  // verification: {
-  //   google: "6tT6MT6AJgGromLaqvdnyyDQouJXq0VHS-7HC194xEo",
-  // },
+  verification: {
+    google: "6tT6MT6AJgGromLaqvdnyyDQouJXq0VHS-7HC194xEo",
+  },
   alternates: {
     canonical: "https://www.caravansforsale.com.au",
   },
@@ -87,16 +92,32 @@ const homeJsonLd = {
 };
 
 export default async function Page() {
+  const h = await headers();
+  const visitorIp =
+    h.get("cf-connecting-ip") ||
+    h.get("x-forwarded-for")?.split(",")[0].trim() ||
+    h.get("x-real-ip") ||
+    "";
+  const featuredSeed = Math.floor(Math.random() * FEATURED_SEED_MAX) + 1;
+
   const [
     stateBands,
     requirements,
     homeblog,
     typeCounts,
+    featuredAll,
+    featuredNew,
+    featuredUsed,
+    blogPosts,
   ] = await Promise.all([
     fetchStateBasedCaravans(),
     fetchRequirements(),
     fetchHomePage(),
     fetchTypeCounts(),
+    fetchHomeFeatured({ type: "all", seed: featuredSeed, visitorIp }),
+    fetchHomeFeatured({ type: "new", seed: featuredSeed, visitorIp }),
+    fetchHomeFeatured({ type: "used", seed: featuredSeed, visitorIp }),
+    fetchBlogs(1),
   ]);
 
   return (
@@ -110,6 +131,11 @@ export default async function Page() {
         requirements={requirements}
         homeblog={homeblog?.latest_posts ?? []}
         typeCounts={typeCounts}
+        featuredAll={featuredAll}
+        featuredNew={featuredNew}
+        featuredUsed={featuredUsed}
+        blogPosts={blogPosts.items}
+        visitorIp={visitorIp}
       />
     </>
   );

@@ -62,7 +62,7 @@ export default function RelatedNews({ blogs }: { blogs: BlogPost[] }) {
                       <div className="product-card">
                         <div className="img">
                           <Image
-                            src={post.image || "/default.jpg"}
+                            src={post.image || "/images/download.svg"}
                             alt={post.imageAlt || post.title}
                             fill
                             className=""

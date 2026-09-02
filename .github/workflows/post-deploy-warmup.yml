@@ -44,6 +44,13 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 10 * * *'   # 08:00 PM AEST (UTC+10) / 09:00 PM AEDT (UTC+11)
+  push:
+    branches:
+      - main
+    # warmup-urls has `if: github.event_name == 'workflow_dispatch'` so it will NOT
+    # run on push — only warmup-priority (canary + current-build-id flip) and
+    # update-routes-mapping run automatically. That's 2 pages × up to 7 Puppeteer
+    # renders, not the full 3,462-URL crawl that caused WP CPU concerns previously.
 
 jobs:
 
@@ -105,6 +112,40 @@ jobs:
         if: failure()
         run: |
           echo "::error::Canary failed — current-build-id was NOT updated, nothing was promoted. The live site is still serving whatever was cached before this run. Check the 'Generate + validate priority pages' step above for which page/variant failed, fix it, then re-run this workflow."
+
+  # ==========================================
+  # UPDATE ROUTES MAPPING — always runs after warmup-priority.
+  #
+  # warmup-priority runs with SKIP_ROUTES_UPDATE=true (to keep the job fast
+  # and avoid a race with warmup-urls on manual runs). This job rebuilds
+  # routes-mapping from KV metadata so the Worker can find the newly written
+  # homepage and /listings/ HTML variants immediately after every cron run.
+  # Without this, routes-mapping stays stale → path-not-in-routes-mapping →
+  # BYPASS-NO-CACHE for all priority pages until the next weekly full rebuild.
+  # ==========================================
+  update-routes-mapping:
+    needs: warmup-priority
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm install node-fetch@2
+
+      - name: Rebuild routes mapping from KV metadata
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: node scripts/regenerate-routes-mapping.js
 
   # ==========================================
   # ALL LISTING URLS (url.csv) — 10 parallel batches of ~350 URLs each.

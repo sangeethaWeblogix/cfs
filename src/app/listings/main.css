@@ -268,17 +268,6 @@ input.loc-search-input:focus { box-shadow: 0 0 0 1.5px #7e7e7e !important; }
 }
 .lsd-grid-section--no-title { padding-top: 32px; }
 
-.lsd-grid-section--empty { padding: 24px 0; }
-.lsd-grid-empty {
-  margin: 0;
-  padding: 32px 20px;
-  text-align: center;
-  color: #666;
-  font-size: 15px;
-  background: #f7f7f7;
-  border-radius: 8px;
-}
-
 .lsd-grid-section:nth-child(odd) { background: #ffffff; }
 
 .lsd-grid-header {
@@ -1104,7 +1093,7 @@ input.loc-search-input:focus { box-shadow: 0 0 0 1.5px #7e7e7e !important; }
 
 /* ── Listings Sell CTA ── */
 .lsd-sell-cta {
-  padding: 0 15px 48px;
+  padding: 15px 0px 48px;
 }
 .lsd-sell-cta__inner {
     background: #f8f9fa;
@@ -1116,7 +1105,7 @@ input.loc-search-input:focus { box-shadow: 0 0 0 1.5px #7e7e7e !important; }
 .lsd-sell-cta__title {
     color: #000000;
     margin: 0 0 12px;
-    font-size: 1.4rem;
+    font-size: 20px;
     font-weight: 600;
 }
 .lsd-sell-cta__body {
@@ -1132,10 +1121,22 @@ input.loc-search-input:focus { box-shadow: 0 0 0 1.5px #7e7e7e !important; }
 }
 .lsd-sell-cta__link:hover { text-decoration: underline; }
 @media (max-width: 767px) {
-  .lsd-sell-cta { padding: 0 16px 36px; }
+  .lsd-sell-cta { padding: 15px 0px 36px; }
   .lsd-sell-cta__inner { padding: 28px 20px; border-radius: 12px; }
   .lsd-sell-cta__title { font-size: 1.2rem; }
 }
+
+/* ── Off-road extra content block ── */
+.lsd-offroad-extra { padding: 32px 0 0; background: #fff; }
+.lsd-offroad-extra__title { font-size: 20px; font-weight: 700; color: #1a1a1a; margin-bottom: 10px; }
+.lsd-offroad-extra__body {
+    color: #191919;
+    /* max-width: 820px; */
+    font-size: 16px;
+    line-height: 1.7;
+}
+.lsd-offroad-extra__body a { color: #1153a6; text-decoration: none; }
+.lsd-offroad-extra__body a:hover { text-decoration: underline; }
 
 /* ── Promo banner cards (empty grid slot filler) ── */
 .lsd-promo-spacer { visibility: hidden; pointer-events: none; }

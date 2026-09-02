@@ -153,7 +153,7 @@ function isNonEmpty(s: unknown): s is string {
 /* ── Mosaic gallery ── */
 const Gallery = memo(function Gallery({ images, onOpen }: { images: string[]; onOpen: (index: number) => void }) {
   const extra = images.length - 3;
-  const [mobileSlide, setMobileSlide] = useState(1);
+  const [mobileSlide, setMobileSlide] = useState(0);
   const go = (dir: 1 | -1) =>
     setMobileSlide(p => Math.max(0, Math.min(images.length - 1, p + dir)));
 
@@ -166,18 +166,21 @@ const Gallery = memo(function Gallery({ images, onOpen }: { images: string[]; on
             ? <Image src={images[0]} alt="Caravan" fill style={{ objectFit: "cover" }} unoptimized />
             : <div className="pdd-gallery__placeholder" />}
         </div>
-        <div className="pdd-gallery__mosaic-grid">
-          {[1, 2].map(i => (
-            <div key={i} className="pdd-gallery__mosaic-cell" onClick={() => onOpen(i)}>
-              {images[i]
-                ? <Image src={images[i]} alt="" fill style={{ objectFit: "cover" }} unoptimized />
-                : <div className="pdd-gallery__placeholder" />}
-              {i === 2 && extra > 0 && (
-                <div className="pdd-gallery__more">+{extra} Photos</div>
-              )}
-            </div>
-          ))}
-        </div>
+        {images.length > 1 && (
+          <div
+            className="pdd-gallery__mosaic-grid"
+            style={images.length === 2 ? { gridTemplateRows: '1fr' } : undefined}
+          >
+            {[1, 2].filter(i => images[i]).map(i => (
+              <div key={i} className="pdd-gallery__mosaic-cell" onClick={() => onOpen(i)}>
+                <Image src={images[i]} alt="" fill style={{ objectFit: "cover" }} unoptimized />
+                {i === 2 && extra > 0 && (
+                  <div className="pdd-gallery__more">+{extra} Photos</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Mobile: pure CSS slider */}
@@ -192,13 +195,17 @@ const Gallery = memo(function Gallery({ images, onOpen }: { images: string[]; on
             </div>
           ))}
         </div>
-        <button className="pdd-gallery__prev" onClick={e => { e.stopPropagation(); go(-1); }} aria-label="Previous">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <button className="pdd-gallery__next" onClick={e => { e.stopPropagation(); go(1); }} aria-label="Next">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-        <div className="pdd-gallery__mobile-counter">{mobileSlide + 1} / {images.length}</div>
+        {images.length > 1 && (
+          <>
+            <button className="pdd-gallery__prev" onClick={e => { e.stopPropagation(); go(-1); }} aria-label="Previous">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button className="pdd-gallery__next" onClick={e => { e.stopPropagation(); go(1); }} aria-label="Next">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <div className="pdd-gallery__mobile-counter">{mobileSlide + 1} / {images.length}</div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -389,6 +396,8 @@ export default function ProductDetailDemo({ data, similarData }: Props) {
   const makeLabel = make.replace(/\s+caravans?$/i, "").trim() || make;
 
   const catKeyword = categoryNames[0]?.toLowerCase().replace(/\s*caravans?$/i, "").trim() ?? "";
+  const isOffRoad = catKeyword.includes("off road") || catKeyword.includes("off-road");
+  const offRoadSeed = Number(product.id ?? 0);
 
 const priceUpperIdx = !isPOA ? PRICE_STEPS.findIndex(s => s >= displayPrice) : -1;
   const priceHi = priceUpperIdx >= 0 ? PRICE_STEPS[priceUpperIdx] : 0;
@@ -414,11 +423,10 @@ const priceUpperIdx = !isPOA ? PRICE_STEPS.findIndex(s => s >= displayPrice) : -
   useEffect(() => {
     const productId = product.id ?? pd.id;
     if (!productId) return;
-    fetch("/api/track-product/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ product_id: Number(productId) }),
-    }).catch(() => {});
+    navigator.sendBeacon(
+      "/api/track-product/",
+      new Blob([JSON.stringify({ product_id: Number(productId) })], { type: "application/json" })
+    );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id]);
 
@@ -644,6 +652,20 @@ const priceUpperIdx = !isPOA ? PRICE_STEPS.findIndex(s => s >= displayPrice) : -
             </div>
           </aside>
         </div>
+
+        {/* ── Off Road Extra Content ── */}
+        {isOffRoad && (
+          <section className="lsd-offroad-extra">
+            
+              <h2 className="lsd-offroad-extra__title">Find Your Ideal Off Road Caravan</h2>
+              <p className="lsd-offroad-extra__body">
+                Need help choosing the right off road caravan? Visit our{" "}
+                <a href="https://www.caravansforsale.com.au/off-road-caravans/">Off Road Caravans</a>{" "}
+                hub to compare caravan types, current prices, brands, models, market data, reviews and buying guides.
+              </p>
+            
+          </section>
+        )}
 
         {/* ── Sell CTA ── */}
         <section className="hbg-sell-section">

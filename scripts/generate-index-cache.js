@@ -336,7 +336,33 @@ function buildPoolRequestUrl(urlPath, seed) {
   if (toLength)   params.set('to_length',         toLength);
   if (condition)  params.set('condition',         condition);
 
-  return `/api/pool-listings/?per_page=24&${params.toString()}&page=1`;
+  // MUST match the per_page used in buildApiUrl() (urlUtils.ts) — home.tsx uses
+  // per_page=21 to build requestUrl, and preload.url === requestUrl must be true
+  // for the __INITIAL_POOL__ preload to be consumed. Any mismatch makes the
+  // preload URL check fail silently and the preload is never used.
+  return `/api/pool-listings/?per_page=21&${params.toString()}&page=1`;
+}
+
+/**
+ * Check whether a /listings/ path is in url.csv's curated indexed set by
+ * calling the Vercel /api/indexed-url/ endpoint. Returns true/false, or null
+ * on any error (caller will omit is_indexed from the preload and let the
+ * client-side async check handle it as before).
+ *
+ * MUST stay identical to fetchIsIndexed() in generate-affected-html-cache.js.
+ */
+async function fetchIsIndexed(urlPath) {
+  const fetchUrl = `${VERCEL_BASE_URL}/api/indexed-url/?path=${encodeURIComponent(urlPath)}`;
+  try {
+    const res = await fetchWithTimeout(fetchUrl, {
+      headers: { 'User-Agent': 'CFS-IndexCacheGenerator/1.0', 'Accept': 'application/json' },
+    }, 10000);
+    if (!res.ok) return null;
+    const json = await res.json();
+    return typeof json?.indexed === 'boolean' ? json.indexed : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -442,6 +468,24 @@ async function uploadToKV(key, value, contentType, metadata) {
 async function generateHtmlVariants(urlPath, slug) {
   const variantKeys = [];
 
+  // Fetch isIndexed once per URL (same for all variants) so home.tsx can
+  // initialise isIndexed state correctly from the preload, avoiding the
+  // secondary pool re-fetch that occurs when the client-side async check
+  // returns a different value than the default (true).
+  const isIndexed = await fetchIsIndexed(urlPath);
+  if (isIndexed !== null) {
+    console.log(`   [isIndexed] ${urlPath} -> ${isIndexed}`);
+  }
+
+  // Noindex pages (0-result combos, band-only pages, etc.) must never be
+  // stored in the KV HTML cache — they change frequently and serving a
+  // stale cached copy would show wrong listings. Fall through to Vercel
+  // origin so every request to a noindex page is always fresh.
+  if (isIndexed === false) {
+    console.log(`   [SKIP] noindex page — not caching in KV`);
+    return [];
+  }
+
   for (let v = 1; v <= HTML_VARIANTS; v++) {
     // Bypass the Cloudflare Worker by fetching from Vercel directly.
     // Appending shuffle_seed causes the page to render with a unique product order.
@@ -474,6 +518,10 @@ async function generateHtmlVariants(urlPath, slug) {
       // client-side API call. Falls back gracefully if the fetch fails.
       const poolData = await fetchPoolData(urlPath, v);
       if (poolData) {
+        // Embed is_indexed so home.tsx can initialise isIndexed state correctly
+        // on hydration, preventing the secondary pool re-fetch that fires when
+        // the async /api/indexed-url/ check returns a different value.
+        if (isIndexed !== null) poolData.is_indexed = isIndexed;
         const poolJson = JSON.stringify(poolData).replace(/<\/script>/gi, '<\\/script>');
         html = html.replace('</head>', `<script>window.__INITIAL_POOL__ = ${poolJson};</script>\n</head>`);
         console.log(`   [HTML-v${v}] Pool pre-loaded (${(poolData.json?.data?.products ?? poolData.json?.products ?? []).length} products)`);

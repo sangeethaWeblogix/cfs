@@ -1,4 +1,4 @@
- // app/410/page.tsx
+  // app/410/page.tsx
 import "./page.css";
 import fs from "fs";
 import path from "path";

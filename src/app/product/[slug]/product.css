@@ -1143,7 +1143,7 @@ text-align: left;
 }
 
 /* ── Sell CTA section (reused from home page) ── */
-.hbg-sell-section { padding: 60px 0 0px; background: #fff; }
+.hbg-sell-section { padding: 40px 0 0px; background: #fff; }
 .hbg-sell-card { background: #f8f9fa; border: 1px solid #e8e8e8; border-radius: 16px; padding: 25px 60px; text-align: center; }
 .hbg-sell-icon-row { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 20px; }
 .hbg-sell-line { display: block; width: 70px; height: 1px; background: #d0d0d0; }

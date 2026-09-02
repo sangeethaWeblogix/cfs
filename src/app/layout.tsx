@@ -3,7 +3,7 @@
 
   import "bootstrap/dist/css/bootstrap.min.css";
   import "bootstrap-icons/font/bootstrap-icons.css";
-  import "./globals.css?=41";
+  import "./globals.css?=42";
   import Navbar from "./navbar/Navbar";
   import NavbarSkeleton from "./navbar/NavbarSkeleton";
   import Footer from "./footer/Footer";
@@ -21,6 +21,7 @@ import { headers } from "next/headers";
 import { metaFromSlug } from "@/utils/seo/meta";
 import { fetchProductMeta } from "@/utils/fetchProductMeta";
 import fetchListingsForHead, { buildListingsJsonLd, buildBreadcrumbs } from "@/utils/fetchListingsHead";
+import GlobalImageFallback from "@/components/GlobalImageFallback";
 
   const montserrat = Montserrat({
     subsets: ["latin"],
@@ -111,12 +112,17 @@ import fetchListingsForHead, { buildListingsJsonLd, buildBreadcrumbs } from "@/u
       }
     }
 
-    if (isListingSlug) {
+    // Bare /listings/ went through the same async-generateMetadata + streaming
+    // bug as slugged pages (title landed in <head>, description/canonical/robots/
+    // og/twitter landed after </head>) because it was excluded from the fix below.
+    const hasSlugMeta = isListingSlug || isMainListings;
+
+    if (hasSlugMeta) {
       const slugString = pathname.replace(/^\/listings\//, "").replace(/\/$/, "");
-      const slugParts = slugString.split("/").filter(Boolean);
+      const slugParts = isMainListings ? [] : slugString.split("/").filter(Boolean);
 
       // Middleware signals 0 products via x-robots: noindex — use it directly, no API call needed
-      if (xRobots === "noindex") {
+      if (isListingSlug && xRobots === "noindex") {
         slugRobots = "noindex";
         slugCanonical = `https://www.caravansforsale.com.au/listings/${slugParts.join("/")}/`;
         slugDescription = "Browse caravans for sale across Australia. Compare prices on off-road, hybrid, pop top, touring, luxury models with size, weight & sleeping capacity.";
@@ -176,16 +182,16 @@ import fetchListingsForHead, { buildListingsJsonLd, buildBreadcrumbs } from "@/u
           {isProductPage && productMeta.canonical && <meta property="og:url" content={productMeta.canonical} />}
           {isProductPage && productMeta.title && <meta name="twitter:title" content={productMeta.title} />}
           {isProductPage && productMeta.description && <meta name="twitter:description" content={productMeta.description} />}
-          {/* Per-slug SEO tags for /listings/* — rendered before streaming starts */}
+          {/* Per-slug SEO tags for /listings/* (incl. bare /listings/) — rendered before streaming starts */}
           {/* <title> is set by generateMetadata in [...slug]/page.tsx via fast metaFromSlug (no API call) */}
-          {isListingSlug && slugDescription && <meta name="description" content={slugDescription} />}
-          {isListingSlug && slugCanonical && <link rel="canonical" href={slugCanonical} />}
-          {isListingSlug && <meta name="robots" content={slugRobots} />}
-          {isListingSlug && slugTitle && <meta property="og:title" content={slugTitle} />}
-          {isListingSlug && slugDescription && <meta property="og:description" content={slugDescription} />}
-          {isListingSlug && slugCanonical && <meta property="og:url" content={slugCanonical} />}
-          {isListingSlug && slugTitle && <meta name="twitter:title" content={slugTitle} />}
-          {isListingSlug && slugDescription && <meta name="twitter:description" content={slugDescription} />}
+          {hasSlugMeta && slugDescription && <meta name="description" content={slugDescription} />}
+          {hasSlugMeta && slugCanonical && <link rel="canonical" href={slugCanonical} />}
+          {hasSlugMeta && <meta name="robots" content={slugRobots} />}
+          {hasSlugMeta && slugTitle && <meta property="og:title" content={slugTitle} />}
+          {hasSlugMeta && slugDescription && <meta property="og:description" content={slugDescription} />}
+          {hasSlugMeta && slugCanonical && <meta property="og:url" content={slugCanonical} />}
+          {hasSlugMeta && slugTitle && <meta name="twitter:title" content={slugTitle} />}
+          {hasSlugMeta && slugDescription && <meta name="twitter:description" content={slugDescription} />}
           {/* Contact page JSON-LD */}
           {isContactPage && (
             <script
@@ -269,7 +275,24 @@ import fetchListingsForHead, { buildListingsJsonLd, buildBreadcrumbs } from "@/u
             />
           )}
           {/* ✅ Google Tag Manager (Head) */}
-        
+          <Script
+            id="gtm-head"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function(w,d,s,l,i){
+                  w[l]=w[l]||[];
+                  w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});
+                  var f=d.getElementsByTagName(s)[0],
+                    j=d.createElement(s),
+                    dl=l!='dataLayer'?'&l='+l:'';
+                  j.async=true;
+                  j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;
+                  f?f.parentNode.insertBefore(j,f):d.head.appendChild(j);
+                })(window,document,'script','dataLayer','GTM-N3362FGQ');
+              `,
+            }}
+          />
 
 
 
@@ -278,7 +301,14 @@ import fetchListingsForHead, { buildListingsJsonLd, buildBreadcrumbs } from "@/u
           className={`flex flex-col min-h-screen new_font ${montserrat.className}`}
         >
           {/* ✅ Google Tag Manager (noscript) - right after body */}
-       
+         <noscript>
+  <iframe
+    src="https://www.googletagmanager.com/ns.html?id=GTM-N3362FGQ"
+    height="0"
+    width="0"
+    style={{ display: "none", visibility: "hidden" }}
+  />
+</noscript>
 
   
          <Suspense fallback={null}>
@@ -301,6 +331,8 @@ import fetchListingsForHead, { buildListingsJsonLd, buildBreadcrumbs } from "@/u
           showSpinner={false}
         /> */}
           <GlobalErrorTracker />
+                    <GlobalImageFallback />
+
           <BannerProvider>
           {children}
           </BannerProvider>

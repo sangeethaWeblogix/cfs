@@ -1,4 +1,4 @@
-import { parseSlugToFilters } from "@/app/components/urlBuilder";
+ import { parseSlugToFilters } from "@/app/components/urlBuilder";
 import type { Metadata } from "next";
 import extraIndexedData from "../../../cfs-paths/extra-indexed.json";
 import { INDEXABLE_URLS } from "./indexable-urls";

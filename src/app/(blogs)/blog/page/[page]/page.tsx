@@ -2,7 +2,7 @@
 import { fetchBlogs } from "@/api/blog/api";
 import BlogListClient from "./BlogListClient";
 import { redirect } from "next/navigation";
-import "../../blog.css?=2";
+import "../../blog.css?=3";
 import { Metadata } from "next";
 
 export const dynamic = "force-dynamic";

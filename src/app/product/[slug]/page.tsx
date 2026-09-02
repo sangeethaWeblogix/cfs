@@ -126,7 +126,7 @@ async function fetchSimilarProducts(productId: string | number, seed: number) {
   const API_KEY = process.env.CFS_API_KEY;
   try {
     const res = await fetch(
-      `https://cfs.marketplacenetwork.com.au/wp-json/cfs/v1/similar_products?product_id=${productId}&seed=${seed}`,
+      `https://admin.caravansforsale.com.au/wp-json/cfs/v1/similar_products?product_id=${productId}&seed=${seed}`,
       {
         cache: "no-store",
         headers: {
@@ -150,7 +150,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const data = await fetchProductDetail(slug);
 
   if (!data || Object.keys(data).length === 0) {
-    redirect("/404");
+    // Middleware handles 410 for the common path; this covers the rare case where
+    // the middleware check timed out and let the request through.
+    redirect("/410/");
   }
 
   const pd = data?.data?.product_details ?? {};

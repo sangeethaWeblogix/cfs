@@ -8,15 +8,19 @@ export async function GET() {
   try {
     const results = await Promise.allSettled(
       PLACEMENTS.map(async (placement) => {
-        const url = `https://cfs.marketplacenetwork.com.au/wp-json/ads-manager/v1/banners?placement=${placement}&limit=50&paged=1`; // ✅ http://
+        const url = `http://admin.caravansforsale.com.au/wp-json/ads-manager/v1/banners?placement=${placement}&limit=50&paged=1`; // ✅ http://
 
         const res = await fetch(url, {
-          headers: { "User-Agent": "Mozilla/5.0" },
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36" },
           cache: "no-store",
         });
 
         if (!res.ok) {
-          console.error(`❌ ${placement}: ${res.status}`);
+          // 404 means the placement hasn't been configured in WordPress yet — not an error.
+          // Log other unexpected failures as warnings so they're visible but not alarming.
+          if (res.status !== 404) {
+            console.warn(`⚠️ banners/${placement}: ${res.status}`);
+          }
           return [];
         }
 

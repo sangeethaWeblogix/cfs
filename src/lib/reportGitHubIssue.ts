@@ -153,7 +153,7 @@ ${payload.message}
 \`\`\`
 
 ### Checklist
-- [ ] Verify backend API is reachable: \`https://cfs.marketplacenetwork.com.au/wp-json/cfs/v1/new_optimize_code\`
+- [ ] Verify backend API is reachable: \`https://admin.caravansforsale.com.au/wp-json/cfs/v1/new_optimize_code\`
 - [ ] Check \`CFS_API_KEY\` in Vercel environment variables
 - [ ] Check Vercel function logs for this timeframe
 - [ ] Confirm API response time is under 30s
