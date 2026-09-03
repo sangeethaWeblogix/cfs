@@ -3,22 +3,22 @@
 import React, { useState } from "react";
 
 type FormState = {
-  "your-name": string;
-  "your-email": string;
-  "your-phone": string;
-  "you-postcode": string; // keep as-is since your CF7 works with this key
-  "your-message": string;
+  name: string;
+  email: string;
+  phone: string;
+  postcode: string; 
+  message: string;
 };
 
 export default function ContactSection() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [formData, setFormData] = useState<FormState>({
-    "your-name": "",
-    "your-email": "",
-    "your-phone": "",
-    "you-postcode": "",
-    "your-message": "",
+    name: "",
+    email: "",
+    phone: "",
+    postcode: "",
+    message: "",
   });
   const [errors, setErrors] = useState<
     Partial<Record<keyof FormState, string>>
@@ -36,19 +36,19 @@ export default function ContactSection() {
 
   const validate = () => {
     const next: Partial<Record<keyof FormState, string>> = {};
-    if (!formData["your-name"].trim()) next["your-name"] = "Name is required.";
-    if (!formData["your-email"].trim()) {
-      next["your-email"] = "Email is required.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData["your-email"])) {
-      next["your-email"] = "Enter a valid email.";
+    if (!formData.name.trim()) next.name = "Name is required.";
+    if (!formData.email.trim()) {
+      next.email = "Email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      next.email = "Enter a valid email.";
     }
-    if (!formData["your-phone"].trim()) {
-      next["your-phone"] = "Phone is required.";
-    } else if (!/^[0-9\s+\-()]{7,20}$/.test(formData["your-phone"])) {
-      next["your-phone"] = "Enter a valid phone number.";
+    if (!formData.phone.trim()) {
+      next.phone = "Phone is required.";
+    } else if (!/^[0-9\s+\-()]{7,20}$/.test(formData.phone)) {
+      next.phone = "Enter a valid phone number.";
     }
-    if (!formData["you-postcode"].trim()) {
-      next["you-postcode"] = "Postcode is required.";
+    if (!formData.postcode.trim()) {
+      next.postcode = "Postcode is required.";
     }
 
     setErrors(next);
@@ -68,21 +68,11 @@ export default function ContactSection() {
     try {
       setLoading(true);
 
-      const form = new FormData();
-      form.append("_wpcf7", "3290");
-      form.append("_wpcf7_version", "5.9.3");
-      form.append("_wpcf7_locale", "en_US");
-      form.append("_wpcf7_unit_tag", "wpcf7-f3290-p45-o1");
-      form.append("_wpcf7_container_post", "45");
-
-      Object.entries(formData).forEach(([key, value]) =>
-        form.append(key, value)
-      );
-
-      const res = await fetch(
-        "https://admin.caravansforsale.com.au/wp-json/contact-form-7/v1/contact-forms/3290/feedback",
-        { method: "POST", body: form }
-      );
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
       const data = await res.json();
 
@@ -90,11 +80,11 @@ export default function ContactSection() {
         setMessage("✅ Message sent successfully!");
         // clear form + errors
         setFormData({
-          "your-name": "",
-          "your-email": "",
-          "your-phone": "",
-          "you-postcode": "",
-          "your-message": "",
+          name: "",
+          email: "",
+          phone: "",
+          postcode: "",
+          message: "",
         });
         setErrors({});
       } else {
@@ -142,16 +132,16 @@ export default function ContactSection() {
                       <div className="form-group mb-20">
                         <input
                           type="text"
-                          name="your-name"
+                          name="name"
                           className="form-control"
                           placeholder="Name*"
-                          value={formData["your-name"]}
+                          value={formData.name}
                           onChange={handleChange}
                           required
                         />
-                        {errors["your-name"] && (
+                        {errors.name && (
                           <small className="text-danger">
-                            {errors["your-name"]}
+                            {errors.name}
                           </small>
                         )}
                       </div>
@@ -161,16 +151,16 @@ export default function ContactSection() {
                       <div className="form-group mb-20">
                         <input
                           type="email"
-                          name="your-email"
+                          name="email"
                           className="form-control"
                           placeholder="Email*"
-                          value={formData["your-email"]}
+                          value={formData.email}
                           onChange={handleChange}
                           required
                         />
-                        {errors["your-email"] && (
+                        {errors.email && (
                           <small className="text-danger">
-                            {errors["your-email"]}
+                            {errors.email}
                           </small>
                         )}
                       </div>
@@ -180,16 +170,16 @@ export default function ContactSection() {
                       <div className="form-group mb-20">
                         <input
                           type="tel"
-                          name="your-phone"
+                          name="phone"
                           className="form-control"
                           placeholder="Phone*"
-                          value={formData["your-phone"]}
+                          value={formData.phone}
                           onChange={handleChange}
                           required
                         />
-                        {errors["your-phone"] && (
+                        {errors.phone && (
                           <small className="text-danger">
-                            {errors["your-phone"]}
+                            {errors.phone}
                           </small>
                         )}
                       </div>
@@ -199,16 +189,16 @@ export default function ContactSection() {
                       <div className="form-group mb-20">
                         <input
                           type="text"
-                          name="you-postcode"
+                          name="postcode"
                           className="form-control"
                           placeholder="Postcode*"
-                          value={formData["you-postcode"]}
+                          value={formData.postcode}
                           onChange={handleChange}
                           required
                         />
-                        {errors["you-postcode"] && (
+                        {errors.postcode && (
                           <small className="text-danger">
-                            {errors["you-postcode"]}
+                            {errors.postcode}
                           </small>
                         )}
                       </div>
@@ -218,8 +208,8 @@ export default function ContactSection() {
                       <div className="form-group mb-20">
                         <textarea
                           className="form-control"
-                          name="your-message"
-                          value={formData["your-message"]}
+                          name="message"
+                          value={formData.message}
                           onChange={handleChange}
                           placeholder="How can we help you?*"
                           rows={4}
