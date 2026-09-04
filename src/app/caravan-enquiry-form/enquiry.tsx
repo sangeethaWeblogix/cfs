@@ -111,32 +111,29 @@ export default function ContactSection() {
     try {
       setLoading(true);
 
-      const form = new FormData();
-      form.append("_wpcf7", "3290");
-      form.append("_wpcf7_version", "5.9.3");
-      form.append("_wpcf7_locale", "en_US");
-      form.append("_wpcf7_unit_tag", "wpcf7-f3290-p45-o1");
-      form.append("_wpcf7_container_post", "45");
-      form.append("your-name", formData["your-name"]);
-      form.append("your-email", formData["your-email"]);
-      form.append("your-phone", formData["your-phone"]);
-      form.append("you-postcode", formData["you-postcode"]);
-      form.append("caravan-type", formData["caravan-type"]);
-      form.append("condition", formData.condition);
-      form.append("budget", formData.budget);
-      form.append("your-message", formData["your-message"]);
-      Object.entries(formData).forEach(([key, value]) =>
-        form.append(key, value)
-      );
+      const payload = {
+        name: formData["your-name"],
+        phone: formData["your-phone"],
+        email: formData["your-email"],
+        postcode: formData["you-postcode"],
+        category: formData["caravan-type"],
+        condition: formData.condition,
+        budget: formData.budget,
+        requirements: formData["your-message"],
+      };
 
-      const res = await fetch(
-        "https://admin.caravansforsale.com.au/wp-json/contact-form-7/v1/contact-forms/155838/feedback",
-        { method: "POST", body: form }
-      );
+      const res = await fetch("/api/caravan-enquiry", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
       const data = await res.json();
 
-      if (data.status === "mail_sent") {
+      if (res.ok) {
         setMessage("✅ Message sent successfully!");
         // clear form + errors
         setFormData({
@@ -312,7 +309,7 @@ export default function ContactSection() {
                           >
                             <option value="">Select Condition</option>
                             <option value="New">New</option>
-                            <option value="Near New">Near New</option>
+                            
                             <option value="Used">Used</option>
                           </select>
                           {errors.condition && (
