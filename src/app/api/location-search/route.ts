@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     {
       headers: {
         Accept: "application/json",
-        ...(API_KEY && { "X-API-Key": API_KEY }),
+        ...(API_KEY && { "X-Secret-Key": API_KEY }),
       },
       next: { revalidate: 86400 }, // location data is static — cache for 24h
     }

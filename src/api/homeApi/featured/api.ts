@@ -54,7 +54,7 @@ export async function fetchHomeFeatured(params: {
       headers: {
         Accept: "application/json",
         "User-Agent": SERVER_UA,
-        ...(API_KEY && { "X-API-Key": API_KEY }),
+        ...(API_KEY && { "X-Secret-Key": API_KEY }),
         ...(visitorIp && { "X-Visitor-IP": visitorIp }),
       },
       cache: "no-store",

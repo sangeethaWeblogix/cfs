@@ -26,7 +26,7 @@ export async function POST(
     body: formData,
     headers: {
         Accept: "application/json",
-        ...(API_KEY && { "X-API-Key": API_KEY }), // ✅ API key added
+        ...(API_KEY && { "X-Secret-Key": API_KEY }), // ✅ API key added
       }, // ask for JSON explicitly
   });
 

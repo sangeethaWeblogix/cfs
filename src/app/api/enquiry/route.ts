@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
-      ...(API_KEY && { "X-API-Key": API_KEY }),
+      ...(API_KEY && { "X-Secret-Key": API_KEY }),
     },
     body: JSON.stringify(payload),
   });

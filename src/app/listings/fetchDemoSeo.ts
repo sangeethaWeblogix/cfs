@@ -14,7 +14,7 @@ export async function fetchDemoSeo(filters: FilterState): Promise<SeoV2 | null> 
     const res = await fetch(`${API_BASE}/pool_test${qs}`, {
       headers: {
         Accept: "application/json",
-        ...(API_KEY && { "X-API-Key": API_KEY }),
+        ...(API_KEY && { "X-Secret-Key": API_KEY }),
       },
       next: { revalidate: 3600 },
     });

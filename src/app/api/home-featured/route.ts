@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       headers: {
         Accept: "application/json",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
-        ...(API_KEY && { "X-API-Key": API_KEY }),
+        ...(API_KEY && { "X-Secret-Key": API_KEY }),
         ...(visitorIp && { "X-Visitor-IP": visitorIp }),
       },
       cache: "no-store",

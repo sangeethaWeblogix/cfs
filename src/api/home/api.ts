@@ -127,7 +127,7 @@ export async function fetchHomePage(): Promise<HomePageData> {
     const res = await fetch(url, {
       headers: {
         Accept: "application/json",
-        ...(API_KEY && { "X-API-Key": API_KEY }),
+        ...(API_KEY && { "X-Secret-Key": API_KEY }),
       },
       next: { revalidate: 0 },
     });

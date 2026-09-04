@@ -18,7 +18,7 @@ export const fetchProductMeta = cache(async (slug: string): Promise<ProductMeta>
         next: { revalidate: 3600 },
         headers: {
           Accept: "application/json",
-          ...(API_KEY && { "X-API-Key": API_KEY }),
+          ...(API_KEY && { "X-Secret-Key": API_KEY }),
         },
       }
     );

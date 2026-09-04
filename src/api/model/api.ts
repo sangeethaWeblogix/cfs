@@ -23,7 +23,7 @@ export const fetchModelsByMake = async (make: string) => {
     const res = await fetch(`${API_BASE}/new-list?make=${make}`, {
       headers: {
         Accept: "application/json",
-        ...(API_KEY && { "X-API-Key": API_KEY }), // ✅ Added
+        ...(API_KEY && { "X-Secret-Key": API_KEY }), // ✅ Added
       },
     });
     if (!res.ok) return [];

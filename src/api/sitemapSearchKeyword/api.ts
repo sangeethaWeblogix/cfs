@@ -11,7 +11,7 @@ export async function fetchSearchkeywords(
 
   const res = await fetch(url, {headers: {
         Accept: "application/json",
-        ...(API_KEY && { "X-API-Key": API_KEY }), // ✅ Added
+        ...(API_KEY && { "X-Secret-Key": API_KEY }), // ✅ Added
       }, cache: "no-store", signal });
   if (!res.ok) throw new Error(`Keyword API failed: ${res.status}`);
 

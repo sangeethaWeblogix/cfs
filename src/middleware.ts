@@ -449,7 +449,7 @@ export async function middleware(request: NextRequest) {
         const apiRes = await fetch(apiUrl, {
           headers: {
             "User-Agent": SERVER_UA,
-            ...(API_KEY && { "X-API-Key": API_KEY }),
+            ...(API_KEY && { "X-Secret-Key": API_KEY }),
           },
           signal: controller.signal,
           // @ts-ignore - Edge runtime specific

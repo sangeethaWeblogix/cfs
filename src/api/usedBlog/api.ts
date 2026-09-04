@@ -6,7 +6,7 @@ export const fetchUsedBlogList = async () => {
     const res = await fetch(`${API_BASE}/used-blog`, {
       headers: {
         Accept: "application/json",
-        ...(API_KEY && { "X-API-Key": API_KEY }), // ✅ Added
+        ...(API_KEY && { "X-Secret-Key": API_KEY }), // ✅ Added
       },
       cache: "no-store", // optional: always fresh data
     });

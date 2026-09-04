@@ -39,7 +39,7 @@ const fetchWithTimeout = async (url: string) => {
     return await fetch(url, {
       headers: {
         Accept: "application/json",
-        ...(API_KEY && { "X-API-Key": API_KEY }), // ✅ API key added
+        ...(API_KEY && { "X-Secret-Key": API_KEY }), // ✅ API key added
       },
       cache: "no-store",
       signal: controller.signal,

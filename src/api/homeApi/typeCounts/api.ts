@@ -14,7 +14,7 @@ async function fetchCategoryCount(category: TypeCategory): Promise<number> {
       headers: {
         Accept: "application/json",
         "User-Agent": SERVER_UA,
-        ...(API_KEY && { "X-API-Key": API_KEY }),
+        ...(API_KEY && { "X-Secret-Key": API_KEY }),
       },
     });
     if (!res.ok) return 0;

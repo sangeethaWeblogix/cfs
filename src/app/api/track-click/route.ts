@@ -19,7 +19,7 @@ export async function POST(req: Request) {
         method: "POST",
        headers: {
           "Content-Type": "application/json",
-          ...(API_KEY && { "X-API-Key": API_KEY }), // ✅ Added
+          ...(API_KEY && { "X-Secret-Key": API_KEY }), // ✅ Added
         },
         body: JSON.stringify({
           product_id: body.product_id,

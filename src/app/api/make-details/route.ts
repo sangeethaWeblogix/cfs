@@ -11,7 +11,7 @@ export async function GET() {
   const res = await fetch(`${API_BASE}/make_details`, {
     headers: {
       Accept: "application/json",
-      ...(API_KEY && { "X-API-Key": API_KEY }),
+      ...(API_KEY && { "X-Secret-Key": API_KEY }),
     },
     next: { revalidate: 3600 },
   });

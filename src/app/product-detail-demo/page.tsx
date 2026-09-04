@@ -20,7 +20,7 @@ const fetchProduct = cache(async () => {
         next: { revalidate: 3600 },
         headers: {
           Accept: "application/json",
-          ...(API_KEY && { "X-API-Key": API_KEY }),
+          ...(API_KEY && { "X-Secret-Key": API_KEY }),
         },
       }
     );
@@ -42,7 +42,7 @@ async function fetchSimilarProducts(productId: string | number, seed: number) {
         cache: "no-store",
         headers: {
           Accept: "application/json",
-          ...(API_KEY && { "X-API-Key": API_KEY }),
+          ...(API_KEY && { "X-Secret-Key": API_KEY }),
         },
       }
     );

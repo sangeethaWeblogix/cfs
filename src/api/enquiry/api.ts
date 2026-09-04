@@ -34,7 +34,7 @@ export async function createProductEnquiry(
     method: "POST",
     headers: {
         Accept: "application/json",
-        ...(API_KEY && { "X-API-Key": API_KEY }), // ✅ API key added
+        ...(API_KEY && { "X-Secret-Key": API_KEY }), // ✅ API key added
       },
     body: JSON.stringify(payload),
     // next/image pages usually don't need credentials; add if your API requires:
