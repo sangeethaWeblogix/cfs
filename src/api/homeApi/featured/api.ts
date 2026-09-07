@@ -18,11 +18,22 @@ export type FeaturedListing = {
   berths?: string | number;
 };
 
-// Normalize each product so components always get image_format as string[]
-// home_featured returns `thumbnail` (imagestack R2 URL); also handle `image` fallback
+// Normalize each product so components always get the fields they expect
+// (WP home-featured returns title/category/r2_thumbnails instead of name/categories/image_format)
 function normalizeProduct(p: any): FeaturedListing {
+  if (!p.name) p.name = p.title ?? "";
+  if (!p.categories) {
+    p.categories = Array.isArray(p.category) ? p.category : p.category ? [p.category] : [];
+  }
+  if (!p.location) {
+    p.location = [p.suburb, p.region, p.state]
+      .filter(Boolean)
+      .map((s: string) => s.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()))
+      .slice(0, 2)
+      .join(", ");
+  }
   if (!p.image_format) {
-    const img = p.thumbnail ?? p.image ?? p.main_image ?? null;
+    const img = p.thumbnail ?? p.image ?? p.main_image ?? p.r2_thumbnails?.[0] ?? null;
     p.image_format = img ? [img] : [];
   } else if (typeof p.image_format === "string") {
     p.image_format = [p.image_format];
@@ -41,7 +52,7 @@ export async function fetchHomeFeatured(params: {
 
   if (!API_BASE) return [];
 
-  const url = `${API_BASE}/home_featured?type=${encodeURIComponent(type)}${
+  const url = `${API_BASE}/home-featured?type=${encodeURIComponent(type)}${
     seed ? `&seed=${encodeURIComponent(seed)}` : ""
   }${category ? `&category=${encodeURIComponent(category)}` : ""}`;
 
@@ -77,7 +88,7 @@ export async function fetchHomeFeatured(params: {
     const jsonStart = raw.indexOf("{");
     const json = JSON.parse(jsonStart > 0 ? raw.substring(jsonStart) : raw);
 
-    const rawProducts: any[] = json?.products ?? json?.data?.products ?? [];
+    const rawProducts: any[] = json?.items ?? json?.products ?? json?.data?.products ?? [];
     return rawProducts.map(normalizeProduct);
   } catch (err: any) {
     clearTimeout(timeoutId);

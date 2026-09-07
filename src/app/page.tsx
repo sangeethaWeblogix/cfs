@@ -134,7 +134,7 @@ export default async function Page() {
         featuredAll={featuredAll}
         featuredNew={featuredNew}
         featuredUsed={featuredUsed}
-        blogPosts={blogPosts.items}
+        blogPosts={blogPosts.items.slice(0, 6)}
         visitorIp={visitorIp}
       />
     </>

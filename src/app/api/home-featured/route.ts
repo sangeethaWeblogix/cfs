@@ -5,11 +5,22 @@ export const preferredRegion = "syd1";
 const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
 const API_KEY = process.env.CFS_API_KEY;
 
-// Normalize each product so components always get image_format as string[]
-// home_featured returns `thumbnail` (imagestack R2 URL); also handle `image` fallback
+// Normalize each product so components always get the fields they expect
+// (WP home-featured returns title/category/r2_thumbnails instead of name/categories/image_format)
 function normalizeProduct(p: any): any {
+  if (!p.name) p.name = p.title ?? "";
+  if (!p.categories) {
+    p.categories = Array.isArray(p.category) ? p.category : p.category ? [p.category] : [];
+  }
+  if (!p.location) {
+    p.location = [p.suburb, p.region, p.state]
+      .filter(Boolean)
+      .map((s: string) => s.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()))
+      .slice(0, 2)
+      .join(", ");
+  }
   if (!p.image_format) {
-    const img = p.thumbnail ?? p.image ?? p.main_image ?? null;
+    const img = p.thumbnail ?? p.image ?? p.main_image ?? p.r2_thumbnails?.[0] ?? null;
     p.image_format = img ? [img] : [];
   } else if (typeof p.image_format === "string") {
     p.image_format = [p.image_format];
@@ -22,7 +33,7 @@ export async function GET(request: NextRequest) {
   const type     = request.nextUrl.searchParams.get("type") ?? "all";
   const seed     = request.nextUrl.searchParams.get("seed");
   const category = request.nextUrl.searchParams.get("category");
-  const url = `${API_BASE}/home_featured?type=${encodeURIComponent(type)}${seed ? `&seed=${encodeURIComponent(seed)}` : ""}${category ? `&category=${encodeURIComponent(category)}` : ""}`;
+  const url = `${API_BASE}/home-featured?type=${encodeURIComponent(type)}${seed ? `&seed=${encodeURIComponent(seed)}` : ""}${category ? `&category=${encodeURIComponent(category)}` : ""}`;
 
   const visitorIp =
     request.headers.get("cf-connecting-ip") ||
@@ -106,8 +117,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Response shape: { success, products: [...], meta: {...} }
-    const rawProducts: any[] = json?.products ?? json?.data?.products ?? [];
+    // Response shape: { success, items: [...], counts: {...} }
+    const rawProducts: any[] = json?.items ?? json?.products ?? json?.data?.products ?? [];
     const products = rawProducts.map(normalizeProduct);
 
     return NextResponse.json(
