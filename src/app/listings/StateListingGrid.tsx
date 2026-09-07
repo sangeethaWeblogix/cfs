@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useEnquiryForm } from "@/app/components/ListContent/enquiryform";
-import { Listing, SeoV2, buildFeaturedOrder } from "./listingShared";
+import { Listing, SeoV2, buildFeaturedOrder, bucketPoolResponseCombined } from "./listingShared";
 
 export type { Listing, SeoV2 };
 export { buildFeaturedOrder };
@@ -475,45 +475,16 @@ export default function StateListingGrid({ title, viewAllHref, apiUrl, items: ex
       .then((json) => {
         console.log(`[StateListingGrid] "${title}" API response:`, json);
 
-        // pool_test returns products/premium_products/exclusive_products at the
-        // top level; new_optimize_code nests them under `data` — support both shapes.
-        const products: Listing[]      = json?.data?.products ?? json?.products ?? [];
-        const premiumsRaw: Listing[]   = json?.data?.premium_products ?? json?.premium_products ?? [];
-        const exclusivesRaw: Listing[] = json?.data?.exclusive_products ?? json?.exclusive_products ?? [];
-        const empExclusivesRaw: Listing[] = json?.data?.emp_exclusive_products ?? json?.emp_exclusive_products ?? [];
-        const totalCount: number = json?.data?.counts?.total_count ?? json?.counts?.total_count ?? products.length;
-
-        // Split `products` by whatever slot_bucket value actually comes back —
-        // the API isn't limited to just featured/new/used (e.g. "featured_core"
-        // also shows up), so group dynamically rather than hardcoding 3 buckets.
-        const productsBySlotBucket = new Map<string, Listing[]>();
-        for (const p of products) {
-          const key = p.slot_bucket || "(none)";
-          if (!productsBySlotBucket.has(key)) productsBySlotBucket.set(key, []);
-          productsBySlotBucket.get(key)!.push(p);
-        }
-        for (const [bucket, items] of productsBySlotBucket) {
-          console.log(`[StateListingGrid] "${title}" slot_bucket=${bucket}:`, items);
-        }
-        console.log(`[StateListingGrid] "${title}" slot_bucket=premium:`, premiumsRaw);
-        console.log(`[StateListingGrid] "${title}" slot_bucket=exclusive:`, exclusivesRaw);
-
-        // Featured (and combined) grid: slots 1 & 2 are regular featured vans,
-        // slot 3 is the exclusive spotlight van, slots 4 & 5 are premium vans,
-        // then the rest of the pool fills in after. New/Used grids: premium &
-        // exclusive vans only ever show on the Featured tab — plain
-        // condition-matched products here, nothing spliced in.
-        // No products at all — fall back to the emp_exclusive_products pool
-        // so the section isn't empty, all shown with the Spotlight Van design.
-        const merged: Listing[] = totalCount === 0 && empExclusivesRaw.length > 0
-          ? empExclusivesRaw.map((p) => ({ ...p, is_exclusive: true }))
-          : showSpotlight
-            ? buildFeaturedOrder(products, premiumsRaw, exclusivesRaw)
-            : products.filter((p) => !p.is_premium && !p.is_exclusive);
+        // /pool bucket the response server-side into featured/new/used/premium/
+        // exclusive — combine them into one flattened grid here (this component's
+        // self-fetch mode is only ever used for the single combined view).
+        const { combined, seo, totalPages } = bucketPoolResponseCombined(json ?? {});
+        const merged = showSpotlight
+          ? combined
+          : combined.filter((p) => !p.is_premium && !p.is_exclusive);
 
         setFetchedItems(maxItems ? merged.slice(0, maxItems) : merged);
-        onTotalPages?.(json?.pagination?.total_pages ?? 1);
-        const seo = json?.data?.seo_v2 ?? json?.seo_v2;
+        onTotalPages?.(totalPages);
         if (seo) onSeo?.(seo);
       })
       .catch(() => setFetchedItems([]))

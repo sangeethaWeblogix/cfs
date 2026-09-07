@@ -11,7 +11,7 @@ const API_KEY = process.env.CFS_API_KEY;
 export async function fetchDemoSeo(filters: FilterState): Promise<SeoV2 | null> {
   try {
     const qs = buildApiUrl("?per_page=1", filters, 1);
-    const res = await fetch(`${API_BASE}/pool_test${qs}`, {
+    const res = await fetch(`${API_BASE}/pool${qs}`, {
       headers: {
         Accept: "application/json",
         ...(API_KEY && { "X-Secret-Key": API_KEY }),

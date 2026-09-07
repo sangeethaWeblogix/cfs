@@ -11,7 +11,7 @@
  * contains real product listings from the first byte.
  */
 
-import { Listing, SeoV2, buildFeaturedOrder } from "./listingShared";
+import { Listing, SeoV2, bucketPoolResponse, bucketPoolResponseCombined } from "./listingShared";
 import type { InitialPool } from "./home";
 import type { FilterState } from "./StateFilterBar";
 
@@ -60,7 +60,7 @@ function buildPoolKvKey(filters: FilterState): string {
 
 /** Build the /api/pool-listings/ query string from the full FilterState. */
 function buildApiParams(filters: FilterState, seed: number): URLSearchParams {
-  const params = new URLSearchParams({ orderby: "default", per_page: "21", page: "1", seed: String(seed || 1) });
+  const params = new URLSearchParams({ order_by: "default", per_page: "21", page: "1", seed: String(seed || 1) });
   if (filters.state)              params.set("state",             String(filters.state));
   if (filters.region)             params.set("region",            String(filters.region));
   if (filters.category)           params.set("category",          String(filters.category));
@@ -86,46 +86,24 @@ function buildApiParams(filters: FilterState, seed: number): URLSearchParams {
   return params;
 }
 
-/** Parse a raw pool_test JSON response into the InitialPool shape. */
+/** Parse a raw /pool JSON response (already bucketed server-side into
+ * featured/new/used/premium/exclusive) into the InitialPool shape. */
 function parsePoolJson(json: any, isIndexed: boolean): InitialPool | null {
-  const seo: SeoV2 | null = json?.data?.seo_v2 ?? json?.seo_v2 ?? null;
-  const products: Listing[]         = json?.data?.products         ?? json?.products         ?? [];
-  const premiumsRaw: Listing[]      = json?.data?.premium_products  ?? json?.premium_products  ?? [];
-  const exclusivesRaw: Listing[]    = json?.data?.exclusive_products ?? json?.exclusive_products ?? [];
-  const empExclusivesRaw: Listing[] = json?.data?.emp_exclusive_products ?? json?.emp_exclusive_products ?? [];
-  const totalCount: number          = json?.data?.counts?.total_count ?? json?.counts?.total_count ?? products.length;
-
-  if (!products.length && !premiumsRaw.length) return null;
-
-  const totalProducts = json?.data?.pagination?.total_products ?? json?.pagination?.total_products ?? totalCount;
-  // Use total_pages from the API response (computed by backend using actual per_page).
-  // Fallback to manual calculation with per_page=21 if the field is absent.
-  const apiTotalPages = json?.data?.pagination?.total_pages ?? json?.pagination?.total_pages;
-  const maxPages = apiTotalPages
-    ? Math.max(1, apiTotalPages)
-    : Math.max(1, Math.ceil(totalProducts / 21));
-
-  let featured: Listing[] = [];
-  let newItems: Listing[]  = [];
-  let usedItems: Listing[] = [];
+  const total = json?.counts?.total ?? json?.pagination?.total_products ?? 0;
+  const hasAnyProducts =
+    total > 0 ||
+    (json?.featured_products ?? []).length > 0 ||
+    (json?.premium_products ?? []).length > 0 ||
+    (json?.exclusive_products ?? []).length > 0;
+  if (!hasAnyProducts) return null;
 
   if (isIndexed) {
-    const featuredSource = products.filter((p) => p.slot_bucket === "featured");
-    featured = buildFeaturedOrder(featuredSource, premiumsRaw, exclusivesRaw);
-    const featuredIds = new Set(featured.map((p) => p.id));
-    newItems  = products.filter((p) => p.slot_bucket === "new"  && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
-    usedItems = products.filter((p) => p.slot_bucket === "used" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
-  } else {
-    // Non-indexed: combined grid, no slot splitting
-    const totalC = totalCount === 0 && empExclusivesRaw.length > 0;
-    featured = totalC
-      ? empExclusivesRaw
-      : buildFeaturedOrder(products, premiumsRaw, exclusivesRaw);
-    newItems  = [];
-    usedItems = [];
+    const { featured, new: newItems, used: usedItems, seo, totalPages } = bucketPoolResponse(json);
+    return { seo, featured, new: newItems, used: usedItems, maxPages: totalPages, isIndexed };
   }
 
-  return { seo, featured, new: newItems, used: usedItems, maxPages, isIndexed };
+  const { combined, seo, totalPages } = bucketPoolResponseCombined(json);
+  return { seo, featured: combined, new: [], used: [], maxPages: totalPages, isIndexed };
 }
 
 /** Try reading pool data from Cloudflare KV REST API. */
@@ -158,7 +136,7 @@ async function fetchConditionSeoV2(
   params.set("per_page", "1");
   try {
     if (seed > 0 && WP_API_BASE) {
-      const res = await fetch(`${WP_API_BASE}/pool_test?${params.toString()}`, {
+      const res = await fetch(`${WP_API_BASE}/pool?${params.toString()}`, {
         headers: {
           Accept: "application/json",
           ...(WP_API_KEY && { "X-API-Key": WP_API_KEY }),
@@ -169,7 +147,7 @@ async function fetchConditionSeoV2(
       const raw = await res.text();
       const jsonStart = raw.indexOf("{");
       const json = jsonStart >= 0 ? JSON.parse(raw.substring(jsonStart)) : null;
-      return json?.data?.seo_v2 ?? json?.seo_v2 ?? null;
+      return json?.seo ?? json?.data?.seo_v2 ?? json?.seo_v2 ?? null;
     }
     const res = await fetch(`${APP_URL}/api/pool-listings/?${params.toString()}`, { cache: "no-store" });
     if (!res.ok) return null;
@@ -195,7 +173,7 @@ async function fetchFromApi(filters: FilterState, seed: number): Promise<any | n
   if (seed > 0 && WP_API_BASE) {
     // engine=typesense removed — backend hardcodes SQL engine; the param is ignored.
     try {
-      const res = await fetch(`${WP_API_BASE}/pool_test?${params.toString()}`, {
+      const res = await fetch(`${WP_API_BASE}/pool?${params.toString()}`, {
         headers: {
           Accept: "application/json",
           ...(WP_API_KEY && { "X-API-Key": WP_API_KEY }),

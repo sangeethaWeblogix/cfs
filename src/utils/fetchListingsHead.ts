@@ -1,20 +1,18 @@
  import { cache } from "react";
 import { parseSlugToFilters } from "@/app/components/urlBuilder";
 
-/** Local shapes for the pool_test response fields this file actually reads —
+/** Local shapes for the /pool response fields this file actually reads —
  * kept here instead of importing from the (removed) old listings API module. */
 type Item = {
-  name: string;
+  title: string;
+  slug?: string;
   make?: string;
   model?: string;
-  link: string;
-  length?: string;
-  regular_price?: string;
-  sale_price?: string;
-  image?: string;
-  image_format?: string[];
-  categories?: string[];
-  axle?: string;
+  length?: number | string | null;
+  regular_price?: number | string | null;
+  sale_price?: number | string | null;
+  r2_thumbnails?: string[];
+  category?: string[];
 };
 
 type ApiResponse = {
@@ -63,7 +61,7 @@ async function fetchPoolListingsForHead(
   page: number
 ): Promise<ApiResponse | null> {
   const params = new URLSearchParams();
-  params.set("orderby", "default");
+  params.set("order_by", "default");
   params.set("seed", "1"); // fixed seed — this is for SEO schema, not user-facing shuffle
   params.set("page", String(page));
   if (filters.state) params.set("state", String(filters.state));
@@ -86,7 +84,7 @@ async function fetchPoolListingsForHead(
   if (filters.condition) params.set("condition", String(filters.condition));
   if (filters.search || filters.keyword) params.set("search", String(filters.search ?? filters.keyword));
 
-  const url = `${API_BASE}/pool_test?${params.toString()}`;
+  const url = `${API_BASE}/pool?${params.toString()}`;
 
   const cached = headPoolCache.get(url);
   if (cached && cached.expires > Date.now()) return cached.data;
@@ -116,17 +114,25 @@ async function fetchPoolListingsForHead(
     return null;
   }
 
+  // /pool buckets products into featured/new/used (+ premium/exclusive) —
+  // flatten the non-exclusive buckets into the flat `products` list this
+  // module's JSON-LD builder expects (no more top-level flat `products`).
+  const combinedProducts = [
+    ...(json.featured_products ?? []),
+    ...(json.new_products ?? []),
+    ...(json.used_products ?? []),
+  ];
   const data: ApiResponse = {
     success: json.success,
-    seo_v2: json.seo_v2,
+    seo_v2: json.seo ?? json.seo_v2,
     pagination: json.pagination,
     data: {
-      products: json.products ?? [],
+      products: combinedProducts,
       exclusive_products: json.exclusive_products ?? [],
-      emp_exclusive_products: json.emp_exclusive_products ?? [],
+      emp_exclusive_products: json.exclusive_products ?? [],
       premium_products: json.premium_products ?? [],
     },
-    emp_exclusive_products: json.emp_exclusive_products ?? [],
+    emp_exclusive_products: json.exclusive_products ?? [],
   };
   headPoolCache.set(url, { data, expires: Date.now() + HEAD_POOL_CACHE_TTL });
   return data;
@@ -171,37 +177,31 @@ function parseFaq(raw?: string): Faq[] {
 }
 
 function buildProductListItem(item: Item, position: number) {
-  const rawPrice = item.sale_price && item.sale_price !== "" ? item.sale_price : item.regular_price;
-  const price = cleanPrice(rawPrice ?? "");
-  const lengthFt = parseLengthFt(item.length ?? "");
+  const rawPrice = item.sale_price != null && item.sale_price !== "" ? item.sale_price : item.regular_price;
+  const price = cleanPrice(String(rawPrice ?? ""));
+  const lengthFt = parseLengthFt(String(item.length ?? ""));
   const widthMt =
     !isNaN(lengthFt) && lengthFt > 0
       ? (lengthFt * 0.3048).toFixed(2)
       : "";
-  const images =
-    item.image_format && item.image_format.length > 0
-      ? item.image_format
-          .slice(0, 5)
-          .map((url) => ({ "@type": "ImageObject", url }))
-      : item.image
-      ? [{ "@type": "ImageObject", url: item.image }]
-      : [];
+  const images = (item.r2_thumbnails ?? [])
+    .slice(0, 5)
+    .map((url) => ({ "@type": "ImageObject", url }));
   return {
     "@type": "ListItem",
     position,
     item: {
       "@type": "Caravan",
-      bodyType: item.categories && item.categories.length > 0
-        ? item.categories.join(", ")
+      bodyType: item.category && item.category.length > 0
+        ? item.category.join(", ")
         : "",
-      vehicleConfiguration: item.axle ?? "",
       width: {
         "@type": "QuantitativeValue",
         unitCode: "MT",
         value: widthMt,
       },
-      url: item.link,
-      name: item.name,
+      url: item.slug ? `${BASE_URL}/product/${item.slug}/` : BASE_URL,
+      name: item.title,
       model: item.model ?? "",
       brand: {
         "@type": "Brand",

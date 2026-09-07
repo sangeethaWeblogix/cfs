@@ -9,7 +9,7 @@ const ORDERBY = "default";
  * same filter/lock combination and get back the exact same seo_v2. */
 export function buildApiUrl(base: string, filters: FilterState, seed: number, lockCondition?: string): string {
   const params = new URLSearchParams();
-  params.set("orderby", ORDERBY);
+  params.set("order_by", ORDERBY);
   params.set("seed", String(seed));
   if (filters.state)              params.set("state",              filters.state);
   if (filters.category)           params.set("category",          filters.category);

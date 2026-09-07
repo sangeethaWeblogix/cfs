@@ -6,11 +6,12 @@ import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
 import StateHero from "./StateHero";
 import StateFilterBar, { FilterState } from "./StateFilterBar";
-import StateListingGrid, { SeoV2, Listing, buildFeaturedOrder } from "./StateListingGrid";
+import StateListingGrid, { SeoV2, Listing } from "./StateListingGrid";
 import StateBrowseSection from "./StateBrowseSection";
 import type { BrowseSectionData } from "./browseSectionShared";
 import StateContent from "./StateContent";
 import { buildApiUrl, buildListingsSlug, buildFilterBreadcrumbs, parseDemoFilters } from "./urlUtils";
+import { bucketPoolResponse, bucketPoolResponseCombined } from "./listingShared";
 // import { useBanners } from "@/components/BannerHandler";
 // import { useBannerTracking } from "@/hooks/useBannerTracking";
 import "./main.css?=7";
@@ -149,12 +150,7 @@ export default function StateHome({
   // preload's is_indexed). Cleared whenever poolApiUrl changes (filter change).
   const preloadSnapshotRef = useRef<{
     poolApiUrl: string;
-    products: Listing[];
-    premiumsRaw: Listing[];
-    exclusivesRaw: Listing[];
-    empExclusivesRaw: Listing[];
-    seoData: unknown;
-    totalPages: number;
+    rawJson: any;
     isIndexed: boolean;  // is_indexed value from the preload — authoritative source
   } | null>(null);
   // Set to true synchronously in the mount effect when window.__INITIAL_POOL__
@@ -423,49 +419,26 @@ export default function StateHome({
       win.__INITIAL_POOL__ = undefined;
       console.log("[StateHome] using pre-loaded pool data:", requestUrl);
 
-      const json = preload.json as Record<string, unknown>;
-      const seoData = (json as any)?.data?.seo_v2 ?? (json as any)?.seo_v2;
+      const json = preload.json as any;
+      const seoData = json?.seo ?? json?.data?.seo_v2 ?? json?.seo_v2;
       if (seoData) setSeo(seoData);
 
-      const products: Listing[] = (json as any)?.data?.products ?? (json as any)?.products ?? [];
-      const premiumsRaw: Listing[] = (json as any)?.data?.premium_products ?? (json as any)?.premium_products ?? [];
-      const exclusivesRaw: Listing[] = (json as any)?.data?.exclusive_products ?? (json as any)?.exclusive_products ?? [];
-      const empExclusivesRaw: Listing[] = (json as any)?.data?.emp_exclusive_products ?? (json as any)?.emp_exclusive_products ?? [];
-      const totalCount: number = (json as any)?.data?.counts?.total_count ?? (json as any)?.counts?.total_count ?? products.length;
-
-      if (totalCount === 0 && empExclusivesRaw.length > 0) {
-        const empItems = empExclusivesRaw.map((p) => ({ ...p, is_exclusive: true }));
-        setPool({ featured: empItems, new: [], used: [] });
-      } else if (isIndexed) {
-        const featuredSource = products.filter((p) => p.slot_bucket === "featured");
-        const featuredItems = buildFeaturedOrder(featuredSource, premiumsRaw, exclusivesRaw);
-        const featuredIds = new Set(featuredItems.map((p) => p.id));
-        const newItems = products.filter((p) => p.slot_bucket === "new" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
-        const usedItems = products.filter((p) => p.slot_bucket === "used" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
-        setPool({ featured: featuredItems, new: newItems, used: usedItems });
+      if (isIndexed) {
+        const { featured, new: newItems, used: usedItems, totalPages } = bucketPoolResponse(json);
+        setPool({ featured, new: newItems, used: usedItems });
+        handleTotalPages(totalPages);
       } else {
-        const combined = buildFeaturedOrder(products, premiumsRaw, exclusivesRaw);
+        const { combined, totalPages } = bucketPoolResponseCombined(json);
         setPool({ featured: combined, new: [], used: [] });
+        handleTotalPages(totalPages);
       }
-
-      const totalPages = (json as any)?.pagination?.total_pages ?? 1;
-      handleTotalPages(totalPages);
       setPoolLoading(false);
 
       // Save a snapshot so that if isIndexed changes later (e.g. /api/indexed-url/
       // returns a different value than the embedded is_indexed), the pool effect
       // can re-bucket from this data instead of making a live fetch that would
       // overwrite the correct preload content.
-      preloadSnapshotRef.current = {
-        poolApiUrl,
-        products,
-        premiumsRaw,
-        exclusivesRaw,
-        empExclusivesRaw,
-        seoData: seoData ?? null,
-        totalPages,
-        isIndexed,  // record the is_indexed value used when consuming the preload
-      };
+      preloadSnapshotRef.current = { poolApiUrl, rawJson: json, isIndexed };
 
       return;  // no async work, no cleanup needed
     }
@@ -477,25 +450,21 @@ export default function StateHome({
     // preload data when it disagrees with the embedded is_indexed value.
     if (preloadSnapshotRef.current && preloadSnapshotRef.current.poolApiUrl === poolApiUrl) {
       const snap = preloadSnapshotRef.current;
-      if (snap.seoData) setSeo(snap.seoData as Parameters<typeof setSeo>[0]);
-      const { products, premiumsRaw, exclusivesRaw, empExclusivesRaw } = snap;
+      const seoData = snap.rawJson?.seo ?? snap.rawJson?.data?.seo_v2 ?? snap.rawJson?.seo_v2;
+      if (seoData) setSeo(seoData);
       // Use snap.isIndexed (the is_indexed embedded in the preload), NOT the
       // current isIndexed state — which may have been overridden by the async
       // /api/indexed-url/ check. The preload value is authoritative.
       const snapIsIndexed = snap.isIndexed;
-      if (empExclusivesRaw.length > 0 && products.length === 0) {
-        setPool({ featured: empExclusivesRaw.map((p) => ({ ...p, is_exclusive: true })), new: [], used: [] });
-      } else if (snapIsIndexed) {
-        const featuredSource = products.filter((p) => p.slot_bucket === "featured");
-        const featuredItems = buildFeaturedOrder(featuredSource, premiumsRaw, exclusivesRaw);
-        const featuredIds = new Set(featuredItems.map((p) => p.id));
-        const newItems = products.filter((p) => p.slot_bucket === "new" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
-        const usedItems = products.filter((p) => p.slot_bucket === "used" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id));
-        setPool({ featured: featuredItems, new: newItems, used: usedItems });
+      if (snapIsIndexed) {
+        const { featured, new: newItems, used: usedItems, totalPages } = bucketPoolResponse(snap.rawJson);
+        setPool({ featured, new: newItems, used: usedItems });
+        handleTotalPages(totalPages);
       } else {
-        setPool({ featured: buildFeaturedOrder(products, premiumsRaw, exclusivesRaw), new: [], used: [] });
+        const { combined, totalPages } = bucketPoolResponseCombined(snap.rawJson);
+        setPool({ featured: combined, new: [], used: [] });
+        handleTotalPages(totalPages);
       }
-      handleTotalPages(snap.totalPages);
       // Also restore isIndexed state to the preload's value in case the async
       // check overrode it. This prevents the isIndexed state from drifting and
       // causing further re-renders with the wrong layout.
@@ -523,55 +492,34 @@ export default function StateHome({
         if (cancelled) return;
         console.log("[StateHome] shared pool API response:", json);
 
-        // seo_v2 is set first, independently of the product-pool bucketing
+        // seo is set first, independently of the product-pool bucketing
         // below, so a bad product shape can never suppress the title/description.
-        const seoData = json?.data?.seo_v2 ?? json?.seo_v2;
+        const seoData = json?.seo ?? json?.data?.seo_v2 ?? json?.seo_v2;
         if (seoData) setSeo(seoData);
 
-        const products: Listing[] = json?.data?.products ?? json?.products ?? [];
-        const premiumsRaw: Listing[] = json?.data?.premium_products ?? json?.premium_products ?? [];
-        const exclusivesRaw: Listing[] = json?.data?.exclusive_products ?? json?.exclusive_products ?? [];
-        const empExclusivesRaw: Listing[] = json?.data?.emp_exclusive_products ?? json?.emp_exclusive_products ?? [];
-        const totalCount: number = json?.data?.counts?.total_count ?? json?.counts?.total_count ?? products.length;
-        console.log("shared  premium:", premiumsRaw);
-        if (totalCount === 0 && empExclusivesRaw.length > 0) {
-          // No products at all — fall back to the emp_exclusive_products pool
-          // so the page isn't empty, all shown with the Spotlight Van design.
-          const empItems = empExclusivesRaw.map((p) => ({ ...p, is_exclusive: true }));
-          setPool({ featured: empItems, new: [], used: [] });
-        } else if (isIndexed) {
-          // Indexed pages split by slot_bucket into Featured/New/Used.
-          // seededShuffle reorders each bucket using the client's random seed so
-          // different products appear on each refresh even when the pool-listings
-          // KV cache serves the same JSON for every seed value.
-          const featuredSource = seededShuffle(
-            products.filter((p) => p.slot_bucket === "featured"),
-            seed
-          );
-          const featuredItems = buildFeaturedOrder(featuredSource, premiumsRaw, exclusivesRaw);
-          const featuredIds = new Set(featuredItems.map((p) => p.id));
+        // seededShuffle reorders each bucket using the client's random seed so
+        // different products appear on each refresh even when the pool-listings
+        // KV cache serves the same JSON for every seed value. Shuffle the raw
+        // per-bucket arrays before normalizing/bucketing so the hero-slot pick
+        // (buildFeaturedOrder's first 2 items) sees the shuffled order.
+        const shuffledJson = {
+          ...json,
+          featured_products: seededShuffle(json?.featured_products ?? [], seed),
+          new_products: seededShuffle(json?.new_products ?? [], seed + 1000),
+          used_products: seededShuffle(json?.used_products ?? [], seed + 2000),
+        };
 
-          const newItems = seededShuffle(
-            products.filter((p) => p.slot_bucket === "new" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id)),
-            seed + 1000
-          );
-          const usedItems = seededShuffle(
-            products.filter((p) => p.slot_bucket === "used" && !p.is_premium && !p.is_exclusive && !featuredIds.has(p.id)),
-            seed + 2000
-          );
-
-          setPool({ featured: featuredItems, new: newItems, used: usedItems });
+        if (isIndexed) {
+          // Indexed pages split into Featured/New/Used (already bucketed server-side).
+          const { featured, new: newItems, used: usedItems, totalPages } = bucketPoolResponse(shuffledJson);
+          setPool({ featured, new: newItems, used: usedItems });
+          handleTotalPages(totalPages);
         } else {
           // Non-indexed pages get one combined grid instead of a split.
-          const combined = buildFeaturedOrder(
-            seededShuffle(products, seed),
-            premiumsRaw,
-            exclusivesRaw
-          );
+          const { combined, totalPages } = bucketPoolResponseCombined(shuffledJson);
           setPool({ featured: combined, new: [], used: [] });
+          handleTotalPages(totalPages);
         }
-
-        handleTotalPages(json?.pagination?.total_pages ?? 1);
       })
       .catch((err) => {
         console.warn('[StateHome] pool fetch failed, retaining existing data:', (err as any)?.message);

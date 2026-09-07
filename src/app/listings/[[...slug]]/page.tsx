@@ -81,6 +81,7 @@ export default async function LocationStateDemoPage({
   const categoryCountScope = Object.fromEntries(buildCategoryCountScope(initialFilters));
   const makeCountScope = Object.fromEntries(buildMakeCountScope(initialFilters));
 
+  // const [browseData, initialPool, productList, makeOptions, categoryCounts, makeCounts] = await Promise.all([
   const [browseData, initialPool, productList, makeOptions, categoryCounts, makeCounts] = await Promise.all([
     fetchBrowseSectionData(initialFilters),
     fetchInitialPool(initialFilters, isIndexed, shuffleSeed),
