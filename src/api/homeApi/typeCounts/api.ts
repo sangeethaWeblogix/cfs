@@ -9,12 +9,13 @@ export type TypeCounts = Partial<Record<TypeCategory, number>>;
 
 async function fetchCategoryCount(category: TypeCategory): Promise<number> {
   try {
-    const res = await fetch(`${API_BASE}/product_exists_check?category=${category}`, {
+    const res = await fetch(`${API_BASE}/exists?category=${category}&count=true`, {
       next: { revalidate: 3600 },
       headers: {
         Accept: "application/json",
         "User-Agent": SERVER_UA,
-        ...(API_KEY && { "X-Secret-Key": API_KEY }),
+              ...(API_KEY && { "X-Secret-Key": API_KEY }),
+
       },
     });
     if (!res.ok) return 0;
