@@ -32,8 +32,23 @@ export async function GET(request: NextRequest) {
     }
 
     const raw = await res.text();
+
+    // SiteGround bot-challenge pages return HTTP 200/202 with an HTML captcha
+    // redirect instead of JSON — detect it explicitly so a challenge shows up
+    // in logs instead of silently failing JSON.parse and returning empty data.
+    if (raw.includes("sgcaptcha") || raw.trimStart().startsWith("<html")) {
+      console.error(`[category-snapshot] BOT CHALLENGE blocked request | url="${url}"`);
+      return NextResponse.json({ success: false, error: "bot_challenge" }, { status: 503 });
+    }
+
     const jsonStart = raw.indexOf("{");
-    const data = JSON.parse(jsonStart > 0 ? raw.substring(jsonStart) : raw);
+    let data: any;
+    try {
+      data = JSON.parse(jsonStart > 0 ? raw.substring(jsonStart) : raw);
+    } catch {
+      console.error(`[category-snapshot] JSON parse failed | preview="${raw.slice(0, 200)}"`);
+      return NextResponse.json({ success: false, error: "invalid_json" }, { status: 502 });
+    }
     return NextResponse.json(data);
   } catch (err: any) {
     clearTimeout(timeoutId);

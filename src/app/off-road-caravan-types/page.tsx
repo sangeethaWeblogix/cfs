@@ -49,6 +49,13 @@ async function fetchOffRoadSnapshot(): Promise<SnapshotData> {
     );
     if (!res.ok) return empty;
     const raw = await res.text();
+    // SiteGround bot-challenge pages return HTTP 200/202 with an HTML captcha
+    // redirect instead of JSON — bail out to the zeroed fallback explicitly
+    // instead of letting JSON.parse throw silently.
+    if (raw.includes("sgcaptcha") || raw.trimStart().startsWith("<html")) {
+      console.error("[off-road-caravan-types] market-snapshot BOT CHALLENGE blocked request");
+      return empty;
+    }
     const jsonStart = raw.indexOf("{");
     const json = JSON.parse(jsonStart <= 0 ? raw : raw.substring(jsonStart));
     if (!json?.success) return empty;
@@ -59,7 +66,8 @@ async function fetchOffRoadSnapshot(): Promise<SnapshotData> {
       used_price_median: json.used_price_median ?? 0,
       new_price_median:  json.new_price_median  ?? 0,
     };
-  } catch {
+  } catch (err) {
+    console.error("[off-road-caravan-types] market-snapshot fetch failed:", (err as any)?.message);
     return empty;
   }
 }
