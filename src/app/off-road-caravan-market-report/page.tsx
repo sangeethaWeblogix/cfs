@@ -15,7 +15,7 @@ const API_KEY  = process.env.CFS_API_KEY;
 
 const wpHeaders = (): Record<string, string> => ({
   Accept: "application/json",
-  ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
+   ...(API_KEY && { "X-Secret-Key": API_KEY }),
 });
 
 async function safeJson(url: string): Promise<any> {
