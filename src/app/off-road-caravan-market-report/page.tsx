@@ -23,9 +23,19 @@ async function safeJson(url: string): Promise<any> {
     const res = await fetch(url, { headers: wpHeaders(), next: { revalidate: 0 } });
     if (!res.ok) return null;
     const raw = await res.text();
+    // SiteGround bot-challenge pages return HTTP 200/202 with an HTML captcha
+    // redirect instead of JSON — detect it explicitly instead of letting
+    // JSON.parse throw silently and losing the reason for the empty page.
+    if (raw.includes("sgcaptcha") || raw.trimStart().startsWith("<html")) {
+      console.error(`[off-road-caravan-market-report] BOT CHALLENGE blocked request | url="${url}"`);
+      return null;
+    }
     const start = raw.indexOf("{");
     return JSON.parse(start <= 0 ? raw : raw.substring(start));
-  } catch { return null; }
+  } catch (err) {
+    console.error("[off-road-caravan-market-report] fetch failed:", (err as any)?.message, url);
+    return null;
+  }
 }
 
 export type SnapshotData = {
@@ -149,7 +159,7 @@ async function fetchAllData(): Promise<MarketReportData> {
     states: [], lengths: [], atms: [], sleeps: [], brands: [], trend: [],
   };
 
-  const j = await safeJson(`${API_BASE}/market_snapshot?category=off-road`);
+  const j = await safeJson(`${API_BASE}/market-snapshot?category=off-road`);
   if (!j?.success) return EMPTY;
 
   const snapshot: SnapshotData = {
@@ -172,7 +182,7 @@ async function fetchAllData(): Promise<MarketReportData> {
     used_price_max:      j.used_price_max       ?? 0,
     common_length:       COMMON_LENGTH_LABELS[j.most_common_length ?? ""] ?? j.common_length ?? "",
     median_atm:          j.median_atm_all       ?? j.median_atm ?? 0,
-    common_sleeps:       j.most_common_sleeps   ?? j.common_sleeps ?? 0,
+    common_sleeps:       j.most_common_sleep    ?? j.common_sleeps ?? 0,
     median_atm_new:      j.median_atm_new        ?? 0,
     median_atm_used:     j.median_atm_used       ?? 0,
     median_length_new:   j.median_length_new     ?? 0,
@@ -200,7 +210,7 @@ async function fetchAllData(): Promise<MarketReportData> {
     }),
   );
 
-  const sleeps: SleepsRow[] = parseDist(j.sleeps_distribution, SLEEP_LABELS,
+  const sleeps: SleepsRow[] = parseDist(j.sleep_distribution, SLEEP_LABELS,
     (_, val, label) => ({
       berths:       label,
       count:        val.count        ?? 0,

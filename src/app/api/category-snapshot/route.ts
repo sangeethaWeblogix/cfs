@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, message: "category param is required" }, { status: 400 });
   }
 
-  const url = `${API_BASE}/market_snapshot?category=${encodeURIComponent(category)}`;
+  const url = `${API_BASE}/market-snapshot?category=${encodeURIComponent(category)}`;
 
   const controller = new AbortController();
   const timeoutId  = setTimeout(() => controller.abort(), 10000);

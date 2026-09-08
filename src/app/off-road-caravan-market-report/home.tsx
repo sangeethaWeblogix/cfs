@@ -306,7 +306,7 @@ export default function Home({ data }: Props) {
             </div>
             <div className="omr-snap-card">
               <div className="omr-snap-icon"><img src="/images/good.png" alt="" className="omr-snap-img" /></div>
-              <div className="omr-snap-val">{median_price > 0 ? fmtAUD(median_price) : "$88,898"}</div>
+              <div className="omr-snap-val">{fmtAUD(median_price)}</div>
               <div className="omr-snap-label">Median Advertised<br />Asking Price</div>
             </div>
             <div className="omr-snap-card">
@@ -321,17 +321,17 @@ export default function Home({ data }: Props) {
             </div>
             <div className="omr-snap-card">
               <div className="omr-snap-icon"><img src="/images/ruler.png" alt="" className="omr-snap-img" /></div>
-              <div className="omr-snap-val">{snapshot.common_length || "19ft"}</div>
+              <div className="omr-snap-val">{snapshot.common_length || "—"}</div>
               <div className="omr-snap-label">Most Common<br />Length</div>
             </div>
             <div className="omr-snap-card">
               <div className="omr-snap-icon"><img src="/images/weight.png" alt="" className="omr-snap-img" /></div>
-              <div className="omr-snap-val">{snapshot.median_atm > 0 ? fmtKg(snapshot.median_atm) : "2,500kg"}</div>
+              <div className="omr-snap-val">{snapshot.median_atm > 0 ? fmtKg(snapshot.median_atm) : "—"}</div>
               <div className="omr-snap-label">Median ATM</div>
             </div>
             <div className="omr-snap-card">
               <div className="omr-snap-icon"><img src="/images/double.png" alt="" className="omr-snap-img" /></div>
-              <div className="omr-snap-val">{snapshot.common_sleeps > 0 ? `${snapshot.common_sleeps} Berth` : "2–4 Berth"}</div>
+              <div className="omr-snap-val">{snapshot.common_sleeps > 0 ? `${snapshot.common_sleeps} Berth` : "—"}</div>
               <div className="omr-snap-label">Most Common<br />Sleeping Capacity</div>
             </div>
           </div>

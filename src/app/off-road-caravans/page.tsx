@@ -36,7 +36,7 @@ async function fetchOffRoadSnapshot(): Promise<SnapshotData> {
   const empty = { total_count: 0, new_count: 0, used_count: 0, price_min: 0, price_max: 0, used_price_min: 0, used_price_max: 0, used_price_median: 0, new_price_median: 0 };
   try {
     const res = await fetch(
-      `${API_BASE}/market_snapshot?category=off-road`,
+      `${API_BASE}/market-snapshot?category=off-road`,
       { headers: wpHeaders(), next: { revalidate: 0 } }
     );
     if (!res.ok) return empty;
