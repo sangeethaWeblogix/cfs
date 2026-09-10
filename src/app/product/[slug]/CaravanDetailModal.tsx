@@ -167,6 +167,7 @@ export default function CaravanDetailModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           product_id: product.id ?? product.slug ?? product.name,
+          product_slug: product.slug ?? "",
           email: form.email.trim(),
           name: form.name.trim(),
           phone: form.phone.trim(),

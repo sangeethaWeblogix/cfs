@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
   const payload = await req.json();
 
-  const res = await fetch(`${API_BASE}/product_enquiry`, {
+  const res = await fetch(`${API_BASE}/enquiries/product`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
