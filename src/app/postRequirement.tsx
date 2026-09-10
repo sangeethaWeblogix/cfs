@@ -162,11 +162,13 @@ useEffect(() => {
                           </div>
                           <div className="budget">
                             <span className="slugn">Budget</span>
-                            {new Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: "USD",
-                              minimumFractionDigits: 0,
-                            }).format(Number(item.budget))}
+                            {Number.isNaN(Number(item.budget))
+                              ? item.budget
+                              : new Intl.NumberFormat("en-US", {
+                                  style: "currency",
+                                  currency: "USD",
+                                  minimumFractionDigits: 0,
+                                }).format(Number(item.budget))}
                           </div>
                         </div>
                       </div>

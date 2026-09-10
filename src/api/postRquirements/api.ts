@@ -21,7 +21,7 @@ type ListResp = {
 
 export async function fetchRequirements(): Promise<Requirement[]> {
   if (!API_BASE) return [];
-  const url = `${API_BASE}/enquiries/home`;
+  const url = `${API_BASE}/get-home-enquiries-list`;
   try {
     const res = await fetch(url, {
       next: { revalidate: 86400 },

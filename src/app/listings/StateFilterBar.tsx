@@ -401,6 +401,13 @@ export default function StateFilterBar({
 
   const formatted = (s: string) => s.replace(/ - /g,"  ").replace(/\s+/g," ");
 
+  // API suggestions return `address` as a hyphenated slug fragment for the state
+  // (e.g. "Fyshwick Australian-capital-territory 2609") — clean it into a proper
+  // full state name ("Fyshwick Australian Capital Territory 2609") instead of
+  // using `short_address`, which abbreviates the state (e.g. "ACT").
+  const formatAddressLabel = (s?: string) =>
+    s ? s.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : s;
+
   const getValidRegionName = (stateName: string|null|undefined, regionName: string|null|undefined, allStates: StateOption[]) => {
     if (!stateName || !regionName) return undefined;
     const st = allStates.find(s => s.name.toLowerCase() === stateName.toLowerCase() || s.value.toLowerCase() === stateName.toLowerCase());
@@ -880,7 +887,7 @@ export default function StateFilterBar({
                     <input
                       className="loc-search-input"
                       placeholder="Search suburb, postcode, state, region"
-                      value={tempSuburbSuggestion && !tempSuburbInput ? tempSuburbSuggestion.short_address : formatted(tempSuburbInput)}
+                      value={tempSuburbSuggestion && !tempSuburbInput ? formatAddressLabel(tempSuburbSuggestion.address) : formatted(tempSuburbInput)}
                       onFocus={() => { if (!tempSuburbSuggestion) setShowSuburbSuggestions(true); }}
                       onChange={e => {
                         setShowSuburbSuggestions(true);
@@ -933,7 +940,7 @@ export default function StateFilterBar({
                             setSuburbLocationSuggestions([]);
                             setShowSuburbSuggestions(false);
                           }}
-                        >{item.address}</li>
+                        >{formatAddressLabel(item.address)}</li>
                       ))}
                     </ul>
                   )}
@@ -1308,7 +1315,7 @@ export default function StateFilterBar({
                               setSuburbLocationSuggestions([]);
                               setShowSuburbSuggestions(false);
                             }}
-                          >{item.address}</li>
+                          >{formatAddressLabel(item.address)}</li>
                         ))}
                       </ul>
                     )}
@@ -1318,7 +1325,7 @@ export default function StateFilterBar({
                   {tempSuburbSuggestion && !tempSuburbInput && (
                     <div style={{ marginBottom:12 }}>
                       <div className="filter-chip">
-                        <span>{tempSuburbSuggestion.address}</span>
+                        <span>{formatAddressLabel(tempSuburbSuggestion.address)}</span>
                         <button type="button" className="filter-chip-close" onMouseDown={e => { e.preventDefault(); setTempSuburbSuggestion(null); setTempSuburbInput(""); }} aria-label="Remove location">×</button>
                       </div>
                       {tempSuburbSuggestion.uri.split("/").filter(Boolean).length >= 3 && (

@@ -29,8 +29,8 @@ export type SeoV2 = {
   meta_description?: string;
   short_description?: string;
   footer_description?: string;
-  /** JSON-encoded string: `[{ "q": "...", "a": "..." }, ...]` */
-  faq?: string;
+  /** Either a real array or a JSON-encoded string of `{ q, a }` pairs, depending on API version. */
+  faq?: string | { q: string; a: string }[];
 };
 
 /** Featured-tab ordering: slots 1 & 2 are regular featured vans, slot 3 is the
