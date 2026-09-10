@@ -139,7 +139,7 @@ async function fetchConditionSeoV2(
       const res = await fetch(`${WP_API_BASE}/pool?${params.toString()}`, {
         headers: {
           Accept: "application/json",
-          ...(WP_API_KEY && { "X-API-Key": WP_API_KEY }),
+          ...(WP_API_KEY && { "X-Secret-Key": WP_API_KEY }),
         },
         cache: "no-store",
       });
@@ -176,7 +176,7 @@ async function fetchFromApi(filters: FilterState, seed: number): Promise<any | n
       const res = await fetch(`${WP_API_BASE}/pool?${params.toString()}`, {
         headers: {
           Accept: "application/json",
-          ...(WP_API_KEY && { "X-API-Key": WP_API_KEY }),
+          ...(WP_API_KEY && { "X-Secret-Key": WP_API_KEY }),
         },
         cache: "no-store",
       });

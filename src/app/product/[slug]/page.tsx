@@ -14,7 +14,7 @@
  //
  //   const headers: Record<string, string> = {
  //     Accept: "application/json",
- //     ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
+ //     ...(API_KEY ? { "X-Secret-Key": API_KEY } : {}),
  //   };
  //
  //   const fetchPage = async (page: number): Promise<string[]> => {
@@ -98,6 +98,10 @@
    };
  }
  
+ function toTitleCase(slug: string): string {
+   return slug.split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+ }
+
  function normalizeMpnProduct(raw: any) {
    const toRegion = (val: string) =>
      val ? { value: val, slug: val.toLowerCase().replace(/\s+/g, "-"), label: val } : undefined;
@@ -105,13 +109,13 @@
    const specs = [
      { label: "Make",               value: raw.make },
      { label: "Model",              value: raw.model },
-     { label: "Year",               value: raw.year != null ? String(raw.year) : null },
-     { label: "Condition",          value: raw.condition },
+     { label: "Years",              value: raw.year != null ? String(raw.year) : null },
+     { label: "Conditions",         value: raw.condition },
      { label: "Length",             value: raw.length != null ? `${raw.length}ft` : null },
      { label: "ATM",                value: raw.atm != null ? `${raw.atm}kg` : null },
      { label: "Tare Mass",          value: raw.tare_mass != null ? `${raw.tare_mass}kg` : null },
      { label: "Ball Weight",        value: raw.ball_weight != null ? `${raw.ball_weight}kg` : null },
-     { label: "Sleeping Capacity",  value: raw.sleep != null ? String(raw.sleep) : null },
+     { label: "Sleeps",             value: raw.sleep != null ? String(raw.sleep) : null },
      { label: "Axle Configuration", value: raw.axle_configuration },
      { label: "Suspension",         value: raw.suspension },
      { label: "Tyre Size",          value: raw.tyre_size },
@@ -120,6 +124,7 @@
      { label: "GPS",                value: raw.gps },
      { label: "Toilet",             value: raw.toilet },
      { label: "Shower",             value: raw.shower },
+     { label: "Location",           value: raw.state ? toTitleCase(raw.state) : null },
    ].filter((s) => s.value != null && s.value !== "");
  
    const cats = Array.isArray(raw.category)

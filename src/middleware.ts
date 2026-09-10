@@ -51,7 +51,7 @@ async function isValidSuburb(suburb: string, pincode: string | undefined, apiKey
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(`${API_WP}/location-search?keyword=${encodeURIComponent(suburb)}`, {
-      headers: { 'User-Agent': SERVER_UA, ...(apiKey && { 'X-API-Key': apiKey }) },
+      headers: { 'User-Agent': SERVER_UA, ...(apiKey && { 'X-Secret-Key': apiKey }) },
       signal: controller.signal,
     });
     clearTimeout(tid);
@@ -149,7 +149,7 @@ async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
     const apiRes = await fetch(apiUrl, {
-      headers: { "User-Agent": SERVER_UA, ...(API_KEY && { "X-API-Key": API_KEY }) },
+      headers: { "User-Agent": SERVER_UA, ...(API_KEY && { "X-Secret-Key": API_KEY }) },
       signal: controller.signal,
       // @ts-ignore
       next: { revalidate: 3600 },
@@ -349,7 +349,7 @@ export async function middleware(request: NextRequest) {
             {
               headers: {
                 'User-Agent': SERVER_UA,
-                ...(API_KEY && { 'X-API-Key': API_KEY }),
+                ...(API_KEY && { 'X-Secret-Key': API_KEY }),
               },
               signal: controller.signal,
             }

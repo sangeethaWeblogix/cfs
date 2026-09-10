@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const res = await fetch(`${API_BASE}/product_exists_check?${paramsStr}`, {
       headers: {
         Accept: "application/json",
-        ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
+        ...(API_KEY ? { "X-Secret-Key": API_KEY } : {}),
       },
       next: { revalidate: 3600 },
     });

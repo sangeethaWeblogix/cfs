@@ -17,7 +17,7 @@ const APP_URL  = process.env.NEXT_PUBLIC_APP_URL || "https://www.caravansforsale
 
 const wpHeaders = (): Record<string, string> => ({
   Accept: "application/json",
-  ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
+  ...(API_KEY ? { "X-Secret-Key": API_KEY } : {}),
 });
 
 type SnapshotData = {

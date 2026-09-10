@@ -208,7 +208,7 @@ export const fetchListings = async (
       headers: {
         Accept: "application/json",
         ...(!isClient && process.env.CFS_API_KEY
-          ? { "X-API-Key": process.env.CFS_API_KEY }
+          ? { "X-Secret-Key": process.env.CFS_API_KEY }
           : {}),
       },
       ...(!isClient && { cache: 'no-store' }),
