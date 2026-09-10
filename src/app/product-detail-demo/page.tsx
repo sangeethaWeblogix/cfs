@@ -15,7 +15,7 @@ const fetchProduct = cache(async () => {
   const API_KEY  = process.env.CFS_API_KEY;
   try {
     const res = await fetch(
-      `${API_BASE}/product-detail-new/?slug=${encodeURIComponent(DEMO_SLUG)}`,
+      `${API_BASE}/${encodeURIComponent(DEMO_SLUG)}`,
       {
         next: { revalidate: 3600 },
         headers: {

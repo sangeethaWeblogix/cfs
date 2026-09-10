@@ -168,8 +168,14 @@
    if (MPN_BASE) {
      try {
        const res = await fetch(
-         `${MPN_BASE}/caravans/${encodeURIComponent(slug)}`,
-         { cache: "no-store", headers: { Accept: "application/json" } }
+         `${MPN_BASE}/${encodeURIComponent(slug)}`,
+         {
+           cache: "no-store",
+           headers: {
+             Accept: "application/json",
+             ...(API_KEY && { "X-Secret-Key": API_KEY }),
+           },
+         }
        );
        if (res.ok) {
          const raw = await res.json();
@@ -179,7 +185,7 @@
        // fall through to CFS fallback
      }
    }
- 
+
    // 2. Fallback to old CFS API
    try {
      const res = await fetch(
@@ -195,7 +201,9 @@
      if (!res.ok) return null;
      const raw = await res.text();
      const idx = raw.indexOf('{"');
-     return JSON.parse(idx >= 0 ? raw.substring(idx) : raw);
+     const parsed = JSON.parse(idx >= 0 ? raw.substring(idx) : raw);
+     if (parsed?.slug) return normalizeMpnProduct(parsed);
+     return parsed;
    } catch {
      return null;
    }
