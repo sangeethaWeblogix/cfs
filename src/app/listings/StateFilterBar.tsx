@@ -128,6 +128,7 @@ export default function StateFilterBar({
     const controller = new AbortController();
     setCatCountLoading(true);
     const params = buildCategoryCountScope(currentFilters);
+    if (currentFilters.make) params.set("make", resolveMakeSlug(currentFilters.make));
     params.set("group_by", "category");
     fetch(`/api/params-count/?${params.toString()}`, { signal: controller.signal })
       .then(r => r.json())
@@ -155,11 +156,12 @@ export default function StateFilterBar({
   // Only show caravan types that actually have matching results under the
   // current filters — falls back to the full static list before the first
   // count response arrives (or if the API returned no breakdown at all).
-  const visibleCategories = categoryCounts.length > 0
+  const visibleCategories = (categoryCounts.length > 0
     ? categories.filter(c => categoryCounts.some(cc => cc.slug === c.slug && cc.count > 0))
     : cachedCategoryCountsRef.current.length > 0
       ? categories.filter(c => cachedCategoryCountsRef.current.some(cc => cc.slug === c.slug && cc.count > 0))
-      : categories;
+      : categories
+  ).slice().sort((a, b) => a.name.localeCompare(b.name));
 
   /* ── Suburb search ── */
   const RADIUS_OPTIONS = [25, 50, 100, 250, 500, 1000] as const;
@@ -184,6 +186,20 @@ export default function StateFilterBar({
   const [regionCountsByState, setRegionCountsByState] = useState<Record<string, {name: string; slug: string; count: number}[]>>({});
   const [modelCountLoading, setModelCountLoading] = useState(false);
   const [lastModelName,    setLastModelName]    = useState<string | null>(null);
+
+  // Old already-indexed URLs (e.g. /listings/apache-caravans-category/) carry
+  // the make slug in a discontinued format ("apache-caravans") from before a
+  // backend migration dropped the "-caravans"/"-campers" suffix from most make
+  // slugs. WP's params-count endpoint only matches the current slug exactly,
+  // so an old-format value silently returns empty data. Try the raw value
+  // first (covers current URLs, and the handful of makes whose real slug still
+  // ends that way), and only fall back to a stripped version if that misses.
+  const resolveMakeSlug = (raw: string): string => {
+    if (makeCounts.some(m => m.slug === raw)) return raw;
+    const stripped = raw.replace(/-(caravans|campers)$/i, "");
+    if (stripped !== raw && makeCounts.some(m => m.slug === stripped)) return stripped;
+    return raw;
+  };
 
   // Live make counts — same /api/params-count/ endpoint FilterSlider uses,
   // re-fetched whenever any other active filter changes so the make list
@@ -214,7 +230,7 @@ export default function StateFilterBar({
     if (!currentFilters.make) { setStateCounts([]); return; }
     const controller = new AbortController();
     const params = new URLSearchParams();
-    params.set("make", currentFilters.make);
+    params.set("make", resolveMakeSlug(currentFilters.make));
     if (currentFilters.category)          params.set("category", currentFilters.category);
     if (currentFilters.condition)         params.set("condition", currentFilters.condition);
     if (currentFilters.from_price)        params.set("from_price", String(currentFilters.from_price));
@@ -257,7 +273,7 @@ export default function StateFilterBar({
       const ctrl = new AbortController();
       controllers.push(ctrl);
       const params = new URLSearchParams({ group_by: "region", state: sc.slug.toLowerCase() });
-      params.set("make", currentFilters.make!.toLowerCase());
+      params.set("make", resolveMakeSlug(currentFilters.make!).toLowerCase());
       if (currentFilters.category)          params.set("category", currentFilters.category);
       if (currentFilters.condition)         params.set("condition", currentFilters.condition);
       if (currentFilters.from_price)        params.set("from_price", String(currentFilters.from_price));
@@ -289,7 +305,7 @@ export default function StateFilterBar({
     const controller = new AbortController();
     setModelCountLoading(true);
     const params = buildMakeCountParams(currentFilters);
-    params.set("make", tempMake);
+    params.set("make", resolveMakeSlug(tempMake));
     params.delete("group_by");
     params.set("group_by", "model");
     fetch(`/api/params-count/?${params.toString()}`, { signal: controller.signal })
@@ -390,6 +406,15 @@ export default function StateFilterBar({
   /* ── Helpers ── */
   const toTitleCase = (s: string) => s.replace(/\b\w/g, c => c.toUpperCase());
 
+  const withCaravanSuffix = (name: string) =>
+    /caravan/i.test(name) ? name : `${name} Caravan`;
+
+  // WP's model list has no separate display name — `value`/`name` is just the
+  // raw slug ("altea-402-ph-sport"). toTitleCase alone only capitalizes each
+  // hyphen-segment ("Altea-402-Ph-Sport"); this also swaps hyphens for spaces.
+  const formatModelName = (s: string) =>
+    s.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
   const AUS_ABBR: Record<string, string> = {
     VICTORIA:"VIC","NEW SOUTH WALES":"NSW",QUEENSLAND:"QLD","SOUTH AUSTRALIA":"SA",
     "WESTERN AUSTRALIA":"WA",TASMANIA:"TAS","NORTHERN TERRITORY":"NT","AUSTRALIAN CAPITAL TERRITORY":"ACT",
@@ -432,7 +457,8 @@ export default function StateFilterBar({
     ? states.filter(s => stateCounts.some(sc => sc.slug === s.value && sc.count > 0))
     : states;
 
-  const makeSource  = makeCounts.length > 0 ? makeCounts : makes.map(m => ({ name: m.name, slug: m.slug, count: 0 }));
+  const makeSourceRaw = makeCounts.length > 0 ? makeCounts : makes.map(m => ({ name: m.name, slug: m.slug, count: 0 }));
+  const makeSource = [...makeSourceRaw].sort((a, b) => a.name.localeCompare(b.name));
   const filteredMakes = makeSearch
     ? (() => {
         const q = makeSearch.toLowerCase();
@@ -441,7 +467,7 @@ export default function StateFilterBar({
           .sort((a, b) => {
             const an = a.name.toLowerCase(), bn = b.name.toLowerCase();
             const rank = (n: string) => n.startsWith(q) ? 0 : n.includes(` ${q}`) ? 1 : 2;
-            return rank(an) - rank(bn);
+            return rank(an) - rank(bn) || an.localeCompare(bn);
           });
       })()
     : makeSource;
@@ -736,10 +762,10 @@ export default function StateFilterBar({
             {currentFilters.model && (
               <span className={`active-chip${removingChip === "model" ? " chip-removing" : ""}`}>
                 <span className="chip-label" onClick={handleMakeOpen}>
-                  {toTitleCase(
+                  {formatModelName(
                     lastModelName ??
                       modelCounts.find(m => m.slug === currentFilters.model)?.name ??
-                      currentFilters.model.replace(/-/g," "),
+                      currentFilters.model,
                   )}
                 </span>
                 <span className="chip-close" onClick={() => removeChip("model", { model: undefined })}>×</span>
@@ -753,7 +779,7 @@ export default function StateFilterBar({
             )}
             {currentFilters.category && (
               <span className={`active-chip${removingChip === "category" ? " chip-removing" : ""}`}>
-                <span className="chip-label" onClick={handleTypeOpen}>{toTitleCase(categories.find(c => c.slug === currentFilters.category)?.name ?? currentFilters.category!.replace(/-/g," "))}</span>
+                <span className="chip-label" onClick={handleTypeOpen}>{withCaravanSuffix(toTitleCase(categories.find(c => c.slug === currentFilters.category)?.name ?? currentFilters.category!.replace(/-/g," ")))}</span>
                 <span className="chip-close" onClick={() => removeChip("category", { category: undefined })}>×</span>
               </span>
             )}
@@ -840,7 +866,7 @@ export default function StateFilterBar({
                         <span className={`loc-checkbox${tempCategory === cat.slug ? " checked" : ""}`}>
                           {tempCategory === cat.slug && <i className="bi bi-check" style={{ color:"#fff", fontSize:14, lineHeight:1 }} />}
                         </span>
-                        <span className="loc-state-name">{cat.name}</span>
+                        <span className="loc-state-name">{withCaravanSuffix(cat.name)}</span>
                       </li>
                     ))
                   )}
@@ -998,18 +1024,18 @@ export default function StateFilterBar({
                     <select className="cfs-select-input form-select" value={tempMake ?? ""}
                       onChange={e => { setTempMake(e.target.value || null); setTempModel(null); }}>
                       <option value="">Any</option>
-                      {makes.map(m => <option key={m.slug} value={m.slug}>{m.name}</option>)}
+                      {makeSource.map(m => <option key={m.slug} value={m.slug}>{m.name}</option>)}
                     </select>
                   </div>
                   <div style={{ flex:1, minWidth:130 }}>
                     <label style={{ fontSize:13, color:"#555", display:"block", marginBottom:6 }}>Model</label>
                     <select className="cfs-select-input form-select"
-                      disabled={!tempMake || (makes.find(m => m.slug === tempMake)?.models?.length ?? 0) === 0}
+                      disabled={!tempMake || modelSource.length === 0}
                       value={tempModel ?? ""}
                       onChange={e => setTempModel(e.target.value || null)}>
                       <option value="">Any</option>
-                      {(makes.find(m => m.slug === tempMake)?.models ?? []).map(mod => (
-                        <option key={mod.slug} value={mod.slug}>{mod.name}</option>
+                      {modelSource.map(mod => (
+                        <option key={mod.slug} value={mod.slug}>{formatModelName(mod.name)}</option>
                       ))}
                     </select>
                   </div>
@@ -1225,7 +1251,7 @@ export default function StateFilterBar({
                         <span className={`loc-checkbox${tempCategory === cat.slug ? " checked" : ""}`}>
                           {tempCategory === cat.slug && <i className="bi bi-check" style={{ color:"#fff", fontSize:14, lineHeight:1 }} />}
                         </span>
-                        <span className="loc-state-name">{cat.name}</span>
+                        <span className="loc-state-name">{withCaravanSuffix(cat.name)}</span>
                       </li>
                     ))
                   )}
@@ -1447,7 +1473,7 @@ export default function StateFilterBar({
             <div className="filter-search-bar">
               {makeSubView === "models" && (
                 <div className="loc-region-heading" style={{ marginBottom:8, borderBottom:"none", paddingBottom:0 }}>
-                  {makes.find(m => m.slug === tempMake)?.name ?? tempMake}
+                  {makeSource.find(m => m.slug === tempMake)?.name ?? tempMake}
                 </div>
               )}
               <div className="loc-search-wrap" style={{ marginBottom:0 }}>
@@ -1494,7 +1520,7 @@ export default function StateFilterBar({
                           <span className={`loc-checkbox${isSelected ? " checked" : ""}`}>
                             {isSelected && <i className="bi bi-check" style={{ color:"#fff", fontSize:14, lineHeight:1 }} />}
                           </span>
-                          <span className="loc-state-name">{mod.name || mod.slug}</span>
+                          <span className="loc-state-name">{formatModelName(mod.name || mod.slug)}</span>
                         </li>
                       );
                     })

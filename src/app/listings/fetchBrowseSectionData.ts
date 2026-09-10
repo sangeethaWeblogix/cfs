@@ -1,4 +1,4 @@
-import { fetchParamsCountFromKV } from "@/lib/paramsCountKv";
+import { fetchParamsCountFromKV, normalizeCountItems } from "@/lib/paramsCountKv";
 import {
   PRICE_BANDS,
   ATM_BANDS,
@@ -16,7 +16,16 @@ const wpHeaders = (): Record<string, string> => ({
   ...(API_KEY ? { "X-Secret-Key": API_KEY } : {}),
 });
 
-/** KV first (shared pre-warmed cache), WP params_count fallback. */
+// params-count (make/category/state/region counts) uses the MPN key/base.
+const MPN_BASE = process.env.MPN_API_BASE;
+const MPN_KEY = process.env.MPN_API_KEY;
+
+const mpnHeaders = (): Record<string, string> => ({
+  Accept: "application/json",
+  ...(MPN_KEY ? { "X-Secret-Key": MPN_KEY } : {}),
+});
+
+/** KV first (shared pre-warmed cache), WP params-count fallback. */
 export async function fetchGroupCountsServer(
   groupBy: string,
   scope: Record<string, string>
@@ -26,13 +35,13 @@ export async function fetchGroupCountsServer(
 
   try {
     const qs = new URLSearchParams({ group_by: groupBy, ...scope });
-    const res = await fetch(`${API_BASE}/params_count?${qs.toString()}`, {
-      headers: wpHeaders(),
+    const res = await fetch(`${MPN_BASE}/params-count?${qs.toString()}`, {
+      headers: mpnHeaders(),
       next: { revalidate: 3600 },
     });
     if (!res.ok) return [];
     const json = await res.json();
-    return json?.data ?? [];
+    return normalizeCountItems(json?.data ?? []) as CountItem[];
   } catch {
     return [];
   }
