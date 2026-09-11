@@ -114,7 +114,11 @@ export function buildSlugFromFilters(f: Filters): string {
 const toYear = asNum(f.to_year);
 
 if (fromYear !== undefined && toYear !== undefined) {
-  segments.push(`${fromYear}-${toYear}-caravans-range`);
+  if (fromYear === toYear) {
+    segments.push(`${fromYear}-caravans-range`);
+  } else {
+    segments.push(`${fromYear}-${toYear}-caravans-range`);
+  }
 } else if (fromYear !== undefined) {
   segments.push(`year-from-${fromYear}-caravans-range`);
 } else if (toYear !== undefined) {

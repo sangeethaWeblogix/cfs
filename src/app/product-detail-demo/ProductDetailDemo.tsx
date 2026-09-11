@@ -8,7 +8,7 @@ import CaravanDetailModal from "@/app/product/[slug]/CaravanDetailModal";
 import "./demo.css";
 
 /* ── Types ── */
-type Attribute = { label?: string; value?: string; url?: string };
+type Attribute = { label?: string; value?: string | number | { name?: string; slug?: string; label?: string }; url?: string };
 type Category  = { name?: string; label?: string; value?: string } | string;
 type Region    = { label?: string; value?: string; slug?: string };
 
@@ -117,6 +117,25 @@ const fmt = (n: number) =>
 const slugify = (s: string) => s.trim().toLowerCase().replace(/\s+/g, "-");
 const toInt = (s: string) => { const n = parseInt(String(s).replace(/[^\d]/g, ""), 10); return Number.isFinite(n) && n > 0 ? n : null; };
 const linkFromApiUrl = (rawUrl: string, text: string) => { const u = (rawUrl || "").trim().replace(/^\/+|\/+$/g, ""); return { href: /[=&]/.test(u) ? `/listings/?${u}` : `/listings/${u}/`, text }; };
+/* Attribute values can be a plain string/number, or an object like { name, slug }
+   (e.g. make/model on csv-imported products) — extract display text and the
+   taxonomy slug (when present) separately so links use the real slug, not a
+   naive re-slugified name. */
+const attrToText = (value: unknown): string => {
+  if (value == null) return "";
+  if (typeof value === "object") {
+    const o = value as { name?: unknown; label?: unknown; value?: unknown };
+    return String(o.name ?? o.label ?? o.value ?? "");
+  }
+  return String(value);
+};
+const attrToSlug = (value: unknown): string | undefined => {
+  if (value && typeof value === "object") {
+    const slug = (value as { slug?: unknown }).slug;
+    if (slug != null && slug !== "") return String(slug);
+  }
+  return undefined;
+};
 const STATE_ABBR: Record<string, string> = {
   queensland: "QLD", "new-south-wales": "NSW", "new south wales": "NSW", nsw: "NSW",
   victoria: "VIC", vic: "VIC", "western-australia": "WA", "western australia": "WA", wa: "WA",
@@ -276,7 +295,7 @@ export default function ProductDetailDemo({ data, similarData }: Props) {
   const blogPosts: BlogPost[]  = Array.isArray(pd.latest_blog_posts) ? pd.latest_blog_posts : [];
 
   const getAttr = (label: string) =>
-    attributes.find(a => String(a?.label ?? "").toLowerCase() === label.toLowerCase())?.value ?? "";
+    attrToText(attributes.find(a => String(a?.label ?? "").toLowerCase() === label.toLowerCase())?.value);
 
   const related: ProductData[] = Array.isArray(pd.related) ? pd.related : [];
 
@@ -319,11 +338,12 @@ export default function ProductDetailDemo({ data, similarData }: Props) {
   const shortSleeps   = getAttr("sleeps").replace(/\s+people?$/i, '').trim();
   const shortAtm      = getAttr("ATM");
 
-  /* helper: find first matching attribute with value + url */
-  const pickFull = (...labels: string[]): { value: string; url: string } => {
+  /* helper: find first matching attribute with value + url (+ taxonomy slug, when the
+     value is an object like { name, slug } rather than a plain string) */
+  const pickFull = (...labels: string[]): { value: string; url: string; slug?: string } => {
     for (const l of labels) {
       const attr = attributes.find(a => String(a?.label ?? "").toLowerCase() === l.toLowerCase());
-      if (attr?.value) return { value: attr.value, url: attr.url ?? "" };
+      if (attr?.value) return { value: attrToText(attr.value), url: attr.url ?? "", slug: attrToSlug(attr.value) };
     }
     return { value: "", url: "" };
   };
@@ -332,14 +352,14 @@ export default function ProductDetailDemo({ data, similarData }: Props) {
   type DetailLink = { href: string; text: string };
   type DetailRow = { label: string; value: string; url: string; links?: DetailLink[] };
 
-  const makeDetailUrl = (label: string, value: string, apiUrl: string): string => {
-    const v = value.trim();
+  const makeDetailUrl = (label: string, value: string, apiUrl: string, valueSlug?: string): string => {
+    const v = String(value ?? "").trim();
     const L = label.toLowerCase();
     if (L === "year" || L === "years") { const n = toInt(v); return n ? `/listings/${n}-caravans-range/` : ""; }
     if (apiUrl) return linkFromApiUrl(apiUrl, v).href;
     if (L === "type" || L === "category") return v ? `/listings/${slugify(v.replace(/\s*caravans?\s*/gi, " ").trim())}-category/` : "";
-    if (L === "make") return v ? `/listings/${slugify(v)}/` : "";
-    if (L === "model") { const mk = pickFull("Make"); const mkSlug = mk.url?.trim().replace(/^\/+|\/+$/g, "") || slugify(mk.value); return v ? `/listings/${mkSlug}/${slugify(v)}/` : ""; }
+    if (L === "make") return v ? `/listings/${valueSlug || slugify(v)}/` : "";
+    if (L === "model") { const mk = pickFull("Make"); const mkSlug = mk.slug || mk.url?.trim().replace(/^\/+|\/+$/g, "") || slugify(mk.value); return v ? `/listings/${mkSlug}/${valueSlug || slugify(v)}/` : ""; }
     if (L === "condition" || L === "conditions") return v ? `/listings/${slugify(v)}-condition/` : "";
     if (L === "sleeping capacity" || L === "sleep" || L === "sleeps") { const n = toInt(v); return n ? `/listings/under-${n}-people-sleeping-capacity/` : ""; }
     if (L === "length") { const n = toInt(v); return n ? `/listings/under-${n}-length-in-feet/` : ""; }
@@ -348,8 +368,8 @@ export default function ProductDetailDemo({ data, similarData }: Props) {
   };
 
   const makeRow = (label: string, ...keys: string[]): DetailRow => {
-    const { value, url } = pickFull(...keys);
-    return { label, value, url: makeDetailUrl(label, value, url) };
+    const { value, url, slug } = pickFull(...keys);
+    return { label, value, url: makeDetailUrl(label, value, url, slug) };
   };
 
   const typeLinks: DetailLink[] = (categoryNames.length > 0 ? categoryNames : [getAttr("Type")].filter(Boolean))
