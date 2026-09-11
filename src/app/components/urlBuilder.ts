@@ -212,6 +212,12 @@ export function parseSlugToFilters(
         filters.to_year = bothMatch[2];
         return;
       }
+      const singleMatch = part.match(/^(\d{4})-caravans-range$/);
+      if (singleMatch) {
+        filters.from_year = singleMatch[1];
+        filters.to_year = singleMatch[1];
+        return;
+      }
       const fromMatch = part.match(/^year-from-(\d{4})-caravans-range$/);
       if (fromMatch) {
         filters.from_year = fromMatch[1];

@@ -196,9 +196,13 @@ function buildPoolRequestUrl(urlPath, seed) {
       const both = seg.match(/^(\d{4})-(\d{4})-caravans-range$/);
       if (both) { fromYear = both[1]; toYear = both[2]; }
       else {
-        const from = seg.match(/^year-from-(\d{4})-caravans-range$/);
-        if (from) fromYear = from[1];
-        else { const to = seg.match(/^year-to-(\d{4})-caravans-range$/); if (to) toYear = to[1]; }
+        const single = seg.match(/^(\d{4})-caravans-range$/);
+        if (single) { fromYear = single[1]; toYear = single[1]; }
+        else {
+          const from = seg.match(/^year-from-(\d{4})-caravans-range$/);
+          if (from) fromYear = from[1];
+          else { const to = seg.match(/^year-to-(\d{4})-caravans-range$/); if (to) toYear = to[1]; }
+        }
       }
     } else if (!hasReservedSuffix(seg) && isNaN(Number(seg))) {
       // make / model fallback (same as urlBuilder.ts)
