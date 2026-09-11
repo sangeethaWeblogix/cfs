@@ -10,11 +10,35 @@ type Listing = {
   slug: string;
   condition: string;
   location: string;
+  state?: string;
   regular_price: string;
   sale_price: string;
   categories: string[];
   image_format: string[];
   seller_type?: string;
+};
+
+const STATE_ABBR: Record<string, string> = {
+  victoria: "VIC",
+  "new south wales": "NSW",
+  queensland: "QLD",
+  "south australia": "SA",
+  "western australia": "WA",
+  tasmania: "TAS",
+  "northern territory": "NT",
+  "australian capital territory": "ACT",
+};
+
+const stateAbbr = (state?: string): string => {
+  if (!state) return "";
+  const key = state.replace(/-/g, " ").toLowerCase().trim();
+  return STATE_ABBR[key] ?? state.toUpperCase();
+};
+
+const formatPrice = (price: string | number): string => {
+  const n = Number(price);
+  if (!price || Number.isNaN(n)) return "POA";
+  return `$${n.toLocaleString("en-AU")}`;
 };
 
 async function fetchFeaturedListings(): Promise<Listing[]> {
@@ -59,7 +83,8 @@ export default function HomeFeatured() {
         <div className="hf-grid">
           {items.slice(0, 8).map((item, idx) => {
             const isNew = item.condition?.toLowerCase() === "new";
-            const price = item.sale_price || item.regular_price || "POA";
+            const price = formatPrice(item.sale_price || item.regular_price);
+            const location = stateAbbr(item.state) || item.location;
             const image = item.image_format?.[0] ?? null;
             const type = (item.categories?.[0] ?? "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()) + " Caravan";
 
@@ -76,10 +101,10 @@ export default function HomeFeatured() {
                 <div className="hf-card__body">
                   <h3 className="hf-card__title">{item.name}</h3>
                   <div className="hf-card__meta">
-                    {item.location && (
+                    {location && (
                       <span className="hf-card__meta-item">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                        {item.location}
+                        {location}
                       </span>
                     )}
                     <span className="hf-card__meta-item">

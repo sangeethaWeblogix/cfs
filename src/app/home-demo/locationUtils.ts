@@ -11,11 +11,10 @@ const AUS_ABBR: Record<string, string> = {
 
 const toTitleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 
-/** home_featured always returns location: "" — derive a label from state
- *  (e.g. "victoria" → "VIC") instead, same as the rest of the site. */
+/** Show just the state abbreviation (e.g. "victoria" → "VIC"), matching the
+ *  rest of the site, instead of the full "Suburb, Region" string. */
 export function getLocationLabel(item: { location?: string; state?: string }): string {
-  if (item.location) return item.location;
   const stateName = item.state?.replace(/-/g, " ") ?? "";
-  if (!stateName) return "";
-  return AUS_ABBR[stateName.toUpperCase()] ?? toTitleCase(stateName);
+  if (stateName) return AUS_ABBR[stateName.toUpperCase()] ?? toTitleCase(stateName);
+  return item.location ?? "";
 }
