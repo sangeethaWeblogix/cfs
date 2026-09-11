@@ -244,20 +244,20 @@ function ListingCard({
  // sendBeacon (not fetch) — same tracking, but categorized separately from
  // regular XHR/fetch traffic in devtools instead of sitting in plain sight
  // next to the page's data requests.
- const postTrackClick = (product_id: number) => {
+ const postTrackClick = (slug: string) => {
     try {
       navigator.sendBeacon(
         "/api/track-click",
-        new Blob([JSON.stringify({ product_id })], { type: "application/json" })
+        new Blob([JSON.stringify({ slug })], { type: "application/json" })
       );
    } catch {}
    };
 
-     const postTrackEvent = (product_id: number) => {
+     const postTrackEvent = (slug: string) => {
     try {
        navigator.sendBeacon(
          "/api/track",
-         new Blob([JSON.stringify({ product_id })], { type: "application/json" })
+         new Blob([JSON.stringify({ slug })], { type: "application/json" })
        );
      } catch {}
    };
@@ -269,8 +269,8 @@ function ListingCard({
        (entries) => {
         entries.forEach((entry) => {
            if (entry.isIntersecting) {
-            const id = Number(entry.target.getAttribute("data-product-id"));
-            if (id) postTrackEvent(id);
+            const slug = entry.target.getAttribute("data-product-slug");
+            if (slug) postTrackEvent(slug);
             observer.unobserve(entry.target);
           }
         });
@@ -287,8 +287,8 @@ function ListingCard({
       href={href}
       prefetch={false}
       className={`lsd-card${spotlight ? " lsd-card--spotlight" : ""}`}
-      data-product-id={item.id}
-      onClick={() => postTrackClick(item.id)}
+      data-product-slug={item.slug ?? ""}
+      onClick={() => item.slug && postTrackClick(item.slug)}
     >
       {/* Image */}
       <div className="lsd-card__img-wrap">

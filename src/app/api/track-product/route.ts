@@ -1,50 +1,23 @@
 import { NextResponse } from "next/server";
-const API_KEY = process.env.CFS_API_KEY; // ✅ Added
+const API_KEY = process.env.CFS_API_KEY;
+const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
 
 export async function POST(req: Request) {
   try {
-    const { product_id } = await req.json();
+    const { slug } = await req.json();
+    if (!slug) return NextResponse.json({ success: false });
 
-    const ip = req.headers.get("x-forwarded-for") || "";
-    const user_agent = req.headers.get("user-agent") || "";
+    const headers = {
+      ...(API_KEY && { "X-Secret-Key": API_KEY }),
+    };
 
-    // 🔥 Call WordPress API from server (hidden)
-    await fetch(
-      "https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/update-clicks",
-      {
-        method: "POST",
-       headers: {
-          "Content-Type": "application/json",
-          ...(API_KEY && { "X-Secret-Key": API_KEY }), // ✅ Added
-        },
-        body: JSON.stringify({
-          product_id,
-          ip,
-          user_agent,
-        }),
-      }
-    );
-
-    await fetch(
-      "https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/update-impressions",
-      {
-        method: "POST",
-       headers: {
-          "Content-Type": "application/json",
-          ...(API_KEY && { "X-Secret-Key": API_KEY }), // ✅ Added
-        },
-        body: JSON.stringify({
-          product_id,
-          ip,
-          user_agent,
-        }),
-      }
-    );
+    await Promise.all([
+      fetch(`${API_BASE}/click?slug=${encodeURIComponent(slug)}`, { headers }),
+      fetch(`${API_BASE}/impression?slug=${encodeURIComponent(slug)}`, { headers }),
+    ]);
 
     return NextResponse.json({ success: true });
-  } catch (e) {
-      const message = e instanceof Error ? e.message : "Unknown error";
-
-    return NextResponse.json({ error: true, });
+  } catch (_e) {
+    return NextResponse.json({ error: true });
   }
 }

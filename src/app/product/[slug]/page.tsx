@@ -112,9 +112,9 @@
      { label: "Years",              value: raw.year != null ? String(raw.year) : null },
      { label: "Conditions",         value: raw.condition },
      { label: "Length",             value: raw.length != null ? `${raw.length}ft` : null },
-     { label: "ATM",                value: raw.atm != null ? `${raw.atm}kg` : null },
-     { label: "Tare Mass",          value: raw.tare_mass != null ? `${raw.tare_mass}kg` : null },
-     { label: "Ball Weight",        value: raw.ball_weight != null ? `${raw.ball_weight}kg` : null },
+     { label: "ATM",                value: raw.atm != null ? `${raw.atm} kg` : null },
+     { label: "Tare Mass",          value: raw.tare_mass != null ? `${raw.tare_mass} kg` : null },
+     { label: "Ball Weight",        value: raw.ball_weight != null ? `${raw.ball_weight} kg` : null },
      { label: "Sleeps",             value: raw.sleep != null ? String(raw.sleep) : null },
      { label: "Axle Configuration", value: raw.axle_configuration },
      { label: "Suspension",         value: raw.suspension },
@@ -128,7 +128,10 @@
    ].filter((s) => s.value != null && s.value !== "");
  
    const cats = Array.isArray(raw.category)
-     ? raw.category.map((c: string) => ({ name: c, label: c, value: c }))
+     ? raw.category.map((c: any) => {
+         const name = typeof c === "string" ? c : (c?.name ?? c?.label ?? c?.value ?? "");
+         return { name, label: name, value: name, slug: typeof c === "object" ? c?.slug : undefined };
+       })
      : [];
  
    return {
@@ -210,11 +213,12 @@
  });
  
  
- async function fetchSimilarProducts(productId: string | number, seed: number) {
+ async function fetchSimilarProducts(slug: string) {
    const API_KEY = process.env.CFS_API_KEY;
+   const CFS_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
    try {
      const res = await fetch(
-       `https://admin.caravansforsale.com.au/wp-json/cfs/v1/similar_products?product_id=${productId}&seed=${seed}`,
+       `${CFS_BASE}/${encodeURIComponent(slug)}/similar`,
        {
          cache: "no-store",
          headers: {
@@ -278,18 +282,17 @@
      },
    };
  
-   const productId = pd.id ?? pd.product_id ?? data?.data?.id ?? data?.id ?? "";
-   const seed = Math.ceil(Math.random() * 10);
-   const similarData = productId ? await fetchSimilarProducts(productId, seed) : null;
+   const similarData = slug ? await fetchSimilarProducts(slug) : null;
  
    // Shuffle price section server-side (API doesn't shuffle it)
-   if (similarData?.similar_by_price?.products?.length) {
-     const arr = similarData.similar_by_price.products;
+   const priceArr = similarData?.similar_by_price?.products ?? similarData?.price_range;
+   if (priceArr?.length) {
+     const seed = Math.ceil(Math.random() * 10);
      let s = seed * 9301 + 49297;
-     for (let i = arr.length - 1; i > 0; i--) {
+     for (let i = priceArr.length - 1; i > 0; i--) {
        s = (s * 9301 + 49297) % 233280;
        const j = Math.floor((s / 233280) * (i + 1));
-       [arr[i], arr[j]] = [arr[j], arr[i]];
+       [priceArr[i], priceArr[j]] = [priceArr[j], priceArr[i]];
      }
    }
  

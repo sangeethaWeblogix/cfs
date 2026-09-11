@@ -46,6 +46,7 @@ interface BlogPost {
   title: string;
   thumbnail?: string;
   first_image?: string;
+  featured_image?: string;
   image?: string;
   slug?: string;
   permalink?: string;
@@ -55,16 +56,18 @@ interface BlogPost {
 
 interface MakeListing {
   id: number;
-  name: string;
+  name?: string;
+  title?: string;
   slug?: string;
   thumbnail?: string;
   first_image?: string;
   image?: string;
   image_url?: string[];
   image_format?: string[];
+  r2_thumbnails?: string[];
   price?: string;
-  regular_price?: string;
-  sale_price?: string;
+  regular_price?: string | number;
+  sale_price?: string | number;
   location?: string;
   state?: string;
   suburb?: string;
@@ -91,6 +94,9 @@ interface SimilarData {
   related_blogs?: SimilarSection;
   make_similar?: MakeListing[];
   price_similar?: MakeListing[];
+  same_make?: MakeListing[];
+  price_range?: MakeListing[];
+  blog?: BlogPost[];
   blogs?: BlogPost[];
   latest_blog_posts?: BlogPost[];
   make_label?: string;
@@ -119,8 +125,10 @@ const STATE_ABBR: Record<string, string> = {
   "australian-capital-territory": "ACT", act: "ACT",
 };
 const resolveState = (s: string) => STATE_ABBR[s.toLowerCase().trim()] ?? s.toUpperCase();
-const fmtCat = (cat: string) =>
-  cat.split(",")[0].trim().replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+const fmtCat = (cat: string | string[] | undefined) => {
+  const first = Array.isArray(cat) ? cat[0] : cat;
+  return (first ?? "").split(",")[0].trim().replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+};
 
 const PRICE_STEPS = [10000,20000,30000,40000,50000,60000,70000,80000,90000,100000,125000,150000,175000,200000,225000,250000,275000,300000];
 const getPriceRangeLinks = (price: number): { label: string; href: string }[] => {
@@ -377,7 +385,8 @@ export default function ProductDetailDemo({ data, similarData }: Props) {
   const locationState = state;
 
   if (locationCity || locationState) {
-    const regionSlug  = product.region?.slug ?? slugify(locationCity);
+    const regionSlugBase = product.region?.slug ?? slugify(locationCity);
+    const regionSlug  = regionSlugBase && !regionSlugBase.endsWith("-region") ? `${regionSlugBase}-region` : regionSlugBase;
     const stateAttr   = attributes.find(a => String(a?.label ?? "").toLowerCase() === "location");
     const stateSlug   = stateAttr?.url?.trim() || `${slugify(locationState)}-state`;
     const links: DetailLink[] = [];
@@ -421,14 +430,13 @@ const priceUpperIdx = !isPOA ? PRICE_STEPS.findIndex(s => s >= displayPrice) : -
   }, [product.description]);
 
   useEffect(() => {
-    const productId = product.id ?? pd.id;
-    if (!productId) return;
+    if (!product.slug) return;
     navigator.sendBeacon(
       "/api/track-product/",
-      new Blob([JSON.stringify({ product_id: Number(productId) })], { type: "application/json" })
+      new Blob([JSON.stringify({ slug: product.slug })], { type: "application/json" })
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product.id]);
+  }, [product.slug]);
 
   const [descOpen, setDescOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -436,9 +444,9 @@ const priceUpperIdx = !isPOA ? PRICE_STEPS.findIndex(s => s >= displayPrice) : -
   const [checklistOpen, setChecklistOpen] = useState(false);
   const handleGalleryOpen = useCallback((i: number) => { setModalInitialIndex(i); setModalOpen(true); }, []);
   const sd = similarData ?? {};
-  const makeSimilar: MakeListing[]  = sd.similar_by_make?.products ?? sd.make_similar ?? [];
-  const priceSimilar: MakeListing[] = sd.similar_by_price?.products ?? sd.price_similar ?? [];
-  const similarBlogs: BlogPost[]    = sd.similar_blogs?.blogs ?? sd.related_blogs?.blogs ?? sd.blogs ?? sd.latest_blog_posts ?? [];
+  const makeSimilar: MakeListing[]  = sd.similar_by_make?.products ?? sd.make_similar ?? sd.same_make ?? [];
+  const priceSimilar: MakeListing[] = sd.similar_by_price?.products ?? sd.price_similar ?? sd.price_range ?? [];
+  const similarBlogs: BlogPost[]    = sd.similar_blogs?.blogs ?? sd.related_blogs?.blogs ?? sd.blogs ?? sd.blog ?? sd.latest_blog_posts ?? [];
 
   if (!product.name) {
     return <div style={{ padding: "60px 24px", textAlign: "center", color: "#888" }}>Loading product…</div>;
@@ -448,7 +456,7 @@ const priceUpperIdx = !isPOA ? PRICE_STEPS.findIndex(s => s >= displayPrice) : -
     { label: "Home",            href: "/" },
     { label: "Caravans for Sale", href: "/listings/" },
     ...(state ? [{ label: state, href: `/listings/${slugify(state)}-state/` }] : []),
-    ...(product.region?.value ? [{ label: product.region.value.replace(/-/g, " "), href: `/listings/${slugify(state)}-state/${product.region.slug ?? slugify(product.region.value)}/` }] : []),
+    ...(product.region?.value ? [{ label: product.region.value.replace(/-/g, " "), href: `/listings/${slugify(state)}-state/${(product.region.slug ?? slugify(product.region.value)).replace(/(?:-region)?$/, "-region")}/` }] : []),
     ...(categoryNames[0] ? [{ label: categoryNames[0], href: `/listings/${slugify(categoryNames[0].replace(/\s*caravan\s*/gi, " ").trim())}-category/` }] : []),
   ];
 
@@ -694,8 +702,8 @@ const priceUpperIdx = !isPOA ? PRICE_STEPS.findIndex(s => s >= displayPrice) : -
             <h2 className="pdd-section__title">Similar Caravans in the {makeLabel} Range</h2>
             <div className="pdd-similar__grid">
                 {makeSimilar.filter(r => r.slug !== product.slug).slice(0, 5).map((r, i) => {
-                  const rName     = r.name ?? "";
-                  const imgUrl    = r.thumbnail || r.first_image || r.image_format?.[0] || r.image_url?.[0] || r.image || undefined;
+                  const rName     = r.name ?? r.title ?? "";
+                  const imgUrl    = r.thumbnail || r.first_image || r.image_format?.[0] || r.image_url?.[0] || r.r2_thumbnails?.[0] || r.image || undefined;
                   const rPrice    = parseAmt(r.price || r.sale_price || r.regular_price);
                   const rLoc      = r.state ? resolveState(r.state) : r.location ?? "";
                   const rCat      = fmtCat(r.categories?.[0] || r.category || "");
@@ -747,8 +755,8 @@ const priceUpperIdx = !isPOA ? PRICE_STEPS.findIndex(s => s >= displayPrice) : -
             <h2 className="pdd-section__title">Similar Caravans Around the Same Price</h2>
             <div className="pdd-similar__grid">
               {priceSimilar.slice(0, 5).map((r, i) => {
-                const rName    = r.name ?? "";
-                const imgUrl   = r.thumbnail || r.first_image || r.image_format?.[0] || r.image_url?.[0] || r.image || undefined;
+                const rName    = r.name ?? r.title ?? "";
+                const imgUrl   = r.thumbnail || r.first_image || r.image_format?.[0] || r.image_url?.[0] || r.r2_thumbnails?.[0] || r.image || undefined;
                 const rPrice   = parseAmt(r.price || r.sale_price || r.regular_price);
                 const rLoc     = r.state ? resolveState(r.state) : r.location ?? "";
                 const rCat     = fmtCat(r.categories?.[0] || r.category || "");
@@ -804,10 +812,10 @@ const priceUpperIdx = !isPOA ? PRICE_STEPS.findIndex(s => s >= displayPrice) : -
               <div className="pdd-blogs">
                 {displayBlogs.map((b, i) => (
                   <a key={i} href={b.slug ? `/${b.slug}/` : (b.permalink ?? "#")} className="pdd-blog">
-                    {(b.thumbnail || b.first_image || b.image) && (
+                    {(b.thumbnail || b.first_image || b.featured_image) && (
                       <div className="pdd-blog__img">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={b.thumbnail || b.first_image || b.image} alt={b.title} referrerPolicy="no-referrer" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <img src={b.thumbnail || b.first_image || b.featured_image} alt={b.title} referrerPolicy="no-referrer" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       </div>
                     )}
                     <div className="pdd-blog__body">

@@ -33,11 +33,11 @@ const fetchProduct = cache(async () => {
   }
 });
 
-async function fetchSimilarProducts(productId: string | number, seed: number) {
+async function fetchSimilarProducts(slug: string) {
   const API_KEY = process.env.CFS_API_KEY;
   try {
     const res = await fetch(
-      `https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/similar_products?product_id=${productId}&seed=${seed}`,
+      `https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/caravans/${encodeURIComponent(slug)}/similar`,
       {
         cache: "no-store",
         headers: {
@@ -60,9 +60,8 @@ export default async function ProductDetailDemoPage() {
   const data = await fetchProduct();
 
   const pd = data?.data?.product_details ?? {};
-  const productId = pd.id ?? pd.product_id ?? data?.data?.id ?? data?.id ?? "";
-  const seed = Math.ceil(Math.random() * 10);
-  const similarData = productId ? await fetchSimilarProducts(productId, seed) : null;
+  const slug = pd.slug ?? data?.data?.slug ?? data?.slug ?? DEMO_SLUG;
+  const similarData = slug ? await fetchSimilarProducts(slug) : null;
 
   return (
     <main>

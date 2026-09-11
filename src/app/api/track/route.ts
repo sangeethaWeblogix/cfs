@@ -1,34 +1,16 @@
-const API_KEY = process.env.CFS_API_KEY; // ✅ Added
+const API_KEY = process.env.CFS_API_KEY;
+const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const { slug } = await req.json();
+    if (!slug) return Response.json({ success: false });
 
-    // ✅ Get user IP from headers
-    const ip =
-      req.headers.get("x-forwarded-for") ||
-      req.headers.get("x-real-ip") ||
-      "unknown";
-
-    const user_agent = req.headers.get("user-agent") || "";
-  console.log("IP:", ip);
-  console.log("IPUA:", user_agent);
-    // 🔥 Your existing API call (move here)
-    await fetch(
-      "https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/update-impressions",
-      {
-        method: "POST",
-         headers: {
-          "Content-Type": "application/json",
-          ...(API_KEY && { "X-Secret-Key": API_KEY }), // ✅ Added
-        },
-        body: JSON.stringify({
-          product_id: body.product_id,
-          ip,
-          user_agent,
-        }),
-      }
-    );
+    await fetch(`${API_BASE}/impression?slug=${encodeURIComponent(slug)}`, {
+      headers: {
+        ...(API_KEY && { "X-Secret-Key": API_KEY }),
+      },
+    });
 
     return Response.json({ success: true });
   } catch (_e) {
