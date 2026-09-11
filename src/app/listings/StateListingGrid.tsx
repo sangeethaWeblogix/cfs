@@ -86,6 +86,13 @@ function formatLength(len: string | undefined): string | null {
   return `${ft} ft (${m}m)`;
 }
 
+function formatKg(kg: string | undefined): string | null {
+  if (!kg) return null;
+  const n = parseFloat(kg);
+  if (isNaN(n)) return null;
+  return `${n.toLocaleString("en-AU")} Kg`;
+}
+
 const AUS_ABBR: Record<string, string> = {
   "VICTORIA": "VIC",
   "NEW SOUTH WALES": "NSW",
@@ -220,13 +227,14 @@ function ListingCard({
   const type     = toTitleCase((item.categories?.[0] ?? "").replace(/-/g, " "));
   const sellerType = toTitleCase(item.seller_type ?? "");
   const lenFmt   = formatLength(item.length);
+  const kgFmt    = formatKg(item.kg);
   const isDealer = item.seller_type !== "private";
 
   // Always 4 slots so grid rows are the same height across all cards
   const specSlots = [
-    { icon: "/images/category.svg", text: type    || "" },
-    { icon: "/images/length.svg",   text: lenFmt  || "" },
-    { icon: "/images/weight.svg",   text: item.kg || "" },
+    { icon: "/images/category.svg", text: type   || "" },
+    { icon: "/images/length.svg",   text: lenFmt || "" },
+    { icon: "/images/weight.svg",   text: kgFmt  || "" },
     { icon: "",                     text: "" },
   ];
 

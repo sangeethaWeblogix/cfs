@@ -86,7 +86,7 @@ async function fetchOffRoadBrandCounts(): Promise<Record<string, number>> {
 async function fetchOffRoadStateBands(): Promise<any[]> {
   try {
     const res = await fetch(
-      `${API_BASE}/off-road-state-caravans-list`,
+      `${API_BASE}/off-road-by-state`,
       { headers: wpHeaders(), next: { revalidate: 0 } }
     );
     if (!res.ok) return [];

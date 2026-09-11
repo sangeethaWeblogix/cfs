@@ -26,8 +26,22 @@ const stateMeta: Record<string, { code: string; image: string }> = {
   tasmania:           { code: "TAS", image: "/images/tas_map.svg" },
 };
 
+const HIDDEN_STATES = new Set(["australian capital territory", "northern territory"]);
+
+// The by-state API's permalink used to be a bare slug (e.g. "/state-based-snapshot/victoria")
+// that needed "/listings" prepended — it's since changed to a complete path
+// (e.g. "/listings/victoria-state/"). Handle both instead of always prepending,
+// which was producing "/listings/listings/victoria-state//".
+function buildStateHref(permalink: string): string {
+  const path = permalink.startsWith("/listings") ? permalink : `/listings${permalink}`;
+  return path.endsWith("/") ? path : `${path}/`;
+}
+
 export default function HomeStateSection({ stateBands }: Props) {
-  const loading = stateBands.length === 0;
+  const visibleStateBands = stateBands.filter(
+    (item) => !HIDDEN_STATES.has(item.state.toLowerCase())
+  );
+  const loading = visibleStateBands.length === 0;
 
   return (
     <section className="section-padding" style={{ background: "#f6f7fb" }}>
@@ -56,7 +70,7 @@ export default function HomeStateSection({ stateBands }: Props) {
                   1280: { slidesPerView: 4 },
                 }}
               >
-                {stateBands.map((item, index) => {
+                {visibleStateBands.map((item, index) => {
                   const key = item.state.toLowerCase().replace(/\s+/g, "-");
                   const meta = stateMeta[key] ?? {};
                   return (
@@ -79,7 +93,7 @@ export default function HomeStateSection({ stateBands }: Props) {
                           <div className="info">
                             <div className="quick_linkss">
                               <p>{item.display_text}</p>
-                              <a className="view_all" href={`/listings${item.permalink}/`}>
+                              <a className="view_all" href={buildStateHref(item.permalink)}>
                                 View All Caravans for Sale in {meta.code}{" "}
                                 <i className="bi bi-chevron-right" />
                               </a>

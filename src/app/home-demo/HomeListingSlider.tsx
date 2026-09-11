@@ -9,6 +9,12 @@ import Image from "next/image";
 import { getLocationLabel } from "./locationUtils";
 import { type FeaturedListing as Listing } from "@/api/homeApi/featured/api";
 
+const formatPrice = (price: string | number): string => {
+  const n = Number(price);
+  if (!price || Number.isNaN(n)) return "POA";
+  return `$${n.toLocaleString("en-AU")}`;
+};
+
 interface Props {
   title: string;
   viewAllHref: string;
@@ -62,7 +68,7 @@ export default function HomeListingSlider({ title, viewAllHref, items, badgeVari
             }}
           >
             {items.map((item, idx) => {
-              const price = item.sale_price || item.regular_price || "POA";
+              const price = formatPrice(item.sale_price || item.regular_price);
               const image = item.image_format?.[0] ?? null;
               const type = (item.categories?.[0] ?? "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
               const location = getLocationLabel(item);
