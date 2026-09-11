@@ -19,8 +19,8 @@ export interface Filters {
   orderby?: string;
   radius_kms?: string;
   page?: string;
-  acustom_fromyears?: number | string;
-  acustom_toyears?: number | string;
+  from_year?: number | string;
+  to_year?: number | string;
   search?: string;
   from_sleep?: string | number;
   to_sleep?: string | number;
@@ -208,18 +208,18 @@ export function parseSlugToFilters(
     if (part.includes("-caravans-range")) {
       const bothMatch = part.match(/^(\d{4})-(\d{4})-caravans-range$/);
       if (bothMatch) {
-        filters.acustom_fromyears = bothMatch[1];
-        filters.acustom_toyears = bothMatch[2];
+        filters.from_year = bothMatch[1];
+        filters.to_year = bothMatch[2];
         return;
       }
       const fromMatch = part.match(/^year-from-(\d{4})-caravans-range$/);
       if (fromMatch) {
-        filters.acustom_fromyears = fromMatch[1];
+        filters.from_year = fromMatch[1];
         return;
       }
       const toMatch = part.match(/^year-to-(\d{4})-caravans-range$/);
       if (toMatch) {
-        filters.acustom_toyears = toMatch[1];
+        filters.to_year = toMatch[1];
         return;
       }
     }

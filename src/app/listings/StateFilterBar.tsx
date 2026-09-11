@@ -38,8 +38,8 @@ export interface FilterState {
   condition?: string;
   from_sleep?: string | number;
   to_sleep?: string | number;
-  acustom_fromyears?: string | number;
-  acustom_toyears?: string | number;
+  from_year?: string | number;
+  to_year?: string | number;
   from_length?: string | number;
   to_length?: string | number;
   keyword?: string;
@@ -142,7 +142,7 @@ export default function StateFilterBar({
   }, [
     currentFilters.make, currentFilters.model, currentFilters.condition, currentFilters.state, currentFilters.region,
     currentFilters.suburb, currentFilters.pincode, currentFilters.from_price, currentFilters.to_price,
-    currentFilters.minKg, currentFilters.maxKg, currentFilters.acustom_fromyears, currentFilters.acustom_toyears,
+    currentFilters.minKg, currentFilters.maxKg, currentFilters.from_year, currentFilters.to_year,
     currentFilters.from_length, currentFilters.to_length, currentFilters.from_sleep, currentFilters.to_sleep,
     currentFilters.keyword,
   ]);
@@ -217,7 +217,7 @@ export default function StateFilterBar({
   }, [
     currentFilters.category, currentFilters.condition, currentFilters.state, currentFilters.region,
     currentFilters.suburb, currentFilters.pincode, currentFilters.from_price, currentFilters.to_price,
-    currentFilters.minKg, currentFilters.maxKg, currentFilters.acustom_fromyears, currentFilters.acustom_toyears,
+    currentFilters.minKg, currentFilters.maxKg, currentFilters.from_year, currentFilters.to_year,
     currentFilters.from_length, currentFilters.to_length, currentFilters.from_sleep, currentFilters.to_sleep,
     currentFilters.keyword,
   ]);
@@ -237,8 +237,8 @@ export default function StateFilterBar({
     if (currentFilters.to_price)          params.set("to_price", String(currentFilters.to_price));
     if (currentFilters.minKg)             params.set("from_atm", String(currentFilters.minKg));
     if (currentFilters.maxKg)             params.set("to_atm", String(currentFilters.maxKg));
-    if (currentFilters.acustom_fromyears) params.set("acustom_fromyears", String(currentFilters.acustom_fromyears));
-    if (currentFilters.acustom_toyears)   params.set("acustom_toyears", String(currentFilters.acustom_toyears));
+    if (currentFilters.from_year) params.set("from_year", String(currentFilters.from_year));
+    if (currentFilters.to_year)   params.set("to_year", String(currentFilters.to_year));
     if (currentFilters.from_length)       params.set("from_length", String(currentFilters.from_length));
     if (currentFilters.to_length)         params.set("to_length", String(currentFilters.to_length));
     if (currentFilters.from_sleep)        params.set("from_sleep", String(currentFilters.from_sleep));
@@ -253,7 +253,7 @@ export default function StateFilterBar({
   }, [
     currentFilters.make, currentFilters.category, currentFilters.condition,
     currentFilters.from_price, currentFilters.to_price, currentFilters.minKg, currentFilters.maxKg,
-    currentFilters.acustom_fromyears, currentFilters.acustom_toyears,
+    currentFilters.from_year, currentFilters.to_year,
     currentFilters.from_length, currentFilters.to_length, currentFilters.from_sleep, currentFilters.to_sleep,
     currentFilters.keyword,
   ]);
@@ -280,8 +280,8 @@ export default function StateFilterBar({
       if (currentFilters.to_price)          params.set("to_price", String(currentFilters.to_price));
       if (currentFilters.minKg)             params.set("from_atm", String(currentFilters.minKg));
       if (currentFilters.maxKg)             params.set("to_atm", String(currentFilters.maxKg));
-      if (currentFilters.acustom_fromyears) params.set("acustom_fromyears", String(currentFilters.acustom_fromyears));
-      if (currentFilters.acustom_toyears)   params.set("acustom_toyears", String(currentFilters.acustom_toyears));
+      if (currentFilters.from_year) params.set("from_year", String(currentFilters.from_year));
+      if (currentFilters.to_year)   params.set("to_year", String(currentFilters.to_year));
       if (currentFilters.from_length)       params.set("from_length", String(currentFilters.from_length));
       if (currentFilters.to_length)         params.set("to_length", String(currentFilters.to_length));
       if (currentFilters.from_sleep)        params.set("from_sleep", String(currentFilters.from_sleep));
@@ -589,8 +589,8 @@ export default function StateFilterBar({
     setTempMake(currentFilters.make ?? null);
     setTempModel(currentFilters.model ?? null);
     setMakeSearch("");
-    setTempYearFrom(currentFilters.acustom_fromyears ? Number(currentFilters.acustom_fromyears) : null);
-    setTempYearTo(currentFilters.acustom_toyears ? Number(currentFilters.acustom_toyears) : null);
+    setTempYearFrom(currentFilters.from_year ? Number(currentFilters.from_year) : null);
+    setTempYearTo(currentFilters.to_year ? Number(currentFilters.to_year) : null);
     setTempLengthFrom(currentFilters.from_length ? Number(currentFilters.from_length) : null);
     setTempLengthTo(currentFilters.to_length ? Number(currentFilters.to_length) : null);
     setTempKeyword(currentFilters.keyword ?? "");
@@ -644,8 +644,8 @@ export default function StateFilterBar({
       suburb:            suburbName ?? undefined,
       pincode:           pincodeValue ?? undefined,
       radius_kms:        suburbName ? tempSuburbRadius : undefined,
-      acustom_fromyears: tempYearFrom ?? undefined,
-      acustom_toyears:   tempYearTo ?? undefined,
+      from_year: tempYearFrom ?? undefined,
+      to_year:   tempYearTo ?? undefined,
       from_length:       tempLengthFrom ?? undefined,
       to_length:         tempLengthTo ?? undefined,
       keyword:           tempKeyword || undefined,

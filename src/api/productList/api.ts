@@ -24,12 +24,18 @@ const mpnHeaders = (): Record<string, string> => ({
 // make_details is not pre-warmed in KV — rely on Next.js 24h fetch cache.
 // ---------------------------------------------------------------------------
 export const fetchMakeDetails = async () => {
-  const res = await fetch(`${API_BASE}/make_details`, {
-    headers: wpHeaders(),
-    next: { revalidate: 86400 },
-  });
-  const json = await res.json();
-  return json?.data?.make_options || [];
+  try {
+    const res = await fetch(`${API_BASE}/make_details`, {
+      headers: wpHeaders(),
+      next: { revalidate: 86400 },
+    });
+    if (!res.ok) throw new Error("Failed to fetch make details");
+    const json = await res.json();
+    return json?.data?.make_options || [];
+  } catch (error) {
+    console.error("fetchMakeDetails error:", error);
+    return [];
+  }
 };
 
 // ---------------------------------------------------------------------------

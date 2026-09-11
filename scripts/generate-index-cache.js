@@ -186,7 +186,7 @@ function pathToApiParams(urlStr) {
       m = seg.match(/^over-(\d+)$/);                if (m) { filters.from_price = m[1]; continue; }
 
       m = seg.match(/^(\d{4})-(\d{4})$/);
-      if (m) { filters.acustom_fromyears = m[1]; filters.acustom_toyears = m[2]; continue; }
+      if (m) { filters.from_year = m[1]; filters.to_year = m[2]; continue; }
 
       if (!filters.make) filters.make = seg;
     }
@@ -216,8 +216,8 @@ function buildApiParams(filters) {
   if (filters.to_length)         p.append('to_length',         filters.to_length);
   if (filters.from_sleep)        p.append('from_sleep',        filters.from_sleep);
   if (filters.to_sleep)          p.append('to_sleep',          filters.to_sleep);
-  if (filters.acustom_fromyears) p.append('acustom_fromyears', filters.acustom_fromyears);
-  if (filters.acustom_toyears)   p.append('acustom_toyears',   filters.acustom_toyears);
+  if (filters.from_year) p.append('from_year', filters.from_year);
+  if (filters.to_year)   p.append('to_year',   filters.to_year);
   return p;
 }
 
@@ -330,8 +330,8 @@ function buildPoolRequestUrl(urlPath, seed) {
   if (toAtm)      params.set('to_atm',            toAtm);
   if (fromSleep)  params.set('from_sleep',        fromSleep);
   if (toSleep)    params.set('to_sleep',          toSleep);
-  if (fromYear)   params.set('acustom_fromyears', fromYear);
-  if (toYear)     params.set('acustom_toyears',   toYear);
+  if (fromYear)   params.set('from_year', fromYear);
+  if (toYear)     params.set('to_year',   toYear);
   if (fromLength) params.set('from_length',       fromLength);
   if (toLength)   params.set('to_length',         toLength);
   if (condition)  params.set('condition',         condition);

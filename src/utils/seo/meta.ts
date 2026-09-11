@@ -183,7 +183,7 @@ function getRobotsFromFilters(
   // ── Always noindex regardless of other filters ──
   if (parsed.suburb)            return noindex;
   if (parsed.condition)         return noindex;
-  if (parsed.acustom_fromyears) return noindex;
+  if (parsed.from_year) return noindex;
   if (parsed.search ?? parsed.keyword) {
     const hasOtherFilters = !!(
       parsed.state    ||
@@ -322,7 +322,7 @@ export function generateTitleFromFilters(
   const parts: string[] = [];
 
   // Year prefix
-  if (parsed.acustom_fromyears) parts.push(String(parsed.acustom_fromyears));
+  if (parsed.from_year) parts.push(String(parsed.from_year));
 
   if (parsed.condition === "New" || parsed.condition === "new") parts.push("New");
   else if (parsed.condition === "Used" || parsed.condition === "used") parts.push("Used");

@@ -57,10 +57,10 @@ export function validateFilters(filters: Filters): boolean {
 
   // --- Year validation ---
   if (
-    (filters.acustom_fromyears &&
-      !validYears.includes(Number(filters.acustom_fromyears))) ||
-    (filters.acustom_toyears &&
-      !validYears.includes(Number(filters.acustom_toyears)))
+    (filters.from_year &&
+      !validYears.includes(Number(filters.from_year))) ||
+    (filters.to_year &&
+      !validYears.includes(Number(filters.to_year)))
   )
     return false;
 

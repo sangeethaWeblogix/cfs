@@ -14,8 +14,8 @@ interface Filters {
   state?: string;
   region?: string;
   suburb?: string;
-  acustom_fromyears?: string | number;
-  acustom_toyears?: string | number;
+  from_year?: string | number;
+  to_year?: string | number;
   from_length?: string;
   to_length?: string;
   model?: string;
@@ -146,8 +146,8 @@ export const fetchListings = async (
     slug,
     radius_kms,
     search,
-    acustom_fromyears,
-    acustom_toyears,
+    from_year,
+    to_year,
     from_sleep,
     to_sleep,
     shuffle_seed, // NEW: Extract shuffle_seed
@@ -170,9 +170,9 @@ export const fetchListings = async (
   if (maxKg) params.append("to_atm", `${maxKg}`);
   if (from_length) params.append("from_length", `${from_length}`);
   if (to_length) params.append("to_length", `${to_length}`);
-  if (acustom_fromyears)
-    params.append("acustom_fromyears", `${acustom_fromyears}`);
-  if (acustom_toyears) params.append("acustom_toyears", `${acustom_toyears}`);
+  if (from_year)
+    params.append("from_year", `${from_year}`);
+  if (to_year) params.append("to_year", `${to_year}`);
   if (condition)
     params.append("condition", condition.toLowerCase().replace(/\s+/g, "-"));
   if (filters.sleeps) params.append("sleep", filters.sleeps);

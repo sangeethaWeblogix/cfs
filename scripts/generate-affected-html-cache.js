@@ -224,8 +224,8 @@ function buildPoolRequestUrl(urlPath, seed) {
   if (maxKg)      params.set('to_atm',            maxKg);
   if (fromSleep)  params.set('from_sleep',        fromSleep);
   if (toSleep)    params.set('to_sleep',          toSleep);
-  if (fromYear)   params.set('acustom_fromyears', fromYear);
-  if (toYear)     params.set('acustom_toyears',   toYear);
+  if (fromYear)   params.set('from_year', fromYear);
+  if (toYear)     params.set('to_year',   toYear);
   if (fromLength) params.set('from_length',       fromLength);
   if (toLength)   params.set('to_length',         toLength);
   if (condition)  params.set('condition',         condition);

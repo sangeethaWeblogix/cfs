@@ -578,7 +578,7 @@ export default function StateHome({
     filters.category || filters.condition || filters.make ||
     filters.from_price || filters.to_price || filters.minKg || filters.maxKg ||
     filters.region || filters.suburb || filters.from_sleep || filters.to_sleep ||
-    filters.acustom_fromyears || filters.from_length || filters.keyword
+    filters.from_year || filters.from_length || filters.keyword
   );
 
   const handleNextPage = () => {

@@ -21,8 +21,8 @@ export function buildCategoryCountScope(filters: FilterState): URLSearchParams {
   if (filters.to_price)           params.set("to_price", String(filters.to_price));
   if (filters.minKg)              params.set("from_atm", String(filters.minKg));
   if (filters.maxKg)              params.set("to_atm", String(filters.maxKg));
-  if (filters.acustom_fromyears)  params.set("acustom_fromyears", String(filters.acustom_fromyears));
-  if (filters.acustom_toyears)    params.set("acustom_toyears", String(filters.acustom_toyears));
+  if (filters.from_year)  params.set("from_year", String(filters.from_year));
+  if (filters.to_year)    params.set("to_year", String(filters.to_year));
   if (filters.from_length)        params.set("from_length", String(filters.from_length));
   if (filters.to_length)          params.set("to_length", String(filters.to_length));
   if (filters.from_sleep)         params.set("from_sleep", String(filters.from_sleep));
@@ -45,8 +45,8 @@ export function buildMakeCountScope(filters: FilterState): URLSearchParams {
   if (filters.to_price)          params.set("to_price", String(filters.to_price));
   if (filters.minKg)             params.set("from_atm", String(filters.minKg));
   if (filters.maxKg)             params.set("to_atm", String(filters.maxKg));
-  if (filters.acustom_fromyears) params.set("acustom_fromyears", String(filters.acustom_fromyears));
-  if (filters.acustom_toyears)   params.set("acustom_toyears", String(filters.acustom_toyears));
+  if (filters.from_year) params.set("from_year", String(filters.from_year));
+  if (filters.to_year)   params.set("to_year", String(filters.to_year));
   if (filters.from_length)       params.set("from_length", String(filters.from_length));
   if (filters.to_length)         params.set("to_length", String(filters.to_length));
   if (filters.from_sleep)        params.set("from_sleep", String(filters.from_sleep));

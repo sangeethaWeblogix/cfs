@@ -135,8 +135,8 @@ function buildApiParams(filters: Filters): URLSearchParams {
   if (filters.sleeps) p.set('sleep', `${filters.sleeps}`);
   if (filters.from_sleep) p.set('from_sleep', `${filters.from_sleep}`);
   if (filters.to_sleep) p.set('to_sleep', `${filters.to_sleep}`);
-  if (filters.acustom_fromyears) p.set('acustom_fromyears', `${filters.acustom_fromyears}`);
-  if (filters.acustom_toyears) p.set('acustom_toyears', `${filters.acustom_toyears}`);
+  if (filters.from_year) p.set('from_year', `${filters.from_year}`);
+  if (filters.to_year) p.set('to_year', `${filters.to_year}`);
   return p;
 }
 
@@ -257,7 +257,7 @@ export async function middleware(request: NextRequest) {
             filters.minKg || filters.maxKg ||
             filters.from_length || filters.to_length ||
             filters.from_sleep || filters.to_sleep ||
-            filters.acustom_fromyears || filters.acustom_toyears
+            filters.from_year || filters.to_year
           );
           if (hasOtherFilter) {
             const rewriteUrl = new URL(`/api/listings-410/${slugParts.join('/')}`, request.url);

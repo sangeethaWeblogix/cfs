@@ -25,8 +25,8 @@ export function buildApiUrl(base: string, filters: FilterState, seed: number, lo
   if (filters.maxKg)              params.set("to_atm",             String(filters.maxKg));
   if (filters.from_sleep)         params.set("from_sleep",         String(filters.from_sleep));
   if (filters.to_sleep)           params.set("to_sleep",           String(filters.to_sleep));
-  if (filters.acustom_fromyears)  params.set("acustom_fromyears",  String(filters.acustom_fromyears));
-  if (filters.acustom_toyears)    params.set("acustom_toyears",    String(filters.acustom_toyears));
+  if (filters.from_year)  params.set("from_year",  String(filters.from_year));
+  if (filters.to_year)    params.set("to_year",    String(filters.to_year));
   if (filters.from_length)        params.set("from_length",        String(filters.from_length));
   if (filters.to_length)          params.set("to_length",          String(filters.to_length));
   // Backend free-text search only recognizes `search` (see production's
@@ -126,12 +126,12 @@ const BREADCRUMB_PRIORITY: Array<{
   },
   {
     label: (f) => {
-      if (!f.acustom_fromyears && !f.acustom_toyears) return null;
-      if (f.acustom_fromyears && f.acustom_toyears) return `${f.acustom_fromyears} – ${f.acustom_toyears}`;
-      if (f.acustom_fromyears) return `From ${f.acustom_fromyears}`;
-      return `Upto ${f.acustom_toyears}`;
+      if (!f.from_year && !f.to_year) return null;
+      if (f.from_year && f.to_year) return `${f.from_year} – ${f.to_year}`;
+      if (f.from_year) return `From ${f.from_year}`;
+      return `Upto ${f.to_year}`;
     },
-    hrefFilters: (f) => ({ acustom_fromyears: f.acustom_fromyears, acustom_toyears: f.acustom_toyears }),
+    hrefFilters: (f) => ({ from_year: f.from_year, to_year: f.to_year }),
   },
   {
     label: (f) => (f.condition ? (f.condition.toLowerCase() === "new" ? "New" : "Used") : null),
