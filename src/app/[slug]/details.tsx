@@ -10,6 +10,12 @@
  import { useBanners } from "@/components/BannerHandler";
  import { useBannerTracking } from "@/hooks/useBannerTracking";
  
+ // WP occasionally stores an image URL with a doubled protocol
+ // (e.g. "https://https://...") from a bad admin copy-paste — that malformed
+ // URL fails next/image's hostname check and crashes the whole page.
+ const sanitizeImageUrl = (url: string): string =>
+   url.replace(/^(https?:\/\/)+(?=https?:\/\/)/i, "");
+
  type BrowseLink = { text: string; href: string };
  type BrowseTab = {
    label: string;
@@ -443,7 +449,7 @@
          <div className="blog-hero__right">
            {(post.banner_image || post.image) ? (
              <Image
-               src={post.banner_image || post.image!}
+               src={sanitizeImageUrl(post.banner_image || post.image!)}
                alt={plainTitle}
                width={0}
                height={0}

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const preferredRegion = "syd1";
-import { fetchParamsCountFromKV, buildParamsKvKey } from "@/lib/paramsCountKv";
+import { fetchParamsCountFromKV, buildParamsKvKey, normalizeCountItems } from "@/lib/paramsCountKv";
 
-const API_KEY = process.env.CFS_API_KEY;
+const MPN_API_BASE = process.env.MPN_API_BASE;
+const MPN_API_KEY = process.env.MPN_API_KEY;
 
 /**
  * Fall back to the live WP API when KV has no entry (dynamic filter combos
@@ -14,7 +15,7 @@ async function fetchFromWP(
   kvKey: string
 ): Promise<NextResponse> {
   const paramsStr = searchParams.toString();
-  const url = `https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/params_count?${paramsStr}`;
+  const url = `${MPN_API_BASE}/params-count?${paramsStr}`;
 
   console.log(`[params-count] KV MISS — falling back to WP | params="${paramsStr}" | kv_key="${kvKey}"`);
 
@@ -24,13 +25,13 @@ async function fetchFromWP(
         "Content-Type": "application/json",
         Accept: "application/json",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
-        ...(API_KEY && { "X-Secret-Key": API_KEY }),
+        ...(MPN_API_KEY && { "X-Secret-Key": MPN_API_KEY }),
       },
     });
 
     if (!response.ok) {
       console.error(
-        `[params-count] WP API HTTP ${response.status} | params="${paramsStr}" | kv_key="${kvKey}" | Check CFS_API_KEY.`
+        `[params-count] WP API HTTP ${response.status} | params="${paramsStr}" | kv_key="${kvKey}" | Check MPN_API_KEY.`
       );
       return NextResponse.json({}, { status: response.status });
     }
@@ -51,6 +52,7 @@ async function fetchFromWP(
     const idx = raw.indexOf('{"');
     try {
       const data = JSON.parse(idx > 0 ? raw.substring(idx) : raw);
+      if (Array.isArray(data?.data)) data.data = normalizeCountItems(data.data);
       console.log(`[params-count] WP API OK | params="${paramsStr}" | kv_key="${kvKey}"`);
       return NextResponse.json(data, { headers: { "X-Params-Cache": "MISS" } });
     } catch {

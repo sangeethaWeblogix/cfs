@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
 
   const keyword = req.nextUrl.searchParams.get("keyword");
   const url = keyword
-    ? `${API_BASE}/home_search_new?keyword=${encodeURIComponent(keyword)}`
-    : `${API_BASE}/home_search_new`;
+    ? `${API_BASE}/search-keyword?keyword=${encodeURIComponent(keyword)}`
+    : `${API_BASE}/search-keyword`;
 
   try {
     const res = await fetch(url, {

@@ -97,61 +97,69 @@ async function fetchOffRoadStateBands(): Promise<any[]> {
   } catch { return []; }
 }
 
-async function fetchOffRoadBlogs(): Promise<any[]> {
+// WP occasionally stores featured_image with a doubled protocol
+// (e.g. "https://https://...") from a bad admin copy-paste — that malformed
+// URL crashes next/image's hostname check and takes down the whole page.
+const sanitizeImageUrl = (url: string): string =>
+  url ? url.replace(/^(https?:\/\/)+(?=https?:\/\/)/i, "") : url;
+
+// WP blog titles/excerpts come HTML-entity-encoded (e.g. "&#038;" for "&") —
+// decode before rendering as plain text, or entities show up literally on screen.
+const decodeEntities = (s = "") =>
+  s
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+
+type RawBlogItem = {
+  id: number;
+  title: string;
+  slug: string;
+  excerpt: string;
+  link: string;
+  date: string;
+  featured_image?: string;
+};
+
+function normalizeBlogItems(raw: RawBlogItem[]): any[] {
+  return raw.map((p) => ({
+    id: p.id,
+    title: decodeEntities(p.title),
+    excerpt: decodeEntities(p.excerpt),
+    link: p.link,
+    slug: p.slug,
+    date: p.date,
+    image: p.featured_image ? sanitizeImageUrl(p.featured_image) : "",
+  }));
+}
+
+// The four off-road blog sections (main list, popular, by-make, by-model) all
+// go through this one /blog endpoint now — differentiated only by which of
+// product_category/popular/make/model is filled in.
+async function fetchOffRoadBlogSection(extraParams: Record<string, string>): Promise<any[]> {
   try {
+    const params = new URLSearchParams({ per_page: "20", page: "1", ...extraParams });
     const res = await fetch(
-      `${API_BASE}/blog?product_category=off-road&per_page=20&page=1`,
+      `${API_BASE}/blog?${params.toString()}`,
       { headers: wpHeaders(), next: { revalidate: 0 } }
     );
     if (!res.ok) return [];
     const raw = await res.text();
     const jsonStart = raw.indexOf("{");
     const json = JSON.parse(jsonStart <= 0 ? raw : raw.substring(jsonStart));
-    return json?.data?.latest_blog_posts?.items ?? json?.data?.posts ?? json?.posts ?? [];
+    return normalizeBlogItems(json?.data ?? []);
   } catch { return []; }
 }
 
-async function fetchOffRoadPopularBlogs(seed: number): Promise<any[]> {
-  try {
-    const res = await fetch(
-      `${API_BASE}/blog-shuffle?popular=off-road&seed=${seed}`,
-      { headers: wpHeaders(), next: { revalidate: 0 } }
-    );
-    if (!res.ok) return [];
-    const raw = await res.text();
-    const jsonStart = raw.indexOf("{");
-    const json = JSON.parse(jsonStart <= 0 ? raw : raw.substring(jsonStart));
-    return json?.data ?? json?.posts ?? json?.items ?? [];
-  } catch { return []; }
-}
-
-async function fetchOffRoadBrandBlogs(seed: number): Promise<any[]> {
-  try {
-    const res = await fetch(
-      `${API_BASE}/blog-shuffle?make=off-road&seed=${seed}`,
-      { headers: wpHeaders(), next: { revalidate: 0 } }
-    );
-    if (!res.ok) return [];
-    const raw = await res.text();
-    const jsonStart = raw.indexOf("{");
-    const json = JSON.parse(jsonStart <= 0 ? raw : raw.substring(jsonStart));
-    return json?.data ?? json?.posts ?? json?.items ?? [];
-  } catch { return []; }
-}
-
-async function fetchOffRoadModelBlogs(seed: number): Promise<any[]> {
-  try {
-    const res = await fetch(
-      `${API_BASE}/blog-shuffle?model=off-road&seed=${seed}`,
-      { headers: wpHeaders(), next: { revalidate: 0 } }
-    );
-    if (!res.ok) return [];
-    const raw = await res.text();
-    const jsonStart = raw.indexOf("{");
-    const json = JSON.parse(jsonStart <= 0 ? raw : raw.substring(jsonStart));
-    return json?.data ?? json?.posts ?? json?.items ?? [];
-  } catch { return []; }
-}
+const fetchOffRoadBlogs = () => fetchOffRoadBlogSection({ product_category: "off-road" });
+const fetchOffRoadPopularBlogs = (seed: number) => fetchOffRoadBlogSection({ popular: "off-road", seed: String(seed) });
+const fetchOffRoadBrandBlogs = (seed: number) => fetchOffRoadBlogSection({ make: "off-road", seed: String(seed) });
+const fetchOffRoadModelBlogs = (seed: number) => fetchOffRoadBlogSection({ model: "off-road", seed: String(seed) });
 
 
 export const revalidate = 0;

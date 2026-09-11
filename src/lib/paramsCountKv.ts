@@ -25,6 +25,17 @@ export interface ParamsCountKvResult {
   total_products?: number;
 }
 
+/** The warmer (and WP's `/params-count` endpoint) label each row's display
+ * text as `value`; every consumer reads `.name` — normalise here so neither
+ * the KV path nor a live WP fallback ever renders a blank label. */
+export function normalizeCountItems<T>(items: T[]): T[] {
+  return items.map((item) =>
+    typeof item === "object" && item !== null && !("name" in item) && "value" in item
+      ? { ...item, name: (item as { value: unknown }).value }
+      : item
+  );
+}
+
 /** Build the canonical KV key for a params-count query. */
 export function buildParamsKvKey(params: Record<string, string>): string {
   const entries = Object.entries(params).sort(([a], [b]) => a.localeCompare(b));
@@ -55,6 +66,10 @@ export function buildParamsKvKey(params: Record<string, string>): string {
 export async function fetchParamsCountFromKV(
   params: Record<string, string>
 ): Promise<ParamsCountKvResult | null> {
+  // TEMP: KV lookup disabled for testing — forces every caller onto the live
+  // WP fallback so KV can't mask/serve stale data. Remove this line to re-enable.
+  return null;
+
   if (!CF_ACCOUNT_ID || !CF_NAMESPACE_ID || !CF_API_TOKEN) return null;
 
   const kvKey = buildParamsKvKey(params);
@@ -72,7 +87,9 @@ export async function fetchParamsCountFromKV(
     if (res.ok) {
       const json = (await res.json()) as ParamsCountKvResult;
       // KV value must have a `data` array; guard against corrupted entries.
-      if (Array.isArray(json?.data)) return json;
+      if (Array.isArray(json?.data)) {
+        return { ...json, data: normalizeCountItems(json.data) };
+      }
       return null;
     }
 

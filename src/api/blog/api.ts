@@ -43,6 +43,13 @@ export type BlogPageResult = {
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_ATTEMPTS = 3;
 
+// WP occasionally stores featured_image with a doubled protocol
+// (e.g. "https://https://...") from a bad copy-paste in the admin — that
+// malformed URL crashes next/image's hostname check and takes down the
+// whole page for every visitor. Collapse it instead of passing it through.
+const sanitizeImageUrl = (url: string): string =>
+  url.replace(/^(https?:\/\/)+(?=https?:\/\/)/i, "");
+
 const fetchWithTimeout = async (url: string) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -91,7 +98,7 @@ export const fetchBlogs = async (page: number = 1): Promise<BlogPageResult> => {
         link: p.link,
         slug: p.slug,
         date: p.date,
-        image: p.featured_image ?? "",
+        image: p.featured_image ? sanitizeImageUrl(p.featured_image) : "",
       }));
 
       return {

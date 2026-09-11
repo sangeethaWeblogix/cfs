@@ -1,12 +1,22 @@
-import { fetchParamsCountFromKV } from "@/lib/paramsCountKv";
+import { fetchParamsCountFromKV, normalizeCountItems } from "@/lib/paramsCountKv";
 
 const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
 const API_KEY  = process.env.CFS_API_KEY;
+
+// params-count calls (make/model/category counts) use the MPN key/base;
+// every other endpoint in this file keeps the CFS one.
+const MPN_BASE = process.env.MPN_API_BASE;
+const MPN_KEY  = process.env.MPN_API_KEY;
 
 /** Shared headers for every WP API call. */
 const wpHeaders = (): Record<string, string> => ({
   Accept: "application/json",
 ...(API_KEY && { "X-Secret-Key": API_KEY }),
+});
+
+const mpnHeaders = (): Record<string, string> => ({
+  Accept: "application/json",
+  ...(MPN_KEY && { "X-Secret-Key": MPN_KEY }),
 });
 
 // ---------------------------------------------------------------------------
@@ -38,9 +48,9 @@ export const fetchModelCounts = async (
   const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
     const res = await fetch(
-      `${API_BASE}/params_count?group_by=model&make=${encodeURIComponent(make)}`,
+      `${MPN_BASE}/params-count?group_by=model&make=${encodeURIComponent(make)}`,
       {
-        headers: wpHeaders(),
+        headers: mpnHeaders(),
         next: { revalidate: 3600 },
         signal: controller.signal,
       }
@@ -48,7 +58,7 @@ export const fetchModelCounts = async (
     clearTimeout(timeoutId);
     if (!res.ok) return [];
     const data = await res.json();
-    return data?.data ?? [];
+    return normalizeCountItems(data?.data ?? []);
   } catch {
     clearTimeout(timeoutId);
     return [];
@@ -79,13 +89,13 @@ export const fetchMakeCounts = async (): Promise<
 
   // 2. KV miss — WP fallback
   try {
-    const res = await fetch(`${API_BASE}/params_count?group_by=make`, {
-      headers: wpHeaders(),
+    const res = await fetch(`${MPN_BASE}/params-count?group_by=make`, {
+      headers: mpnHeaders(),
       next: { revalidate: 3600 },
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return dedupBySlug(data?.data ?? []);
+    return dedupBySlug(normalizeCountItems(data?.data ?? []));
   } catch {
     return [];
   }
@@ -108,14 +118,14 @@ export const fetchCategoryCounts = async (): Promise<
 
   // 2. KV miss — WP fallback
   try {
-    const res = await fetch(`${API_BASE}/params_count?group_by=category`, {
-      headers: wpHeaders(),
+    const res = await fetch(`${MPN_BASE}/params-count?group_by=category`, {
+      headers: mpnHeaders(),
       next: { revalidate: 3600 },
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return (data?.data ?? []).map(
-      (c: { name: string; slug: string; count: number }) => ({
+    return normalizeCountItems<{ name: string; slug: string; count: number }>(data?.data ?? []).map(
+      (c) => ({
         ...c,
         slug: c.slug.replace(/-category$/, ""),
       })

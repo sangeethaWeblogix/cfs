@@ -26,17 +26,55 @@ type SnapshotData = {
   new_price_median: number;
 };
 
+// WP occasionally stores featured_image with a doubled protocol
+// (e.g. "https://https://...") from a bad admin copy-paste — that malformed
+// URL crashes next/image's hostname check and takes down the whole page.
+const sanitizeImageUrl = (url: string): string =>
+  url ? url.replace(/^(https?:\/\/)+(?=https?:\/\/)/i, "") : url;
+
+// WP blog titles/excerpts come HTML-entity-encoded (e.g. "&#038;" for "&") —
+// decode before rendering as plain text, or entities show up literally on screen.
+const decodeEntities = (s = "") =>
+  s
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+
+type RawBlogItem = {
+  id: number;
+  title: string;
+  slug: string;
+  excerpt: string;
+  link: string;
+  date: string;
+  featured_image?: string;
+};
+
 async function fetchPopularBlogs(seed: number): Promise<any[]> {
   try {
     const res = await fetch(
-      `${API_BASE}/blog-shuffle?popular=off-road&seed=${seed}`,
+      `${API_BASE}/blog?per_page=12&page=1&popular=off-road&seed=${seed}`,
       { headers: wpHeaders(), next: { revalidate: 0 } }
     );
     if (!res.ok) return [];
     const raw = await res.text();
     const jsonStart = raw.indexOf("{");
     const json = JSON.parse(jsonStart <= 0 ? raw : raw.substring(jsonStart));
-    return json?.data ?? json?.posts ?? json?.items ?? [];
+    const items: RawBlogItem[] = json?.data ?? [];
+    return items.map((p) => ({
+      id: p.id,
+      title: decodeEntities(p.title),
+      excerpt: decodeEntities(p.excerpt),
+      link: p.link,
+      slug: p.slug,
+      date: p.date,
+      image: p.featured_image ? sanitizeImageUrl(p.featured_image) : "",
+    }));
   } catch { return []; }
 }
 
