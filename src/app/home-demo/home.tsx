@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+
+// WP occasionally stores a banner image_url with a doubled protocol
+// (e.g. "https://https://...") from a bad admin copy-paste.
+const sanitizeImageUrl = (url: string): string =>
+  url.replace(/^(https?:\/\/)+(?=https?:\/\/)/i, "");
 import dynamic from "next/dynamic";
 
 import { type HomeBlogPost } from "@/api/home/api";
@@ -91,7 +96,7 @@ const handleBannerClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) =
     user_agent: navigator.userAgent,
     ip_address: visitorIp,
   });
-  const trackUrl = `${process.env.NEXT_PUBLIC_CF7_BASE || "https://admin.caravansforsale.com.au"}/wp-json/ads-manager/v1/banners/track`;
+  const trackUrl = `${process.env.NEXT_PUBLIC_CF7_BASE || "https://admin.marketplacenetwork.com.au"}/wp-json/ads-manager/v1/banners/track`;
   fetch(trackUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true })
     .catch((err) => console.error("[home] banner click tracking failed:", err));
 
@@ -222,9 +227,9 @@ const handleBannerClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) =
             >
               <span className="hd-banner-ad__label">Advertisement</span>
               <picture>
-                {homeMbBanner && <source media="(max-width: 767px)" srcSet={homeMbBanner.image_url} />}
+                {homeMbBanner && <source media="(max-width: 767px)" srcSet={sanitizeImageUrl(homeMbBanner.image_url)} />}
                 <img
-                  src={(homeDkBanner ?? homeMbBanner)?.image_url}
+                  src={sanitizeImageUrl((homeDkBanner ?? homeMbBanner)?.image_url ?? "")}
                   alt={activeBanner.name}
                   className="hd-banner-ad__img"
                 />

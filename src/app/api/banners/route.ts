@@ -3,12 +3,13 @@
 import { NextResponse } from "next/server";
 
 const PLACEMENTS = ["listings", "home"];
+const SITE = "cfs";
 
 export async function GET() {
   try {
     const results = await Promise.allSettled(
       PLACEMENTS.map(async (placement) => {
-        const url = `http://admin.caravansforsale.com.au/wp-json/ads-manager/v1/banners?placement=${placement}&limit=50&paged=1`; // ✅ http://
+        const url = `https://admin.marketplacenetwork.com.au/wp-json/ads-manager/v1/banners?placement=${placement}&limit=50&paged=1&site=${SITE}`;
 
         const res = await fetch(url, {
           headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36" },

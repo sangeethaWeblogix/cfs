@@ -71,7 +71,7 @@ export async function fetchKeywordSuggestions(
   const res = await fetch(url, { cache: "no-store", signal });
   if (!res.ok) throw new Error(`Keyword API failed: ${res.status}`);
 
-  let json: { success?: boolean; data?: { keyword?: string; url?: string; id?: string | number }[] };
+  let json: { success?: boolean; data?: { name?: string; keyword?: string; url?: string; id?: string | number }[] };
   try {
     json = await res.json();
   } catch {
@@ -80,11 +80,13 @@ export async function fetchKeywordSuggestions(
 
   const arr = Array.isArray(json?.data) ? json.data : [];
 
-  // ✅ return both keyword + url
+  // WP's /search-keyword returns { name, url } — no `keyword` or `id` field,
+  // despite what earlier code here assumed (that mismatch silently filtered
+  // every result out, since `x.keyword` was always undefined).
   return arr
-    .map((x) => ({
-      id: x?.id ?? "",
-      keyword: String(x?.keyword ?? "").trim(),
+    .map((x, idx) => ({
+      id: x?.id ?? x?.url ?? idx,
+      keyword: String(x?.name ?? x?.keyword ?? "").trim(),
       url: String(x?.url ?? "").trim(),
     }))
     .filter((x) => !!x.keyword);

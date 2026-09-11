@@ -744,7 +744,7 @@ export default function StateFilterBar({
       {(currentFilters.category || currentFilters.state || currentFilters.region || currentFilters.suburb ||
         currentFilters.make || currentFilters.model || currentFilters.from_price || currentFilters.to_price ||
         currentFilters.minKg || currentFilters.maxKg || currentFilters.condition ||
-        currentFilters.from_sleep || currentFilters.to_sleep) && (
+        currentFilters.from_sleep || currentFilters.to_sleep || currentFilters.keyword) && (
         <div className="container">
           <div className="active-chips-row">
             {currentFilters.make && (
@@ -837,6 +837,14 @@ export default function StateFilterBar({
                       : `Upto ${currentFilters.to_sleep} Berths`}
                 </span>
                 <span className="chip-close" onClick={() => removeChip("sleep", { from_sleep:undefined, to_sleep:undefined })}>×</span>
+              </span>
+            )}
+            {currentFilters.keyword && (
+              <span className={`active-chip${removingChip === "keyword" ? " chip-removing" : ""}`}>
+                <span className="chip-label" onClick={() => setOpenModal("allFilters")}>
+                  {toTitleCase(currentFilters.keyword)}
+                </span>
+                <span className="chip-close" onClick={() => removeChip("keyword", { keyword: undefined })}>×</span>
               </span>
             )}
             <button className="chip-clear-all" disabled={clearingAll} onClick={handleClearAll}>
