@@ -1,6 +1,6 @@
  import { cache } from "react";
  
- const MPN_API_KEY = process.env.MPN_API_KEY;
+ const MPN_API_KEY = process.env.CFS_API_KEY;
  const FETCH_TIMEOUT_MS = 8000;
  const MAX_ATTEMPTS = 3;
  

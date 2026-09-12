@@ -3,13 +3,14 @@
  const SITE_URL =
    process.env.NEXT_PUBLIC_SITE_URL ||
    "https://www.caravansforsale.com.au/listings/";
+     const MPN_API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
      const API_KEY = process.env.CFS_API_KEY; // ✅ Added
 
- 
+
  export async function GET() {
    try {
      const res = await fetch(
-       "https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/sitemap/models",
+       `${MPN_API_BASE}/sitemap/models`,
         {
         headers: {
           Accept: "application/json",

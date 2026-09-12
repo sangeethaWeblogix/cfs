@@ -1,16 +1,25 @@
 import { NextResponse } from "next/server";
-import regionsData from "../../../../cfs-paths/regions.json";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
   "https://www.caravansforsale.com.au/listings/";
 
+const MPN_API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
+const API_KEY = process.env.CFS_API_KEY;
+
 export async function GET() {
   try {
-    const data = regionsData as { success: boolean; paths: string[] };
+    const res = await fetch(`${MPN_API_BASE}/sitemap/regions`, {
+      headers: {
+        Accept: "application/json",
+        ...(API_KEY && { "X-Secret-Key": API_KEY }),
+      },
+    });
+
+    const data = await res.json();
 
     if (!data?.success || !Array.isArray(data.paths)) {
-      throw new Error("Invalid sitemap data");
+      throw new Error("Invalid sitemap API response");
     }
 
     const urls = data.paths

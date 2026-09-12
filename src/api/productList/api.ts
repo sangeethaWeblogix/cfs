@@ -1,12 +1,11 @@
 import { fetchParamsCountFromKV, normalizeCountItems } from "@/lib/paramsCountKv";
 
-const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
+const MPN_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
 const API_KEY  = process.env.CFS_API_KEY;
 
 // params-count calls (make/model/category counts) use the MPN key/base;
 // every other endpoint in this file keeps the CFS one.
-const MPN_BASE = process.env.MPN_API_BASE;
-const MPN_KEY  = process.env.MPN_API_KEY;
+ 
 
 /** Shared headers for every WP API call. */
 const wpHeaders = (): Record<string, string> => ({
@@ -16,7 +15,7 @@ const wpHeaders = (): Record<string, string> => ({
 
 const mpnHeaders = (): Record<string, string> => ({
   Accept: "application/json",
-  ...(MPN_KEY && { "X-Secret-Key": MPN_KEY }),
+...(API_KEY && { "X-Secret-Key": API_KEY }),
 });
 
 // ---------------------------------------------------------------------------
@@ -25,7 +24,7 @@ const mpnHeaders = (): Record<string, string> => ({
 // ---------------------------------------------------------------------------
 export const fetchMakeDetails = async () => {
   try {
-    const res = await fetch(`${API_BASE}/make_details`, {
+    const res = await fetch(`${MPN_BASE}/make_details`, {
       headers: wpHeaders(),
       next: { revalidate: 86400 },
     });
@@ -146,7 +145,7 @@ export const fetchCategoryCounts = async (): Promise<
 // ---------------------------------------------------------------------------
 export const fetchProductList = async () => {
   try {
-    const res = await fetch(`${API_BASE}/params-product-list`, {
+    const res = await fetch(`${MPN_BASE}/params-product-list`, {
       headers: wpHeaders(),
       next: { revalidate: 3600 },
     });

@@ -163,7 +163,7 @@
  }
  
  const fetchProductDetail = cache(async (slug: string) => {
-   const MPN_BASE = process.env.MPN_API_BASE;
+   const MPN_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
    const CFS_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
    const API_KEY  = process.env.CFS_API_KEY;
  

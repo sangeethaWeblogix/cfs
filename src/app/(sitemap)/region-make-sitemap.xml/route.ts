@@ -9,7 +9,7 @@ const API_KEY = process.env.CFS_API_KEY;
 
 export async function GET() {
   try {
-    const res = await fetch(`${MPN_API_BASE}/sitemap/states`, {
+    const res = await fetch(`${MPN_API_BASE}/sitemap/region-make`, {
       headers: {
         Accept: "application/json",
         ...(API_KEY && { "X-Secret-Key": API_KEY }),
@@ -25,19 +25,19 @@ export async function GET() {
     const urls = data.paths
       .map(
         (path: string) => `
-   <url>
-     <loc>${SITE_URL}${path}</loc>
-      <lastmod>${new Date().toISOString()}</lastmod>
-            <changefreq>monthly</changefreq>
-       <priority>0.8</priority>
-   </url>`,
+    <url>
+      <loc>${SITE_URL}${path}</loc>
+       <lastmod>${new Date().toISOString()}</lastmod>
+             <changefreq>daily</changefreq>
+        <priority>0.5</priority>
+    </url>`,
       )
       .join("");
 
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
- <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
- ${urls}
- </urlset>`;
+  <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  ${urls}
+  </urlset>`;
 
     return new NextResponse(sitemap, {
       headers: {

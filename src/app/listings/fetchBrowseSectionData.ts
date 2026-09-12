@@ -17,8 +17,8 @@ const wpHeaders = (): Record<string, string> => ({
 });
 
 // params-count (make/category/state/region counts) uses the MPN key/base.
-const MPN_BASE = process.env.MPN_API_BASE;
-const MPN_KEY = process.env.MPN_API_KEY;
+const MPN_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
+const MPN_KEY = process.env.CFS_API_KEY;
 
 const mpnHeaders = (): Record<string, string> => ({
   Accept: "application/json",

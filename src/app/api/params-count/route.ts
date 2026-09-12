@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 export const preferredRegion = "syd1";
 import { fetchParamsCountFromKV, buildParamsKvKey, normalizeCountItems } from "@/lib/paramsCountKv";
 
-const MPN_API_BASE = process.env.MPN_API_BASE;
-const MPN_API_KEY = process.env.MPN_API_KEY;
+const MPN_API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
+const MPN_API_KEY = process.env.CFS_API_KEY;
 
 /**
  * Fall back to the live WP API when KV has no entry (dynamic filter combos

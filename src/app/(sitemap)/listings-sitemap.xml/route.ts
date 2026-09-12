@@ -6,58 +6,36 @@ export const revalidate = 3600;
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.caravansforsale.com.au";
 
-const CONSUMER_KEY = "ck_73393ca56ac29867aa71c9beeba4714a49c4116b";
-const CONSUMER_SECRET = "cs_b554ee636b76bf9968bbe181695a6fb2b4b180b1";
-
-async function fetchProducts(page: number) {
-const auth = Buffer.from(
-  `${CONSUMER_KEY}:${CONSUMER_SECRET}`,
-  "utf-8"
-).toString("base64");
-
-  const res = await fetch(
-    `https://www.admin.caravansforsale.com.au/wp-json/wc/v3/products?per_page=100&page=${page}&_fields=slug`,
-    {
-      headers: {
-        Authorization: `Basic ${auth}`,
-        "User-Agent": "Mozilla/5.0 (CaravansForSale Sitemap Bot)",
-      },
-      next: { revalidate: 3600 },
-    },
-  );
-
-if (!res.ok) {
-  console.error("Woo API failed:", res.status);
-  return { items: [], totalPages: 0 };
-}
-  const data = await res.json();
-  const totalPages = Number(res.headers.get("x-wp-totalpages"));
-  return { items: data, totalPages };
-}
+const MPN_API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
+const MPN_API_KEY = process.env.CFS_API_KEY;
 
 export async function GET() {
   try {
-    const firstPage = await fetchProducts(1);
-    let allProducts = [...firstPage.items];
+    const res = await fetch(`${MPN_API_BASE}/sitemap/listings`, {
+      headers: {
+        Accept: "application/json",
+        ...(MPN_API_KEY && { "X-Secret-Key": MPN_API_KEY }),
+      },
+      next: { revalidate: 3600 },
+    });
 
-    if (firstPage.totalPages > 1) {
-      const remainingPages = await Promise.all(
-        Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
-          fetchProducts(i + 2),
-        ),
-      );
-      for (const page of remainingPages) {
-        allProducts = [...allProducts, ...page.items];
-      }
+    if (!res.ok) {
+      throw new Error(`Sitemap API HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    if (!data?.success || !Array.isArray(data.paths)) {
+      throw new Error("Invalid sitemap API response");
     }
 
     const today = new Date().toISOString().split("T")[0];
 
-    const urls = allProducts
+    const urls = data.paths
       .map(
-        (product: { slug: string }) => `
+        (path: string) => `
           <url>
-            <loc>${SITE_URL}/product/${product.slug}/</loc>
+            <loc>${SITE_URL}/product/${path}</loc>
             <lastmod>${today}</lastmod>
             <changefreq>daily</changefreq>
             <priority>0.7</priority>
