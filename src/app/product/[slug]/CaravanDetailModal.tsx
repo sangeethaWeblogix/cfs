@@ -131,7 +131,8 @@ export default function CaravanDetailModal({
   };
 
   const setField = (key: keyof typeof form, value: string) => {
-    if (key === "phone" || key === "postcode") value = value.replace(/\D/g, "");
+    if (key === "phone") value = value.replace(/\D/g, "").slice(0, 10);
+    else if (key === "postcode") value = value.replace(/\D/g, "");
     setForm((p) => ({ ...p, [key]: value }));
     if (touched[key]) setErrors(validate({ ...form, [key]: value }));
   };
@@ -241,8 +242,8 @@ export default function CaravanDetailModal({
       String(product.regularPrice).replace(/[^0-9.]/g, "")
     );
 
-    if (sale > 0) return product.salePrice;
-    if (regular > 0) return product.regularPrice;
+    if (sale > 0) return `$${sale.toLocaleString("en-AU")}`;
+    if (regular > 0) return `$${regular.toLocaleString("en-AU")}`;
 
     return "POA";
   };
@@ -487,6 +488,7 @@ export default function CaravanDetailModal({
                     name="m-phone"
                     type="tel"
                     inputMode="numeric"
+                    maxLength={10}
                     className={`cfs-field cfs-field-phone${errors.phone && touched.phone ? " is-invalid" : ""}`}
                     value={form.phone}
                     onChange={(e) => setField("phone", e.target.value)}

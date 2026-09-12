@@ -74,7 +74,9 @@ export function useEnquiryForm(product: Product) {
   };
 
   const setField = (key: string, value: string) => {
-    if (key === "phone" || key === "postcode") {
+    if (key === "phone") {
+      value = value.replace(/\D/g, "").slice(0, 10);
+    } else if (key === "postcode") {
       value = value.replace(/\D/g, "");
     }
 

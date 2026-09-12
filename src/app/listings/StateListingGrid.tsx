@@ -157,7 +157,7 @@ function ContactModal({ item, onClose }: { item: Listing; onClose: () => void })
               <div className="form-item">
                 <p className="phone_country">
                   <span className="phone-label">+61</span>
-                  <input id="lsd-eq-phone" className="wpcf7-form-control" inputMode="numeric" value={form.phone}
+                  <input id="lsd-eq-phone" className="wpcf7-form-control" inputMode="numeric" maxLength={10} value={form.phone}
                     onChange={(e) => setField("phone", e.target.value)} onBlur={() => onBlur("phone")}
                     required autoComplete="off" />
                   <label htmlFor="lsd-eq-phone">Phone</label>

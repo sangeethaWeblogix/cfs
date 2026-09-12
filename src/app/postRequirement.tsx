@@ -113,9 +113,9 @@ useEffect(() => {
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
-              <h3>Recent Caravan Requests</h3>
+              <h3>Recent Caravan Buyer Requests</h3>
               <p className="sub-text">
-                See examples of what other caravan buyers are looking for.
+                See examples of what buyers are looking for across our Australian caravan sales marketplace.
               </p>
               <div className="top_cta bg-white">
                 <Swiper

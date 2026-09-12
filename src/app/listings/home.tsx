@@ -315,37 +315,58 @@ export default function StateHome({
     setReady(true);
   }, []);
 
-  useEffect(() => {
-    const handlePopState = () => {
-      // Back/forward only changes window.location — it doesn't re-render
-      // StateFilterBar or fire handleFilterChange, so `filters` state was
-      // previously left stale (still holding the filters from just before
-      // the browser navigated away), and no re-fetch was triggered even
-      // though the URL now points at a different filter combination.
-      // Re-derive filters from the new URL the same way the server does
-      // (parseDemoFilters), so popping back/forward re-fetches matching data.
-      const slug = window.location.pathname
-        .replace(/^\/listings\/?/, "")
-        .replace(/\/$/, "")
-        .split("/")
-        .filter(Boolean);
-      const query: Record<string, string> = {};
-      new URLSearchParams(window.location.search).forEach((v, k) => { query[k] = v; });
-      setFilters(parseDemoFilters(slug, query));
+  // Re-derive `filters` (and clickid/page) from the current URL, the same way
+  // the server does via parseDemoFilters. Shared by the popstate handler below
+  // and the mount-time stale-cache self-heal check right after it.
+  const resyncFiltersFromLocation = () => {
+    const slug = window.location.pathname
+      .replace(/^\/listings\/?/, "")
+      .replace(/\/$/, "")
+      .split("/")
+      .filter(Boolean);
+    const query: Record<string, string> = {};
+    new URLSearchParams(window.location.search).forEach((v, k) => { query[k] = v; });
+    setFilters(parseDemoFilters(slug, query));
 
-      const cid = query.clickid;
-      if (cid) {
-        const saved = readPage(cid);
-        setClickid(cid);
-        setPage(saved && saved > 0 ? saved : 1);
-      } else {
-        setClickid(null);
-        setPage(1);
-      }
-      setMaxPages(1);
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    const cid = query.clickid;
+    if (cid) {
+      const saved = readPage(cid);
+      setClickid(cid);
+      setPage(saved && saved > 0 ? saved : 1);
+    } else {
+      setClickid(null);
+      setPage(1);
+    }
+    setMaxPages(1);
+  };
+
+  useEffect(() => {
+    // Back/forward only changes window.location — it doesn't re-render
+    // StateFilterBar or fire handleFilterChange, so `filters` state was
+    // previously left stale (still holding the filters from just before
+    // the browser navigated away), and no re-fetch was triggered even
+    // though the URL now points at a different filter combination.
+    window.addEventListener("popstate", resyncFiltersFromLocation);
+    return () => window.removeEventListener("popstate", resyncFiltersFromLocation);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // Cross-route back-navigation (e.g. /listings/.../ → a product's detail
+    // page → browser Back) can land Next's client router cache on a stale
+    // entry for this URL — the address bar shows the correct filtered path,
+    // but the SSR props this component actually mounted with are for a
+    // different filter combination (often the bare, unfiltered /listings/).
+    // The popstate listener above can't catch this case because it isn't
+    // registered yet when that earlier popstate event fires (this is a fresh
+    // mount). Detect the mismatch once on mount instead and self-heal by
+    // resyncing `filters` from the real URL, which drives a fresh live fetch.
+    const expectedPath = buildListingsSlug(initialFilters ?? {});
+    const actualPath = window.location.pathname.endsWith("/")
+      ? window.location.pathname
+      : `${window.location.pathname}/`;
+    if (actualPath !== expectedPath) resyncFiltersFromLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   console.log("[StateHome] page:", page, "seed:", seed);

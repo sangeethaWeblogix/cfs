@@ -51,46 +51,6 @@ export const metadata: Metadata = {
   },
 };
 
-const BASE_URL = "https://www.caravansforsale.com.au";
-
-const homeJsonLd = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "WebSite",
-      "@id": `${BASE_URL}/#website`,
-      "url": BASE_URL,
-      "name": "Caravans For Sale",
-      "description": "Australia's Marketplace for New & Used Caravans",
-      "inLanguage": "en-AU",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": {
-          "@type": "EntryPoint",
-          "urlTemplate": `${BASE_URL}/listings/{search_term_string}-search/`,
-        },
-        "query-input": "required name=search_term_string",
-      },
-    },
-    {
-      "@type": "Organization",
-      "@id": `${BASE_URL}/#organization`,
-      "name": "Caravans For Sale",
-      "url": BASE_URL,
-      "logo": {
-        "@type": "ImageObject",
-        "url": `${BASE_URL}/images/cfs-logo-black.png`,
-      },
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "contactType": "customer support",
-        "areaServed": "AU",
-        "availableLanguage": "English",
-      },
-    },
-  ],
-};
-
 export default async function Page() {
   const h = await headers();
   const visitorIp =
@@ -121,22 +81,16 @@ export default async function Page() {
   ]);
 
   return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(homeJsonLd) }}
-      />
-      <Home
-        stateBands={stateBands}
-        requirements={requirements}
-        homeblog={homeblog?.latest_posts ?? []}
-        typeCounts={typeCounts}
-        featuredAll={featuredAll}
-        featuredNew={featuredNew}
-        featuredUsed={featuredUsed}
-        blogPosts={blogPosts.items.slice(0, 6)}
-        visitorIp={visitorIp}
-      />
-    </>
+    <Home
+      stateBands={stateBands}
+      requirements={requirements}
+      homeblog={homeblog?.latest_posts ?? []}
+      typeCounts={typeCounts}
+      featuredAll={featuredAll}
+      featuredNew={featuredNew}
+      featuredUsed={featuredUsed}
+      blogPosts={blogPosts.items.slice(0, 6)}
+      visitorIp={visitorIp}
+    />
   );
 }

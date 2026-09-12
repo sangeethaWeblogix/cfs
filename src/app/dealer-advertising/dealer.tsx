@@ -3,13 +3,61 @@ import "@fortawesome/fontawesome-free/css/fontawesome.min.css";
 import "@fortawesome/fontawesome-free/css/solid.min.css";
 import { useState } from "react";
 
+const DEALER_FAQS = [
+  {
+    q: "How much does the dealer subscription cost, and what's included?",
+    a: (
+      <p>
+        The dealer subscription is $299 per month (including GST). This flat
+        monthly fee allows your dealership to list unlimited caravans on
+        CaravansForSale.com.au. There are no per-listing charges, and we never
+        charge per lead or take success commissions – no matter how many
+        inquiries or sales you get, $299/month covers it all.
+      </p>
+    ),
+  },
+  {
+    q: "How are my caravan listings added and kept up-to-date automatically?",
+    a: (
+      <p>
+        We sync directly with your dealership's website. Your listings are
+        pulled automatically and refreshed weekly to match your current
+        inventory.
+      </p>
+    ),
+  },
+  {
+    q: "What kind of audience will my caravans reach?",
+    a: (
+      <p>
+        CaravansForSale.com.au is a caravan-only marketplace with a focused,
+        nationwide audience of serious buyers.
+      </p>
+    ),
+  },
+  {
+    q: "Do I have to commit to a long-term contract?",
+    a: (
+      <p>
+        No. The subscription is month-to-month with no lock-in contracts. You
+        can cancel anytime.
+      </p>
+    ),
+  },
+  {
+    q: "How do I get started, and what support can I expect?",
+    a: (
+      <p>
+        Getting started is fast and easy. Our team assists with onboarding,
+        website feed integration, and ongoing dealer support.
+      </p>
+    ),
+  },
+];
+
 const DealerLandingPage = () => {
 
-  const [activeFaq, setActiveFaq] = useState(null);
-
-  const toggleFaq = (id) => {
-    setActiveFaq(activeFaq === id ? null : id);
-  };
+  const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
 
 
@@ -263,152 +311,38 @@ const DealerLandingPage = () => {
               </div>
             </div>
           </div>
-          {/* FAQ Section */}
-          <h2 className="mb-3">FAQ</h2>
+        </div>
+      </section>
 
-          <div className="accordion" id="accordionFaq">
-            {/* FAQ 1 */}
-            <div className="card">
-              <div className="card-header p-0">
-                <h3 className="mb-0">
-                  <button
-                    className="btn btn-link btn-block text-left py-2"
-                    onClick={() => toggleFaq(1)}
-                  >
-                    How much does the dealer subscription cost, and what’s included?
-                    <span className="accordion-icon">
-                      <i className={`fa-solid fa-angle-down ${activeFaq === 1 ? "d-none" : ""}`}></i>
-                      <i className={`fa-solid fa-angle-up ${activeFaq === 1 ? "" : "d-none"}`}></i>
-                    </span>
-                  </button>
-                </h3>
-              </div>
-
-              <div className={`collapse ${activeFaq === 1 ? "show" : ""}`}>
-                <div className="card-body">
-                  <p>
-                    The dealer subscription is $299 per month (including GST). This flat
-                    monthly fee allows your dealership to list unlimited caravans on
-                    CaravansForSale.com.au. There are no per-listing charges, and we never
-                    charge per lead or take success commissions – no matter how many
-                    inquiries or sales you get, $299/month covers it all.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* FAQ 2 */}
-            <div className="card">
-              <div className="card-header p-0">
-                <h3 className="mb-0">
-                  <button
-                    className="btn btn-link btn-block text-left py-2"
-                    onClick={() => toggleFaq(2)}
-                  >
-                    How are my caravan listings added and kept up-to-date automatically?
-                    <span className="accordion-icon">
-                      <i className={`fa-solid fa-angle-down ${activeFaq === 2 ? "d-none" : ""}`}></i>
-                      <i className={`fa-solid fa-angle-up ${activeFaq === 2 ? "" : "d-none"}`}></i>
-                    </span>
-                  </button>
-                </h3>
-              </div>
-
-              <div className={`collapse ${activeFaq === 2 ? "show" : ""}`}>
-                <div className="card-body">
-                  <p>
-                    We sync directly with your dealership’s website. Your listings are
-                    pulled automatically and refreshed weekly to match your current
-                    inventory.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* FAQ 3 */}
-            <div className="card">
-              <div className="card-header p-0">
-                <h3 className="mb-0">
-                  <button
-                    className="btn btn-link btn-block text-left py-2"
-                    onClick={() => toggleFaq(3)}
-                  >
-                    What kind of audience will my caravans reach?
-                    <span className="accordion-icon">
-                      <i className={`fa-solid fa-angle-down ${activeFaq === 3 ? "d-none" : ""}`}></i>
-                      <i className={`fa-solid fa-angle-up ${activeFaq === 3 ? "" : "d-none"}`}></i>
-                    </span>
-                  </button>
-                </h3>
-              </div>
-
-              <div className={`collapse ${activeFaq === 3 ? "show" : ""}`}>
-                <div className="card-body">
-                  <p>
-                    CaravansForSale.com.au is a caravan-only marketplace with a focused,
-                    nationwide audience of serious buyers.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* FAQ 4 */}
-            <div className="card">
-              <div className="card-header p-0">
-                <h3 className="mb-0">
-                  <button
-                    className="btn btn-link btn-block text-left py-2"
-                    onClick={() => toggleFaq(4)}
-                  >
-                    Do I have to commit to a long-term contract?
-                    <span className="accordion-icon">
-                      <i className={`fa-solid fa-angle-down ${activeFaq === 4 ? "d-none" : ""}`}></i>
-                      <i className={`fa-solid fa-angle-up ${activeFaq === 4 ? "" : "d-none"}`}></i>
-                    </span>
-                  </button>
-                </h3>
-              </div>
-
-              <div className={`collapse ${activeFaq === 4 ? "show" : ""}`}>
-                <div className="card-body">
-                  <p>
-                    No. The subscription is month-to-month with no lock-in contracts. You
-                    can cancel anytime.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* FAQ 5 */}
-            <div className="card">
-              <div className="card-header p-0">
-                <h3 className="mb-0">
-                  <button
-                    className="btn btn-link btn-block text-left py-2"
-                    onClick={() => toggleFaq(5)}
-                  >
-                    How do I get started, and what support can I expect?
-                    <span className="accordion-icon">
-                      <i className={`fa-solid fa-angle-down ${activeFaq === 5 ? "d-none" : ""}`}></i>
-                      <i className={`fa-solid fa-angle-up ${activeFaq === 5 ? "" : "d-none"}`}></i>
-                    </span>
-                  </button>
-                </h3>
-              </div>
-
-              <div className={`collapse ${activeFaq === 5 ? "show" : ""}`}>
-                <div className="card-body">
-                  <p>
-                    Getting started is fast and easy. Our team assists with onboarding,
-                    website feed integration, and ongoing dealer support.
-                  </p>
-                </div>
-              </div>
-            </div>
+      {/* ── FAQ accordion — matches /sell-my-caravan/ design ── */}
+      <section className="demo-faq-section">
+        <div className="container">
+          <div className="demo-faq-head">
+            <span className="demo-faq-head__tag">FAQ</span>
+            <h2>Frequently Asked Questions</h2>
+            <p>Everything you need to know about advertising your dealership on CaravansForSale.com.au</p>
           </div>
-
-
-
+          <div className="demo-faq-list">
+            {DEALER_FAQS.map((faq, i) => (
+              <div
+                key={i}
+                className={`demo-faq-item${activeFaq === i ? " demo-faq-item--open" : ""}`}
+              >
+                <button
+                  className="demo-faq-item__q"
+                  onClick={() => setActiveFaq(activeFaq === i ? null : i)}
+                >
+                  <h3 className="demo-faq-item__q-text">{faq.q}</h3>
+                  <span className="demo-faq-item__icon">
+                    <i className={`fa-solid ${activeFaq === i ? "fa-minus" : "fa-plus"}`} />
+                  </span>
+                </button>
+                {activeFaq === i && (
+                  <div className="demo-faq-item__a">{faq.a}</div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

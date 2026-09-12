@@ -38,13 +38,16 @@ export default function HomeLatestBlogs({ posts: rawPosts }: Props) {
       <div className="container">
         <div className="title">
           <div className="tpof_tab">
-            <h2 className="hd-section-title">Latest Caravans for Sale Blogs & Advice</h2>
+            <h2 className="hd-section-title">Latest Caravan Buying Guides & Advice</h2>
             <div className="viewall_bttn">
               <a href="/blog/">
                 <i className="bi bi-chevron-right" />
               </a>
             </div>
           </div>
+          <p className="hd-section-subtitle">
+            Research new and used caravans with practical guides covering prices, models, features, inspections and buying considerations.
+          </p>
         </div>
       
         <div className="content">

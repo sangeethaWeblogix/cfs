@@ -2,7 +2,7 @@
  import ProductDetailDemo from "../../product-detail-demo/ProductDetailDemo";
  import { redirect } from "next/navigation";
  import { Metadata } from "next";
- import { cache } from "react";
+ import { fetchProductDetail } from "@/utils/fetchProductDetail";
  import './product.css?=30006'
  
  export const dynamic = "force-dynamic";
@@ -247,41 +247,6 @@
      redirect("/410/");
    }
  
-   const pd = data?.data?.product_details ?? {};
-   const seo = data?.seo ?? data?.product?.seo ?? {};
-   const pdName = seo.metatitle || seo.meta_title || pd.name || data?.name || "";
-   const pdDesc = seo.metadescription || seo.meta_description || pd.short_description || data?.short_description || "";
-   const canonicalUrl = `https://www.caravansforsale.com.au/product/${slug}/`;
- 
-   const rawImages = pd.image_url ?? pd.images ?? [];
-   const images: string[] = (Array.isArray(rawImages) ? rawImages : [rawImages]).filter(Boolean);
- 
-   const rawPrice = pd.sale_price || pd.regular_price || pd.price;
-   const priceStr = rawPrice ? String(rawPrice).replace(/[^0-9.]/g, "") : null;
- 
-   const jsonLd: Record<string, unknown> = {
-     "@context": "https://schema.org",
-     "@type": "Product",
-     name: pdName,
-     ...(pdDesc && { description: pdDesc }),
-     ...(images.length > 0 && { image: images }),
-     ...(pd.make && { brand: { "@type": "Brand", name: pd.make } }),
-     ...(pd.condition && {
-       itemCondition:
-         String(pd.condition).toLowerCase() === "new"
-           ? "https://schema.org/NewCondition"
-           : "https://schema.org/UsedCondition",
-     }),
-     offers: {
-       "@type": "Offer",
-       priceCurrency: "AUD",
-       ...(priceStr && { price: priceStr }),
-       availability: "https://schema.org/InStock",
-       url: canonicalUrl,
-       seller: { "@type": "Organization", name: "Caravans For Sale" },
-     },
-   };
- 
    const similarData = slug ? await fetchSimilarProducts(slug) : null;
  
    // Shuffle price section server-side (API doesn't shuffle it)
@@ -298,10 +263,6 @@
  
    return (
      <main className="mx-auto">
-       <script
-         type="application/ld+json"
-         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-       />
        <ProductDetailDemo data={data} similarData={similarData} />
      </main>
    );

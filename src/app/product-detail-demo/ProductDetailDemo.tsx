@@ -7,6 +7,20 @@ import { useEnquiryForm } from "@/app/components/ListContent/enquiryform";
 import CaravanDetailModal from "@/app/product/[slug]/CaravanDetailModal";
 import "./demo.css";
 
+// WP blog titles come HTML-entity-encoded (e.g. "&#038;" for "&") — decode
+// before rendering as plain text, or entities show up literally on screen.
+function decodeEntities(s = ""): string {
+  return s
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+}
+
 /* ── Types ── */
 type Attribute = { label?: string; value?: string | number | { name?: string; slug?: string; label?: string }; url?: string };
 type Category  = { name?: string; label?: string; value?: string } | string;
@@ -267,7 +281,7 @@ function EnquiryForm({ product }: { product: { id?: string | number; slug?: stri
           {touched.email && errors.email && <span className="pdd-form__err">{errors.email}</span>}
         </div>
         <div className="pdd-form__item">
-          <input placeholder="Your Phone*" inputMode="numeric" value={form.phone}
+          <input placeholder="Your Phone*" inputMode="numeric" maxLength={10} value={form.phone}
             onChange={e => setField("phone", e.target.value)} onBlur={() => onBlur("phone")} />
           {touched.phone && errors.phone && <span className="pdd-form__err">{errors.phone}</span>}
         </div>
@@ -319,7 +333,7 @@ export default function ProductDetailDemo({ data, similarData }: Props) {
 
   const state    = getAttr("Location");
   const location = product.region?.value
-    ? `${product.region.value.replace(/-/g, " ")}, ${state}`
+    ? `${product.region.value.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}, ${state}`
     : state;
 
   /* Specs bar — shortened display values */
@@ -835,11 +849,11 @@ const priceUpperIdx = !isPOA ? PRICE_STEPS.findIndex(s => s >= displayPrice) : -
                     {(b.thumbnail || b.first_image || b.featured_image) && (
                       <div className="pdd-blog__img">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={b.thumbnail || b.first_image || b.featured_image} alt={b.title} referrerPolicy="no-referrer" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <img src={b.thumbnail || b.first_image || b.featured_image} alt={decodeEntities(b.title)} referrerPolicy="no-referrer" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       </div>
                     )}
                     <div className="pdd-blog__body">
-                      <p className="pdd-blog__title">{b.title}</p>
+                      <p className="pdd-blog__title">{decodeEntities(b.title)}</p>
                       
                       {b.date && (
                         <span className="pdd-blog__date">

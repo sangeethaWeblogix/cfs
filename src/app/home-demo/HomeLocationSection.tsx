@@ -88,7 +88,7 @@ export default function HomeLocationSection() {
           <h2 className="hloc-title">
             Find Caravans for Sale by <span className="hloc-title-accent">Popular Location</span>
           </h2>
-          <p className="hloc-subtitle">Browse caravans for sale near you by major Australian cities.</p>
+          <p className="hloc-subtitle">Browse new and used caravans for sale near you across major Australian cities and regions.</p>
           
         </div>
 
@@ -128,7 +128,7 @@ export default function HomeLocationSection() {
   <h2 className="hloc-title">
            Search Caravans for Sale <span className="hloc-title-accent">Your Way</span>
           </h2>
-   
+          <p className="hloc-subtitle">Browse new and used caravans for sale by price, weight, length and sleeping capacity.</p>
         </div>
         <div className="hloc-filters">
           
