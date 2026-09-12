@@ -36,7 +36,7 @@ export default function HomeBuyerGuide() {
               </h2>
               
               <p className="hbg-body">
-                CaravansForSale.com.au helps Australian buyers compare a wide range of caravans for sale in one convenient place. Browse affordable used caravans, premium new models and options designed for touring, family holidays or off-road adventures. Compare important features such as layout, ATM, tare weight, sleeping capacity, length, suspension, condition, service history and towing requirements to narrow down your choices before contacting a seller or visiting a dealership. Our easy-to-use platform makes researching and comparing caravans simple.
+                CaravansForSale.com.au makes it easy to explore caravan sales across Australia, with thousands of new and used caravans for sale from dealers and private sellers. Browse affordable used caravans, premium new models and options designed for touring, family holidays or off-road adventures. Compare important features such as layout, ATM, tare weight, sleeping capacity, length, suspension, condition, service history and towing requirements to narrow down your choices before contacting a seller or visiting a dealership. Our easy-to-use platform makes researching and comparing caravans simple.
               </p>
               <p className="hbg-body">
                 Explore popular caravan types including off-road, hybrid, pop top, touring and luxury caravans, while also comparing trusted caravan brands and reputable dealers across Australia. Check whether dealers offer warranty support, finance options, trade-ins, after-sales service and detailed vehicle information before making your decision. Use our buyers guide and convenient search filters to browse listings by state, location, budget, size, weight and berth, helping you find the right caravan for your lifestyle and travel plans.
@@ -91,7 +91,7 @@ export default function HomeBuyerGuide() {
                 </div>
                 <h3 className="hbg-why-card-title">Dealers &amp; Private Sellers</h3>
                 <div className="hbg-why-card-sep" />
-                <p className="hbg-why-card-desc">Choose from a wide range of listings from trusted dealers and private sellers.</p>
+                <p className="hbg-why-card-desc">Browse new and used caravans for sale from trusted dealers and private sellers across Australia.</p>
               </div>
 
               <div className="hbg-why-card">
@@ -100,16 +100,16 @@ export default function HomeBuyerGuide() {
                 </div>
                 <h3 className="hbg-why-card-title">Australia-Wide Coverage</h3>
                 <div className="hbg-why-card-sep" />
-                <p className="hbg-why-card-desc">Browse listings from all states and territories and find caravans near you.</p>
+                <p className="hbg-why-card-desc">Find caravan listings across every state and territory, including major cities and regional locations.</p>
               </div>
 
               <div className="hbg-why-card">
                 <div className="hbg-why-icon">
-                  <Image src="/images/category.svg" alt="Caravan-Specific Marketplace" width={34} height={34} />
+                  <Image src="/images/category.svg" alt="Dedicated Caravan Marketplace" width={34} height={34} />
                 </div>
-                <h3 className="hbg-why-card-title">Caravan-Specific Marketplace</h3>
+                <h3 className="hbg-why-card-title">Dedicated Caravan Marketplace</h3>
                 <div className="hbg-why-card-sep" />
-                <p className="hbg-why-card-desc">A focused marketplace dedicated to caravans and caravan buyers.</p>
+                <p className="hbg-why-card-desc">Explore an Australian marketplace focused exclusively on caravans and caravan buyers.</p>
               </div>
 
               <div className="hbg-why-card">
@@ -118,7 +118,7 @@ export default function HomeBuyerGuide() {
                 </div>
                 <h3 className="hbg-why-card-title">Easy to Compare</h3>
                 <div className="hbg-why-card-sep" />
-                <p className="hbg-why-card-desc">Compare prices, features and seller details side by side to find the best match.</p>
+                <p className="hbg-why-card-desc">Compare caravan prices, features, layouts and seller details to find the right match.</p>
               </div>
 
             </div>

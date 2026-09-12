@@ -74,6 +74,9 @@ interface Props {
   offRoadUsedPriceMax: number;
   offRoadUsedPriceMedian: number;
   offRoadNewPriceMedian: number;
+  offRoadCommonLength: string;
+  offRoadMedianAtm: number;
+  offRoadCommonSleeps: number;
   offRoadBrandCounts: Record<string, number>;
 }
 
@@ -144,7 +147,7 @@ const SEARCH_FILTERS = [
   },
 ];
 
-export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadPopularBlogs, offRoadBrandBlogs, offRoadModelBlogs, offRoadCount, offRoadNewCount, offRoadUsedCount, offRoadPriceMin, offRoadPriceMax, offRoadUsedPriceMin, offRoadUsedPriceMax, offRoadUsedPriceMedian, offRoadNewPriceMedian, offRoadBrandCounts }: Props) {
+export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadPopularBlogs, offRoadBrandBlogs, offRoadModelBlogs, offRoadCount, offRoadNewCount, offRoadUsedCount, offRoadPriceMin, offRoadPriceMax, offRoadUsedPriceMin, offRoadUsedPriceMax, offRoadUsedPriceMedian, offRoadNewPriceMedian, offRoadCommonLength, offRoadMedianAtm, offRoadCommonSleeps, offRoadBrandCounts }: Props) {
   const carouselRef = useRef<HTMLDivElement>(null);
   const scrollCarousel = (dir: number) => {
     carouselRef.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
@@ -295,17 +298,17 @@ export default function OffRoadCaravansPage({ stateBands, offRoadBlogs, offRoadP
                 </div>
                 <div className="or-stat-card">
                   <div className="or-stat-card__icon-wrap"><img src="/images/ruler.png" alt="" className="or-stat-card__img-icon" /></div>
-                  <span className="or-stat-card__val">18ft</span>
+                  <span className="or-stat-card__val">{offRoadCommonLength || "18ft"}</span>
                   <span className="or-stat-card__label">Most Common Length</span>
                 </div>
                 <div className="or-stat-card">
                   <div className="or-stat-card__icon-wrap"><img src="/images/weight.png" alt="" className="or-stat-card__img-icon" /></div>
-                  <span className="or-stat-card__val">2,500kg</span>
+                  <span className="or-stat-card__val">{offRoadMedianAtm > 0 ? `${offRoadMedianAtm.toLocaleString()}kg` : "2,500kg"}</span>
                   <span className="or-stat-card__label">Most Common ATM</span>
                 </div>
                 <div className="or-stat-card">
                   <div className="or-stat-card__icon-wrap"><img src="/images/double.png" alt="" className="or-stat-card__img-icon" /></div>
-                  <span className="or-stat-card__val">4 Berth</span>
+                  <span className="or-stat-card__val">{offRoadCommonSleeps > 0 ? `${offRoadCommonSleeps} Berth` : "4 Berth"}</span>
                   <span className="or-stat-card__label">Most Common Sleeps</span>
                 </div>
               </div>

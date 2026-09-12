@@ -4,16 +4,8 @@ import "./details.css";
 import { ReactNode } from "react";
 import Thankyou from './ThankYouClient '
 import { fetchBlogDetail } from "./fetchBlogDetail";
+import { isNonBlogSlug } from "@/utils/isNonBlogSlug";
 type RouteParams = { slug: string };
-
-// Slugs that browsers/crawlers request automatically — never real blog posts.
-// Bail out before touching the API to avoid noisy 404 log spam.
-const NON_BLOG_SLUG_PATTERN = /\.(png|jpg|jpeg|gif|ico|svg|xml|txt|json|webp|bmp|css|js|woff|woff2|ttf|eot|mov|mp4|avi|mkv|webm|wmv|flv|mp3|wav|pdf|zip)$/i;
-const NON_BLOG_EXACT = new Set(['wp-json', 'wp-admin', 'wp-login', 'wp-login.php', 'favicon.ico', 'robots.txt', 'sitemap.xml']);
-
-function isNonBlogSlug(slug: string): boolean {
-  return NON_BLOG_SLUG_PATTERN.test(slug) || NON_BLOG_EXACT.has(slug);
-}
 
 export async function generateMetadata({
   params,
@@ -61,18 +53,6 @@ export async function generateMetadata({
   };
 }
 
- 
-function safeJsonLdString(json: object) {
-  return JSON.stringify(json, null, 2).replace(/</g, "\\u003c");
-}
-
-function safeIso(dateStr?: string) {
-  if (!dateStr) return new Date().toISOString();
-  const d = new Date(dateStr);
-  return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
-}
-
-
 export default async function Layout({
   children,
   params,
@@ -96,71 +76,8 @@ export default async function Layout({
     );
   }
 
-  /** ✅ SAFE BLOG FETCH FOR NORMAL PAGES **/
-  const data = await fetchBlogDetail(slug);
-
-  const post = data?.data?.blog_detail ?? {};
-  const seo = data?.seo ?? {};
-  const faqs: { heading: string; content: string }[] = data?.data?.blog_detail?.faq ?? [];
-
-  const canonical = `https://www.caravansforsale.com.au/${slug}/`;
-  const title = seo.metatitle || post.title || "Caravans for Sale Blog";
-  const description =
-    seo.metadescription ||
-    post.short_description ||
-    "Read more on Caravans for Sale.";
-
-  const bannerImage =
-    post.banner_image ||
-    post.image ||
-    "https://www.caravansforsale.com.au/load.svg";
-
-  const schemas = [
-    {
-      "@context": "https://schema.org",
-      "@type": "BlogPosting",
-      mainEntityOfPage: { "@type": "WebPage", "@id": canonical },
-      headline: title,
-      description: description,
-      image: bannerImage,
-      author: { "@type": "Person", name: "Tom" },
-      publisher: { "@type": "Organization", name: "Caravans for Sale" },
-      datePublished: safeIso(post.date),
-      dateModified: safeIso(post.date),
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Home", item: "https://www.caravansforsale.com.au/" },
-        { "@type": "ListItem", position: 2, name: "Blog", item: "https://www.caravansforsale.com.au/blog/" },
-        { "@type": "ListItem", position: 3, name: title, item: canonical },
-      ],
-    },
-    ...(faqs.length > 0
-      ? [
-          {
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
-            mainEntity: faqs.map((faq) => ({
-              "@type": "Question",
-              name: faq.heading,
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: faq.content.replace(/<[^>]*>/g, "").trim(),
-              },
-            })),
-          },
-        ]
-      : []),
-  ];
-
   return (
     <ThemeRegistry>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: safeJsonLdString(schemas) }}
-      />
       <div>{children}</div>
     </ThemeRegistry>
   );

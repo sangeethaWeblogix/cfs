@@ -124,11 +124,14 @@ export default function ClientLogger({
   function decodeEntities(s: string) {
     if (!isBrowser) {
       return s
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
         .replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">")
-        .replace(/&amp;/g, "&")
         .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'");
+        .replace(/&#39;|&apos;/g, "'")
+        .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
+        .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
     }
     const el = document.createElement("textarea");
     el.innerHTML = s;
@@ -1165,7 +1168,7 @@ export default function ClientLogger({
                           <div className="img">
                             <Image
                               src={post.image || "/images/download.svg"}
-                              alt={post.title}
+                              alt={decodeEntities(post.title)}
                               width={400}
                               height={250}
                               unoptimized
@@ -1173,8 +1176,8 @@ export default function ClientLogger({
                           </div>
                           <div className="product_de">
                             <div className="info">
-                              <h5 className="title">{post.title}</h5>
-                              <p>{post.excerpt}</p>
+                              <h5 className="title">{decodeEntities(post.title)}</h5>
+                              <p>{decodeEntities(post.excerpt ?? "")}</p>
                             </div>
                           </div>
                         </div>

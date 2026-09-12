@@ -6,7 +6,6 @@ import {
   ALL_STATE_SLUGS,
   getStateBySlug,
   buildStateMetadata,
-  buildStateJsonLd,
 } from "../../sell-my-caravan-region/states-data";
 
 export const dynamicParams = true;
@@ -37,15 +36,5 @@ export default async function SellMyCaravanStatePage({ params }: PageProps) {
     notFound();
   }
 
-  const jsonLd = buildStateJsonLd(state);
-
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <StateSeller state={state} />
-    </>
-  );
+  return <StateSeller state={state} />;
 }

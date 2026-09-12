@@ -6,7 +6,6 @@ import {
   ALL_REGIONS,
   getRegionByStateAndPageSlug,
   buildRegionMetadata,
-  buildRegionJsonLd,
 } from "../../../sell-my-caravan-region/regions-data";
 
 export const dynamicParams = true;
@@ -40,15 +39,5 @@ export default async function SellMyCaravanRegionPage({ params }: PageProps) {
     notFound();
   }
 
-  const jsonLd = buildRegionJsonLd(regionData);
-
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <RegionSeller region={regionData} />
-    </>
-  );
+  return <RegionSeller region={regionData} />;
 }

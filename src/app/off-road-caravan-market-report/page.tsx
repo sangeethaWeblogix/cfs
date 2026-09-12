@@ -243,53 +243,8 @@ async function fetchAllData(): Promise<MarketReportData> {
 
 export const revalidate = 0;
 
-const CANONICAL = "https://www.caravansforsale.com.au/off-road-caravan-market-report/";
-
-const schemaJsonLd = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Article",
-      "@id": CANONICAL,
-      "url": CANONICAL,
-      "headline": "Australian Off Road Caravan Market Report 2026",
-      "description": "Analysis of active off road caravan advertisements on CaravansForSale.com.au covering prices, supply, sizes, weights, brands and location data across Australia.",
-      "inLanguage": "en-AU",
-      "publisher": { "@type": "Organization", "name": "CaravansForSale.com.au", "url": "https://www.caravansforsale.com.au/" },
-      "breadcrumb": { "@id": `${CANONICAL}#breadcrumb` },
-    },
-    {
-      "@type": "BreadcrumbList",
-      "@id": `${CANONICAL}#breadcrumb`,
-      "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Home",              "item": "https://www.caravansforsale.com.au/" },
-        { "@type": "ListItem", "position": 2, "name": "Off Road Caravans", "item": "https://www.caravansforsale.com.au/off-road-caravans/" },
-        { "@type": "ListItem", "position": 3, "name": "Market Report",     "item": CANONICAL },
-      ],
-    },
-    {
-      "@type": "FAQPage",
-      "mainEntity": [
-        { "@type": "Question", "name": "How much does an off road caravan cost in Australia?",         "acceptedAnswer": { "@type": "Answer", "text": "The current median advertised asking price for off road caravans on CaravansForSale.com.au varies by condition. New caravans typically carry a higher median than used caravans. Check the live market data on this page for current figures." } },
-        { "@type": "Question", "name": "Which state has the most off road caravans for sale?",         "acceptedAnswer": { "@type": "Answer", "text": "Victoria typically has the largest number of off road caravans advertised on CaravansForSale.com.au, followed by New South Wales and Queensland." } },
-        { "@type": "Question", "name": "What is the most common off road caravan size?",               "acceptedAnswer": { "@type": "Answer", "text": "The 18–20ft range is consistently one of the most common size categories advertised across Australian off road caravan listings." } },
-        { "@type": "Question", "name": "Are the prices in this report actual sale prices?",             "acceptedAnswer": { "@type": "Answer", "text": "No. All prices shown are advertised asking prices from active marketplace listings. The final amount paid may differ from the advertised price." } },
-        { "@type": "Question", "name": "What is ATM and why does it matter for off road caravans?",    "acceptedAnswer": { "@type": "Answer", "text": "ATM means Aggregate Trailer Mass — the maximum allowable laden weight of the caravan as specified by the manufacturer. It is a key figure when determining whether a tow vehicle is rated to tow a specific caravan." } },
-      ],
-    },
-  ],
-};
-
 export default async function OffRoadMarketReportPage() {
   const data = await fetchAllData();
 
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaJsonLd) }}
-      />
-      <Home data={data} />
-    </>
-  );
+  return <Home data={data} />;
 }

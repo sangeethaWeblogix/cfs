@@ -744,7 +744,9 @@ export default function StateFilterBar({
       {(currentFilters.category || currentFilters.state || currentFilters.region || currentFilters.suburb ||
         currentFilters.make || currentFilters.model || currentFilters.from_price || currentFilters.to_price ||
         currentFilters.minKg || currentFilters.maxKg || currentFilters.condition ||
-        currentFilters.from_sleep || currentFilters.to_sleep || currentFilters.keyword) && (
+        currentFilters.from_sleep || currentFilters.to_sleep || currentFilters.keyword ||
+        currentFilters.from_year || currentFilters.to_year ||
+        currentFilters.from_length || currentFilters.to_length) && (
         <div className="container">
           <div className="active-chips-row">
             {currentFilters.make && (
@@ -837,6 +839,34 @@ export default function StateFilterBar({
                       : `Upto ${currentFilters.to_sleep} Berths`}
                 </span>
                 <span className="chip-close" onClick={() => removeChip("sleep", { from_sleep:undefined, to_sleep:undefined })}>×</span>
+              </span>
+            )}
+            {(currentFilters.from_year || currentFilters.to_year) && (
+              <span className={`active-chip${removingChip === "year" ? " chip-removing" : ""}`}>
+                <span className="chip-label" onClick={() => setOpenModal("allFilters")}>
+                  {currentFilters.from_year && currentFilters.to_year
+                    ? String(currentFilters.from_year) === String(currentFilters.to_year)
+                      ? `${currentFilters.from_year}`
+                      : `${currentFilters.from_year} – ${currentFilters.to_year}`
+                    : currentFilters.from_year
+                      ? `From ${currentFilters.from_year}`
+                      : `Upto ${currentFilters.to_year}`}
+                </span>
+                <span className="chip-close" onClick={() => removeChip("year", { from_year: undefined, to_year: undefined })}>×</span>
+              </span>
+            )}
+            {(currentFilters.from_length || currentFilters.to_length) && (
+              <span className={`active-chip${removingChip === "length" ? " chip-removing" : ""}`}>
+                <span className="chip-label" onClick={() => setOpenModal("allFilters")}>
+                  {currentFilters.from_length && currentFilters.to_length
+                    ? String(currentFilters.from_length) === String(currentFilters.to_length)
+                      ? `${currentFilters.from_length} ft`
+                      : `${currentFilters.from_length} – ${currentFilters.to_length} ft`
+                    : currentFilters.from_length
+                      ? `From ${currentFilters.from_length} ft`
+                      : `Upto ${currentFilters.to_length} ft`}
+                </span>
+                <span className="chip-close" onClick={() => removeChip("length", { from_length: undefined, to_length: undefined })}>×</span>
               </span>
             )}
             {currentFilters.keyword && (

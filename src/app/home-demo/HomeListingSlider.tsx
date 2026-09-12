@@ -17,12 +17,13 @@ const formatPrice = (price: string | number): string => {
 
 interface Props {
   title: string;
+  subtitle?: string;
   viewAllHref: string;
   items: Listing[];
   badgeVariant: "new" | "used";
 }
 
-export default function HomeListingSlider({ title, viewAllHref, items, badgeVariant }: Props) {
+export default function HomeListingSlider({ title, subtitle, viewAllHref, items, badgeVariant }: Props) {
   const swiperRef = useRef<SwiperType | null>(null);
   const [isBeginning, setIsBeginning] = useState(true);
   const [isEnd, setIsEnd] = useState(false);
@@ -41,7 +42,10 @@ export default function HomeListingSlider({ title, viewAllHref, items, badgeVari
     <section className="hf-section">
       <div className="container">
         <div className="hf-header">
-          <h2 className="hf-title"><Link href={viewAllHref}>{title}</Link></h2>
+          <div className="hf-header-text">
+            <h2 className="hf-title"><Link href={viewAllHref}>{title}</Link></h2>
+            {subtitle && <p className="hf-subtitle">{subtitle}</p>}
+          </div>
           {/* <Link href={viewAllHref} className="hf-view-all">
             View all <span aria-hidden>→</span>
           </Link> */}
