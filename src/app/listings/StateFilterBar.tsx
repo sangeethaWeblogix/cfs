@@ -92,10 +92,16 @@ export default function StateFilterBar({
   const [catCountLoading, setCatCountLoading] = useState(false);
   const cachedCategoryCountsRef = useRef<{name: string; slug: string; count: number}[]>([]);
 
-  // currentFilters at mount, snapshotted once — used below to detect whether
-  // the user has changed any filter since first paint (see isInitialFilters).
-  const initialFiltersSnapshotRef = useRef(currentFilters);
-  const isInitialFilters = JSON.stringify(currentFilters) === JSON.stringify(initialFiltersSnapshotRef.current);
+  // Guards the category/make count effects below so each skips its one
+  // redundant client refetch on mount (SSR already fetched that exact scope).
+  // Must track "is this the effect's first run", NOT "does currentFilters
+  // currently match the mount-time filters" — the latter re-triggers the skip
+  // whenever the user clears filters back to the same values the page loaded
+  // with (e.g. Clear All on the plain /listings/ page), silently discarding a
+  // needed refetch and leaving categoryCounts/makeCounts stuck on whatever
+  // narrower scope was last live-fetched.
+  const categoryCountsFirstRunRef = useRef(true);
+  const makeCountsFirstRunRef = useRef(true);
 
   useEffect(() => {
     // Static category/state/make lists don't depend on currentFilters — safe
@@ -122,9 +128,12 @@ export default function StateFilterBar({
   // shows types that actually have matching results under the current filters.
   useEffect(() => {
     // The server already fetched this exact scope for initialFilters — skip
-    // the identical client refetch on mount. Once any filter changes,
-    // isInitialFilters flips to false and this proceeds as a normal live fetch.
-    if (initialCategoryCounts && isInitialFilters) return;
+    // only the identical client refetch on mount. Every later run (including
+    // one where filters happen to return to their original values) always
+    // fetches live — see categoryCountsFirstRunRef comment above.
+    const isFirstRun = categoryCountsFirstRunRef.current;
+    categoryCountsFirstRunRef.current = false;
+    if (initialCategoryCounts && isFirstRun) return;
     const controller = new AbortController();
     setCatCountLoading(true);
     const params = buildCategoryCountScope(currentFilters);
@@ -205,8 +214,10 @@ export default function StateFilterBar({
   // re-fetched whenever any other active filter changes so the make list
   // narrows to what's actually available (not just the full static make list).
   useEffect(() => {
-    // Same skip-when-SSR-provided-and-still-on-initialFilters guard as the category counts above.
-    if (initialMakeCounts && isInitialFilters) return;
+    // Same skip-only-the-mount-refetch guard as the category counts above.
+    const isFirstRun = makeCountsFirstRunRef.current;
+    makeCountsFirstRunRef.current = false;
+    if (initialMakeCounts && isFirstRun) return;
     const controller = new AbortController();
     const params = buildMakeCountParams(currentFilters);
     fetch(`/api/params-count/?${params.toString()}`, { signal: controller.signal })
