@@ -111,9 +111,13 @@ export function useEnquiryForm(product: Product) {
     setSubmitting(true);
 
     try {
+      // No space in the separator — WP's backend runs this field through a
+      // URL-sanitizer (esc_url()-style) that percent-encodes raw spaces to
+      // "%20" while leaving "/" and "," alone, so a ", " join showed up in
+      // the admin panel as "/,%20/caravan-enquiry-form/,%20/listings/".
       const navHistory = sessionStorage.getItem("nav_history");
       const navigation_path = navHistory
-        ? (() => { try { return JSON.parse(navHistory).join(", "); } catch { return ""; } })()
+        ? (() => { try { return JSON.parse(navHistory).join(","); } catch { return ""; } })()
         : "";
 
       const res = await fetch("/api/enquiry/", {
