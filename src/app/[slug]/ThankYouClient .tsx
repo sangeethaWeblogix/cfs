@@ -1,9 +1,7 @@
  "use client";
 
 import { Card, CardContent, Typography, Button } from "@mui/material";
-import Image from "next/image";
 import Link from "next/link";
-import TickIcon from "../../../public/images/tick.jpg";
 
 export default function ThankYouClient() {
   return (
@@ -31,19 +29,15 @@ export default function ThankYouClient() {
               height: 80,
               margin: "0 auto 20px",
               borderRadius: "50%",
-              backgroundColor: "#22c55e",
+              backgroundColor: "#ec7200",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Image
-              src={TickIcon}
-              alt="Success"
-              width={40}
-              height={40}
-              style={{ objectFit: "contain" }}
-            />
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-label="Success">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
           </div>
 
           <Typography variant="h5" fontWeight="bold" gutterBottom>

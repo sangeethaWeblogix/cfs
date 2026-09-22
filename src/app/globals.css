@@ -98,9 +98,20 @@ img {
 
 .btn:hover,
 .btn:focus {
-  background: #ec7200;
+  background: #ec7200 !important;
   border-color: transparent !important;
   color: #fff;
+}
+
+/* Bootstrap's default .btn:disabled fades to opacity .65, which — combined
+   with pointer-events:none blocking the :hover/:focus orange override above
+   — makes a solid dark button (e.g. bg-blue4's black submit buttons) look
+   washed-out gray with barely-visible text while a form is submitting.
+   Keep it readable and still visually distinct as disabled. */
+.btn:disabled,
+.btn.disabled {
+  opacity: 0.85;
+  cursor: not-allowed;
 }
 
 .banner_ad_now {

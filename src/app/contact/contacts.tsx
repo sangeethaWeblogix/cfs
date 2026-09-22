@@ -76,7 +76,7 @@ export default function ContactSection() {
 
       const data = await res.json();
 
-      if (data.status === "mail_sent") {
+      if (res.ok && data.success) {
         setMessage("✅ Message sent successfully!");
         // clear form + errors
         setFormData({
