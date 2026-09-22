@@ -167,6 +167,13 @@ export default function CaravanDetailModal({
         ? (() => { try { return JSON.parse(navHistory).join(","); } catch { return ""; } })()
         : "";
 
+      // The email's "URL" row is meant to show which product this enquiry is
+      // about, separate from "Page Tracking" (the full browsing history) —
+      // send the product's own canonical URL for it.
+      const productUrl = product.slug
+        ? `https://www.caravansforsale.com.au/product/${product.slug}/`
+        : "";
+
       const res = await fetch("/api/enquiry/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -178,6 +185,7 @@ export default function CaravanDetailModal({
           phone: form.phone.trim(),
           message: form.message.trim() || "",
           postcode: form.postcode.trim(),
+          url: productUrl,
           page_url: navigation_path,
           finance: isFinanceQuoteChecked,
         }),
