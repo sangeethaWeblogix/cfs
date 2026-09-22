@@ -12,8 +12,8 @@ export async function POST(req: Request) {
     };
 
     await Promise.all([
-      fetch(`${API_BASE}/click?slug=${encodeURIComponent(slug)}`, { headers }),
-      fetch(`${API_BASE}/impression?slug=${encodeURIComponent(slug)}`, { headers }),
+      fetch(`${API_BASE}/click?slug=${encodeURIComponent(slug)}`, { method: "POST", headers }),
+      fetch(`${API_BASE}/impression?slug=${encodeURIComponent(slug)}`, { method: "POST", headers }),
     ]);
 
     return NextResponse.json({ success: true });
