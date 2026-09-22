@@ -158,18 +158,10 @@ export default function CaravanDetailModal({
     setSubmitting(true);
     setOkMsg(null);
     try {
-      // No space in the separator — WP's backend runs this field through a
-      // URL-sanitizer (esc_url()-style) that percent-encodes raw spaces to
-      // "%20" while leaving "/" and "," alone, so a ", " join showed up in
-      // the admin panel as "/,%20/caravan-enquiry-form/,%20/listings/".
-      const navHistory = sessionStorage.getItem("nav_history");
-      const navigation_path = navHistory
-        ? (() => { try { return JSON.parse(navHistory).join(","); } catch { return ""; } })()
-        : "";
-
-      // The email's "URL" row is meant to show which product this enquiry is
-      // about, separate from "Page Tracking" (the full browsing history) —
-      // send the product's own canonical URL for it.
+      // page_url is the product's own canonical URL, per the backend's API
+      // spec (POST .../enquiries/product expects page_url as the listing
+      // page URL) — not the nav_history browsing trail. Sending nav_history
+      // here was the bug; the backend just displays whatever this field holds.
       const productUrl = product.slug
         ? `https://www.caravansforsale.com.au/product/${product.slug}/`
         : "";
@@ -185,8 +177,7 @@ export default function CaravanDetailModal({
           phone: form.phone.trim(),
           message: form.message.trim() || "",
           postcode: form.postcode.trim(),
-          url: productUrl,
-          page_url: navigation_path,
+          page_url: productUrl,
           finance: isFinanceQuoteChecked,
         }),
       });
