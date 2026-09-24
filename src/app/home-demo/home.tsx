@@ -236,11 +236,11 @@ const handleBannerClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) =
               </picture>
             </a>
           ) : (
-            <a href="https://www.aussiefivestarcaravans.com.au/" target="_blank" rel="noopener noreferrer" className="hd-banner-ad__inner">
+            <a href="/listings/" target="_blank" rel="noopener noreferrer" className="hd-banner-ad__inner">
               <span className="hd-banner-ad__label">Advertisement</span>
               <picture>
-                <source media="(max-width: 767px)" srcSet="/images/aussiefivestar-1157x598.jpg" />
-                <img src="/images/aussiefivestar-2000x517.jpg" alt="Aussie Fivestar Caravans" className="hd-banner-ad__img" />
+                <source media="(max-width: 767px)" srcSet="/images/1157x598-cfs.jpg" />
+                <img src="/images/2000x517-cfs.jpg" alt="Caravans For Sale" className="hd-banner-ad__img" />
               </picture>
             </a>
           )}
