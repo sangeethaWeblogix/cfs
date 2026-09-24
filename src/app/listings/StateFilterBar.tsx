@@ -654,7 +654,9 @@ export default function StateFilterBar({
       region:            (regionOverride ?? tempRegion)?.toLowerCase() ?? undefined,
       suburb:            suburbName ?? undefined,
       pincode:           pincodeValue ?? undefined,
-      radius_kms:        suburbName ? tempSuburbRadius : undefined,
+      // Omit radius_kms for the default 25km so it doesn't clutter the URL
+      // with a redundant "?radius_kms=25" — only a non-default radius needs it.
+      radius_kms:        (suburbName && tempSuburbRadius !== RADIUS_OPTIONS[0]) ? tempSuburbRadius : undefined,
       from_year: tempYearFrom ?? undefined,
       to_year:   tempYearTo ?? undefined,
       from_length:       tempLengthFrom ?? undefined,
@@ -1494,7 +1496,7 @@ export default function StateFilterBar({
                     else { suburb = suburbSlug.replace(/-suburb$/,"").replace(/-/g," ").trim(); }
                     if (!/^\d{4}$/.test(pincode)) { const m = tempSuburbSuggestion.address.match(/\b\d{4}\b/); if (m) pincode = m[0]; }
                     const validRegion = getValidRegionName(state, region, states);
-                    updateFiltersAndURL({ suburb:suburb.toLowerCase(), pincode:pincode||undefined, state, region:validRegion||region, radius_kms:tempSuburbRadius });
+                    updateFiltersAndURL({ suburb:suburb.toLowerCase(), pincode:pincode||undefined, state, region:validRegion||region, radius_kms: tempSuburbRadius !== RADIUS_OPTIONS[0] ? tempSuburbRadius : undefined });
                   } else {
                     handleLocationSearch();
                   }
