@@ -165,7 +165,7 @@
            </div>
  
            {/* CTA — inside wrapper so it attaches seamlessly to card bottom */}
-           <a href="https://seller.caravansforsale.com.au/seller-signup/" className="demo-hero__cta">
+           <a href="https://seller.marketplacenetwork.com.au/caravan-seller-subscription/" className="demo-hero__cta">
              List Your Caravan Now <i className="fa-solid fa-arrow-right" />
            </a>
            </div>{/* end demo-price-wrapper */}
@@ -282,7 +282,7 @@
                    </li>
                  ))}
                </ul>
-               <a href="https://seller.caravansforsale.com.au/seller-signup/" className="demo-reach-card__cta">
+               <a href="https://seller.marketplacenetwork.com.au/caravan-seller-subscription/" className="demo-reach-card__cta">
                  List My Caravan Now <i className="fa-solid fa-arrow-right" />
                </a>
              </div>
@@ -502,7 +502,7 @@
              Start selling your caravan today for just{" "}
              <strong>$49 (Inc. GST)</strong> — Live until sold!
            </p>
-           <a href="https://seller.caravansforsale.com.au/seller-signup/" className="btn white_btn">
+           <a href="https://seller.marketplacenetwork.com.au/caravan-seller-subscription/" className="btn white_btn">
              List Your Caravan Now
            </a>
          </div>

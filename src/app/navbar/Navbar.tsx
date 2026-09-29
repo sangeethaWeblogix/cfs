@@ -131,7 +131,7 @@ export default function Navbar() {
                 </li>
                 
                 <li className="nav-item login">
-                  <a className="nav-link" href="/login/">
+                  <a className="nav-link" href="https://seller.marketplacenetwork.com.au/seller-login/">
                     <i className="bi bi-person-fill"></i> Login
                   </a>
                 </li>
@@ -232,7 +232,7 @@ export default function Navbar() {
               <div className="sidenav-cta">
                 <a href="/sell-my-caravan/" className="sidenav-cta-link" onClick={closeNav}>Sell My Caravan</a>
                 <a href="/dealer-advertising/" className="sidenav-cta-link" onClick={closeNav}>Dealer Advertising</a>
-                <a href="/login/" className="sidenav-cta-login" onClick={closeNav}>
+                <a href="https://seller.marketplacenetwork.com.au/seller-login/" className="sidenav-cta-login" onClick={closeNav}>
                   <i className="bi bi-person-fill"></i> Login
                 </a>
               </div>

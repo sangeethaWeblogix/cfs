@@ -86,7 +86,7 @@ const DealerLandingPage = () => {
                 </p>
 
                 <a
-                  href="https://seller.caravansforsale.com.au/dealer-subscription/"
+                  href="https://seller.marketplacenetwork.com.au/caravan-dealer-subscription/"
                   className="btn white_btn"
                 >
                   Start Dealer Signup
@@ -302,7 +302,7 @@ const DealerLandingPage = () => {
                   </ul>
 
                   <a
-                    href="https://seller.caravansforsale.com.au/dealer-subscription/"
+                    href="https://seller.marketplacenetwork.com.au/caravan-dealer-subscription/"
                     className="btn white_btn"
                   >
                     Start Dealer Signup
