@@ -8,6 +8,38 @@ import { Listing, SeoV2, buildFeaturedOrder, bucketPoolResponseCombined } from "
 export type { Listing, SeoV2 };
 export { buildFeaturedOrder };
 
+/* ── Impression tracking (batched) ──────────────────────────────────────────
+ * Every ListingCard reports its own impression the moment it scrolls into
+ * view (including the first row, already visible on load) — instead of one
+ * network call per card, queue the product ids and flush them as a single
+ * POST /api/track-impressions/ call shortly after, so a page with dozens of
+ * visible cards sends one batched request instead of dozens of beacons. */
+const pendingImpressionIds = new Set<number>();
+const sentImpressionIds = new Set<number>();
+let impressionFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushImpressions() {
+  impressionFlushTimer = null;
+  if (pendingImpressionIds.size === 0) return;
+  const ids = Array.from(pendingImpressionIds);
+  pendingImpressionIds.clear();
+  try {
+    navigator.sendBeacon(
+      "/api/track-impressions/",
+      new Blob([JSON.stringify({ ids })], { type: "application/json" })
+    );
+  } catch {}
+}
+
+function queueImpression(id: number | undefined) {
+  if (!id || sentImpressionIds.has(id)) return;
+  sentImpressionIds.add(id);
+  pendingImpressionIds.add(id);
+  if (!impressionFlushTimer) {
+    impressionFlushTimer = setTimeout(flushImpressions, 400);
+  }
+}
+
 function useColCount() {
   const [cols, setCols] = useState(5);
   useEffect(() => {
@@ -261,15 +293,6 @@ function ListingCard({
    } catch {}
    };
 
-     const postTrackEvent = (slug: string) => {
-    try {
-       navigator.sendBeacon(
-         "/api/track",
-         new Blob([JSON.stringify({ slug })], { type: "application/json" })
-       );
-     } catch {}
-   };
-
     useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
@@ -277,8 +300,7 @@ function ListingCard({
        (entries) => {
         entries.forEach((entry) => {
            if (entry.isIntersecting) {
-            const slug = entry.target.getAttribute("data-product-slug");
-            if (slug) postTrackEvent(slug);
+            queueImpression(item.id);
             observer.unobserve(entry.target);
           }
         });

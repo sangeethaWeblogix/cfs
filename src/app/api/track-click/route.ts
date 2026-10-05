@@ -7,6 +7,7 @@ export async function POST(req: Request) {
     if (!slug) return Response.json({ success: false });
 
     await fetch(`${API_BASE}/click?slug=${encodeURIComponent(slug)}`, {
+      method: "POST",
       headers: {
         ...(API_KEY && { "X-Secret-Key": API_KEY }),
       },
