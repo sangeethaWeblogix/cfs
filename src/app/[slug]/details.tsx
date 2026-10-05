@@ -4,6 +4,7 @@
  import FaqSection from "./FaqSection";
  import RelatedNews from "./RelatedNews";
  import BlogFeaturedListings from "./BlogFeaturedListings";
+ import { normalizePoolProduct } from "../listings/listingShared";
  import "./details.css";
  import { useEffect, useRef, useState } from "react";
  import { formatPostDate } from "@/utils/date";
@@ -678,7 +679,7 @@
          </section>
        )}
  
-       <BlogFeaturedListings products={data?.data?.blog_detail?.category_featured_products ?? []} category={catLabel} />
+       <BlogFeaturedListings products={(data?.data?.blog_detail?.category_featured_products ?? []).map(normalizePoolProduct)} category={catLabel} />
        <RelatedNews blogs={data?.data?.related_blogs ?? []} />
  
        {/* ── Buy or Sell CTA ── */}

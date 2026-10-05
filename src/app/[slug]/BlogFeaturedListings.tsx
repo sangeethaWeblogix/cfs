@@ -6,14 +6,14 @@ import { getLocationLabel } from "../home-demo/locationUtils";
 type Listing = {
   id: number;
   name: string;
-  slug: string;
+  slug?: string;
   condition: string;
-  location: string;
+  location?: string;
   state?: string;
   regular_price: string;
-  sale_price: string;
-  categories: string[];
-  image_format: string[];
+  sale_price?: string;
+  categories?: string[];
+  image_format?: string[];
   seller_type?: string;
 };
 
@@ -30,9 +30,10 @@ export default function BlogFeaturedListings({ products, category }: { products:
         <div className="bfl-grid">
           {products.slice(0, 10).map((item, idx) => {
             const isNew = item.condition?.toLowerCase() === "new";
-            const price = item.sale_price || item.regular_price || "POA";
+            const rawPrice = item.sale_price || item.regular_price;
+            const priceNum = Number(rawPrice);
+            const price = !rawPrice || Number.isNaN(priceNum) ? "POA" : `$${priceNum.toLocaleString("en-AU")}`;
             const image = item.image_format?.[0] ?? null;
-            const type = (item.categories?.[0] ?? "").replace(/-/g, " ");
             const location = getLocationLabel(item);
 
             return (
@@ -53,7 +54,6 @@ export default function BlogFeaturedListings({ products, category }: { products:
                   ) : (
                     <div className="bfl-card__img-placeholder" />
                   )}
-                  {type && <span className="bfl-card__chip">{type}</span>}
                 </div>
                 <div className="bfl-card__body">
                   <p className="bfl-card__name">{item.name}</p>
