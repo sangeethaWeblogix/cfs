@@ -12,11 +12,24 @@ export async function POST(req: Request) {
       : [];
     if (cleanIds.length === 0) return Response.json({ success: false });
 
+    // Without this, WP sees the outbound request coming from our own server
+    // (this route calls WP server-side) and records OUR server's IP/location
+    // as the visitor's, instead of the real visitor's. Same fix as
+    // /api/track-product/ — forward the real visitor's IP/UA.
+    const visitorIp =
+      req.headers.get("cf-connecting-ip") ||
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+      req.headers.get("x-real-ip") ||
+      "";
+    const userAgent = req.headers.get("user-agent") || "";
+
     await fetch(`${API_BASE}/impressions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...(API_KEY && { "X-Secret-Key": API_KEY }),
+        ...(visitorIp && { "X-Forwarded-For": visitorIp, "X-Real-IP": visitorIp }),
+        ...(userAgent && { "User-Agent": userAgent }),
       },
       body: JSON.stringify({ ids: cleanIds }),
     });
