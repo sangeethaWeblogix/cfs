@@ -21,10 +21,13 @@
    }
  }
  
- // cache() dedupes identical slug calls within a single request, so
- // generateMetadata + layout + page no longer each hit the API separately.
- export const fetchBlogDetail = cache(async (slug: string) => {
-   const url = `https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/blog/caravans/${encodeURIComponent(slug)}`;
+ // cache() dedupes identical (slug, seed) calls within a single request, so
+ // generateMetadata + layout + page no longer each hit the API separately
+ // (as long as they pass the same seed). Passing a seed is what makes the
+ // backend shuffle category_featured_products — without one it returns the
+ // same set every time.
+ export const fetchBlogDetail = cache(async (slug: string, seed?: number) => {
+   const url = `https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/blog/caravans/${encodeURIComponent(slug)}${seed ? `?seed=${seed}` : ""}`;
  
    let lastErr: unknown;
    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {

@@ -166,7 +166,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
       </div>
     );
   }
-  const data = await fetchBlogDetail(slug);
+  // A seed is needed to get the backend to shuffle category_featured_products —
+  // without one it returns the same set on every request. The backend only
+  // honors seed values 1-10 — anything higher silently falls back to the
+  // unseeded/default order (verified directly against the live API).
+  const seed = Math.floor(Math.random() * 10) + 1;
+  const data = await fetchBlogDetail(slug, seed);
 
   if (slug.startsWith("thank-you-")) {
     return <Thankyou />;
