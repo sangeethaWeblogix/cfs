@@ -213,7 +213,7 @@ const DealerLandingPage = () => {
                       <tr>
                         <th className="text-start">Comparison Table</th>
                         <th className="brand-col">
-                          caravansforsale<wbr />.com.au
+                          Caravansforsale<wbr />.com.au
                         </th>
                         <th>Other Marketplaces</th>
                       </tr>
