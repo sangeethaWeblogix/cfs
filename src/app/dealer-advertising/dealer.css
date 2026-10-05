@@ -240,6 +240,21 @@
 .comparison td:first-child {
   text-align: left;
 }
+.comparison th.brand-col {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 767px) {
+  .comparison th,
+  .comparison td {
+    padding: 10px 8px;
+    font-size: 14px;
+    line-height: 20px;
+  }
+  .comparison th:not(:first-child),
+  .comparison td:not(:first-child) {
+    width: 28%;
+  }
+}
 .check img {
   height: 20px;
 }

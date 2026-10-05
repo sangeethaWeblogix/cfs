@@ -439,7 +439,7 @@
                <img src="/images/your-caravan-desktop-seller-2.jpg" className="img-fluid demo-why-img" alt="Caravan buyers" />
              </div>
              <div className="col-md-6">
-               <h2>Why Thousands of Caravan Buyers Visit CaravansForSale Every Month</h2>
+               <h2>Why Thousands of Caravan Buyers Visit our website Every Month</h2>
                <p>
                  CaravansForSale.com.au is Australia's dedicated caravan marketplace, built exclusively
                  for caravan buyers and sellers. We attract thousands of genuine buyers every day who
