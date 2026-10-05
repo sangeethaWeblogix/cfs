@@ -111,7 +111,7 @@ const DealerLandingPage = () => {
                     </h2>
 
                     <p className="mb-3">
-                      Your stock deserves visibility without per-lead fees, CFS
+                      Your stock deserves visibility without per-lead fees, Marketplace Network
                       connects your dealership with buyers actively searching
                       for their next caravan—so your inventory gets seen by the
                       right audience.
@@ -212,7 +212,9 @@ const DealerLandingPage = () => {
                     <thead>
                       <tr>
                         <th className="text-start">Comparison Table</th>
-                        <th>CFS</th>
+                        <th className="brand-col">
+                          caravansforsale<wbr />.com.au
+                        </th>
                         <th>Other Marketplaces</th>
                       </tr>
                     </thead>
