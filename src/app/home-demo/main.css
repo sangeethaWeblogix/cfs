@@ -3179,6 +3179,43 @@ main .section-head .category_icon li img {
   .hbg-sell-body { font-size: 0.95rem; }
 }
 
+/* ── Explore Other Travel Options ── */
+.hbg-explore-section {
+  padding: 0 0 48px;
+  background: #fff;
+}
+.hbg-explore-card {
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  padding: 25px 0 0;
+}
+.hbg-explore-title {
+  color: #000000;
+  margin: 0 0 14px;
+  font-size: 1.45rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.hbg-explore-body {
+  color: #000000;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+.hbg-explore-link {
+  color: #1153a6;
+  font-weight: 500;
+  text-decoration: none;
+}
+.hbg-explore-link:hover { text-decoration: underline; }
+@media (max-width: 767px) {
+  .hbg-explore-section { padding: 0 0 32px; }
+  .hbg-explore-card { padding: 24px 20px; border-radius: 12px; }
+  .hbg-explore-title { font-size: 1.35rem; }
+  .hbg-explore-body { font-size: 0.95rem; }
+}
+
 /* Why Australians */
 .hbg-why-section {
   padding: 30px 0;

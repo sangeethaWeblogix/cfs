@@ -1,5 +1,6 @@
 import { parseSlugToFilters } from "@/app/components/urlBuilder";
 import { buildSlugFromFilters } from "@/app/components/slugBuilter";
+import { toSlug } from "@/utils/seo/slug";
 import type { FilterState } from "./StateFilterBar";
 
 const ORDERBY = "default";
@@ -51,7 +52,25 @@ export function buildListingsSlug(filters: FilterState, conditionOverride?: stri
   return path.endsWith("/") ? path : `${path}/`;
 }
 
-const toTitleCase = (s: string) => s.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+export const toTitleCase = (s: string) => s.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+const stripLocationSuffix = (v: string) => toSlug(v.replace(/-state|-region|-suburb/g, "").trim());
+
+/** Cross-marketplace "Explore Other Travel Options" target — driven only by
+ * state/region (every other active filter is ignored, per the 3-tier rule):
+ * no state → the sister site's Australia-wide /listings/; state only → that
+ * state's page; state + region → that region's page. */
+export function buildExploreTravelTarget(filters: FilterState): { path: string; label: string } {
+  const state = filters.state ? stripLocationSuffix(filters.state) : "";
+  const region = filters.region ? stripLocationSuffix(filters.region) : "";
+  if (state && region) {
+    return { path: `/listings/${state}-state/${region}-region/`, label: toTitleCase(region) };
+  }
+  if (state) {
+    return { path: `/listings/${state}-state/`, label: toTitleCase(state) };
+  }
+  return { path: "/listings/", label: "Australia" };
+}
 
 export interface FilterBreadcrumb {
   label: string;

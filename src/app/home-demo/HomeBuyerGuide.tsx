@@ -48,6 +48,24 @@ export default function HomeBuyerGuide() {
         </div>
       </section>
 
+      {/* ── Explore Other Travel Options ── */}
+      <section className="hbg-explore-section">
+        <div className="container">
+          <div className="hbg-explore-card">
+            <h2 className="hbg-explore-title">Explore Other Travel Options</h2>
+            <p className="hbg-explore-body">
+              Still deciding which travel setup suits you? Browse{" "}
+              <a href="https://www.motorhomesforsale.com.au/" className="hbg-explore-link" target="_blank" rel="noopener noreferrer">motorhomes for sale</a>{" "}
+              for a vehicle with integrated living space, or explore{" "}
+              <a href="https://www.campervansforsale.au/" className="hbg-explore-link" target="_blank" rel="noopener noreferrer">campervans for sale</a>{" "}
+              for a more compact option. For a towable camping setup, compare{" "}
+              <a href="https://www.campingtrailersforsale.com.au/" className="hbg-explore-link" target="_blank" rel="noopener noreferrer">camper trailers for sale</a>{" "}
+              across our other marketplaces.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* ── Sell CTA Card ── */}
       <section className="hbg-sell-section">
         <div className="container">
@@ -124,7 +142,7 @@ export default function HomeBuyerGuide() {
             </div>
           </div>
 
-          
+
         </div>
       </section>
     </>

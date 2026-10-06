@@ -733,6 +733,34 @@
   flex-wrap: wrap;
   min-height: 110px;
 }
+.pdd-explore-section { margin-bottom: 32px; }
+.pdd-explore-card {
+  background: #fff;
+  padding: 0;
+}
+.pdd-explore-title {
+  color: #000;
+  margin: 0 0 14px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.pdd-explore-body {
+  color: #000;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.75;
+}
+.pdd-explore-link {
+  color: #1153a6;
+  font-weight: 500;
+  text-decoration: none;
+}
+.pdd-explore-link:hover { text-decoration: underline; }
+@media (max-width: 767px) {
+  .pdd-explore-card { padding: 24px 20px; }
+  .pdd-explore-title { font-size: 1.25rem; }
+}
 .pdd-banner__sub {
   font-size: 12px;
   color: #ccc;

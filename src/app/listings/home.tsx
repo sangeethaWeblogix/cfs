@@ -10,7 +10,7 @@ import StateListingGrid, { SeoV2, Listing } from "./StateListingGrid";
 import StateBrowseSection from "./StateBrowseSection";
 import type { BrowseSectionData } from "./browseSectionShared";
 import StateContent from "./StateContent";
-import { buildApiUrl, buildListingsSlug, buildFilterBreadcrumbs, parseDemoFilters } from "./urlUtils";
+import { buildApiUrl, buildListingsSlug, buildFilterBreadcrumbs, buildExploreTravelTarget, parseDemoFilters } from "./urlUtils";
 import { bucketPoolResponse, bucketPoolResponseCombined } from "./listingShared";
 // import { useBanners } from "@/components/BannerHandler";
 // import { useBannerTracking } from "@/hooks/useBannerTracking";
@@ -106,6 +106,7 @@ export default function StateHome({
   initialCategories, initialStates, initialMakes, initialCategoryCounts, initialMakeCounts,
 }: Props) {
   const [filters, setFilters] = useState<FilterState>(initialFilters ?? {});
+  const exploreTravel = buildExploreTravelTarget(filters);
   const [page, setPage] = useState(1);
   const [maxPages, setMaxPages] = useState(initialPool?.maxPages ?? 1);
   const [clickid, setClickid] = useState<string | null>(null);
@@ -760,6 +761,22 @@ export default function StateHome({
               </div>
             </div>
           </div>
+          <div className="lsd-explore-cta">
+            <div className="container">
+              <div className="lsd-explore-cta__inner">
+                <h2 className="lsd-explore-cta__title">Explore Other Travel Options in {exploreTravel.label}</h2>
+                <p className="lsd-explore-cta__body">
+                  Still deciding which travel setup suits you? Browse{" "}
+                  <a href={`https://www.motorhomesforsale.com.au${exploreTravel.path}`} className="lsd-explore-cta__link" target="_blank" rel="noopener noreferrer">motorhomes for sale</a>{" "}
+                  for a vehicle with integrated living space, or explore{" "}
+                  <a href={`https://www.campervansforsale.au${exploreTravel.path}`} className="lsd-explore-cta__link" target="_blank" rel="noopener noreferrer">campervans for sale</a>{" "}
+                  for a more compact option. For a towable camping setup, compare{" "}
+                  <a href={`https://www.campingtrailersforsale.com.au${exploreTravel.path}`} className="lsd-explore-cta__link" target="_blank" rel="noopener noreferrer">camper trailers for sale</a>{" "}
+                  across our other marketplaces.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       );
     }
@@ -800,6 +817,22 @@ export default function StateHome({
                 If you&apos;re upgrading or no longer need your current caravan,{" "}
                 <a href="/sell-my-caravan/" className="lsd-sell-cta__link">sell your caravan</a>{" "}
                 by creating a listing on CaravansForSale.com.au and connect with active buyers across Australia. Your advertisement stays online until it&apos;s sold for a one-time fee of $49.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="lsd-explore-cta">
+          <div className="container">
+            <div className="lsd-explore-cta__inner">
+              <h2 className="lsd-explore-cta__title">Explore Other Travel Options in {exploreTravel.label}</h2>
+              <p className="lsd-explore-cta__body">
+                Still deciding which travel setup suits you? Browse{" "}
+                <a href={`https://www.motorhomesforsale.com.au${exploreTravel.path}`} className="lsd-explore-cta__link" target="_blank" rel="noopener noreferrer">motorhomes for sale</a>{" "}
+                for a vehicle with integrated living space, or explore{" "}
+                <a href={`https://www.campervansforsale.au${exploreTravel.path}`} className="lsd-explore-cta__link" target="_blank" rel="noopener noreferrer">campervans for sale</a>{" "}
+                for a more compact option. For a towable camping setup, compare{" "}
+                <a href={`https://www.campingtrailersforsale.com.au${exploreTravel.path}`} className="lsd-explore-cta__link" target="_blank" rel="noopener noreferrer">camper trailers for sale</a>{" "}
+                across our other marketplaces.
               </p>
             </div>
           </div>
@@ -918,6 +951,22 @@ export default function StateHome({
             </div>
           </div>
         </div>
+        <div className="lsd-explore-cta">
+          <div className="container">
+            <div className="lsd-explore-cta__inner">
+              <h2 className="lsd-explore-cta__title">Explore Other Travel Options in {exploreTravel.label}</h2>
+              <p className="lsd-explore-cta__body">
+                Still deciding which travel setup suits you? Browse{" "}
+                <a href={`https://www.motorhomesforsale.com.au${exploreTravel.path}`} className="lsd-explore-cta__link" target="_blank" rel="noopener noreferrer">motorhomes for sale</a>{" "}
+                for a vehicle with integrated living space, or explore{" "}
+                <a href={`https://www.campervansforsale.au${exploreTravel.path}`} className="lsd-explore-cta__link" target="_blank" rel="noopener noreferrer">campervans for sale</a>{" "}
+                for a more compact option. For a towable camping setup, compare{" "}
+                <a href={`https://www.campingtrailersforsale.com.au${exploreTravel.path}`} className="lsd-explore-cta__link" target="_blank" rel="noopener noreferrer">camper trailers for sale</a>{" "}
+                across our other marketplaces.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -983,6 +1032,22 @@ export default function StateHome({
               If you&apos;re upgrading or no longer need your current caravan,{" "}
               <a href="/sell-my-caravan/" className="lsd-sell-cta__link">sell your caravan</a>{" "}
               by creating a listing on CaravansForSale.com.au and connect with active buyers across Australia. Your advertisement stays online until it&apos;s sold for a one-time fee of $49.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="lsd-explore-cta">
+        <div className="container">
+          <div className="lsd-explore-cta__inner">
+            <h2 className="lsd-explore-cta__title">Explore Other Travel Options in {exploreTravel.label}</h2>
+            <p className="lsd-explore-cta__body">
+              Still deciding which travel setup suits you? Browse{" "}
+              <a href={`https://www.motorhomesforsale.com.au${exploreTravel.path}`} className="lsd-explore-cta__link" target="_blank" rel="noopener noreferrer">motorhomes for sale</a>{" "}
+              for a vehicle with integrated living space, or explore{" "}
+              <a href={`https://www.campervansforsale.au${exploreTravel.path}`} className="lsd-explore-cta__link" target="_blank" rel="noopener noreferrer">campervans for sale</a>{" "}
+              for a more compact option. For a towable camping setup, compare{" "}
+              <a href={`https://www.campingtrailersforsale.com.au${exploreTravel.path}`} className="lsd-explore-cta__link" target="_blank" rel="noopener noreferrer">camper trailers for sale</a>{" "}
+              across our other marketplaces.
             </p>
           </div>
         </div>

@@ -728,7 +728,7 @@
  
        <BlogFeaturedListings products={(data?.data?.blog_detail?.category_featured_products ?? []).map(normalizePoolProduct)} category={catLabel} />
        <RelatedNews blogs={data?.data?.related_blogs ?? []} />
- 
+
        {/* ── Buy or Sell CTA ── */}
        <section className="bds-cta-section">
          <div className="bds-cta-card">
@@ -743,6 +743,24 @@
              <a href="/sell-my-caravan/" className="bds-cta-link">sell your caravan</a>{" "}
              by creating a listing on CaravansForSale.com.au. Your advertisement stays online until it&apos;s sold for a one-time fee of $49.
            </p>
+         </div>
+       </section>
+
+       {/* ── Explore Other Travel Options ── */}
+       <section className="bds-explore-section">
+         <div className="container">
+           <div className="bds-explore-card">
+             <h2 className="bds-explore-title">Explore Other Travel Options</h2>
+             <p className="bds-explore-body">
+               Still deciding which travel setup suits you? Browse{" "}
+               <a href="https://www.motorhomesforsale.com.au/" className="bds-explore-link" target="_blank" rel="noopener noreferrer">motorhomes for sale</a>{" "}
+               for a vehicle with integrated living space, or explore{" "}
+               <a href="https://www.campervansforsale.au/" className="bds-explore-link" target="_blank" rel="noopener noreferrer">campervans for sale</a>{" "}
+               for a more compact option. For a towable camping setup, compare{" "}
+               <a href="https://www.campingtrailersforsale.com.au/" className="bds-explore-link" target="_blank" rel="noopener noreferrer">camper trailers for sale</a>{" "}
+               across our other marketplaces.
+             </p>
+           </div>
          </div>
        </section>
      </div>

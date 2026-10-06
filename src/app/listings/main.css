@@ -1098,7 +1098,7 @@ input.loc-search-input:focus { box-shadow: 0 0 0 1.5px #7e7e7e !important; }
 
 /* ── Listings Sell CTA ── */
 .lsd-sell-cta {
-  padding: 15px 0px 48px;
+  padding: 15px 0px 24px;
 }
 .lsd-sell-cta__inner {
     background: #f8f9fa;
@@ -1125,6 +1125,37 @@ input.loc-search-input:focus { box-shadow: 0 0 0 1.5px #7e7e7e !important; }
   text-decoration: none;
 }
 .lsd-sell-cta__link:hover { text-decoration: underline; }
+/* ── Explore Other Travel Options ── */
+.lsd-explore-cta {
+  padding: 0px 0px 48px;
+}
+.lsd-explore-cta__inner {
+    background: #fff;
+    margin: 0 auto;
+    padding: 0 30px;
+}
+.lsd-explore-cta__title {
+    color: #000000;
+    margin: 0 0 12px;
+    font-size: 20px;
+    font-weight: 600;
+}
+.lsd-explore-cta__body {
+    color: #000000;
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.75;
+}
+.lsd-explore-cta__link {
+  color: #1153a6;
+  font-weight: 500;
+  text-decoration: none;
+}
+.lsd-explore-cta__link:hover { text-decoration: underline; }
+@media (max-width: 767px) {
+  .lsd-explore-cta__title { font-size: 1.2rem; }
+}
+
 @media (max-width: 767px) {
   .lsd-sell-cta { padding: 15px 0px 36px; }
   .lsd-sell-cta__inner { padding: 28px 20px; border-radius: 12px; }
