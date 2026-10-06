@@ -13,7 +13,13 @@ import "./BlogContentProducts.css?=1";
  * /listings/ — in place of a <div data-mpn-products="KEY"> marker embedded
  * in blog post content. Owns its own Contact Seller modal state the same
  * way StateListingGrid does, since ListingCard expects an onContact callback. */
-export default function BlogContentProducts({ products }: { products: Listing[] }) {
+export default function BlogContentProducts({
+  products,
+  link,
+}: {
+  products: Listing[];
+  link?: { text: string; url: string };
+}) {
   const [contactItem, setContactItem] = useState<Listing | null>(null);
 
   if (!products?.length) return null;
@@ -29,6 +35,12 @@ export default function BlogContentProducts({ products }: { products: Listing[] 
           />
         ))}
       </div>
+
+      {link?.url && (
+        <a href={link.url} className="blog-content-products__link">
+          {link.text || link.url}
+        </a>
+      )}
 
       {contactItem && (
         <ContactModal item={contactItem} onClose={() => setContactItem(null)} />

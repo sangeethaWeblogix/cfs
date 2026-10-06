@@ -196,6 +196,7 @@
  type ProductSection = {
    key: string;
    products: Record<string, unknown>[];
+   link?: { text: string; url: string };
  };
 
  type BlogDetail = {
@@ -270,6 +271,11 @@
    // using the matching key's products from product_sections.
    const productSectionsByKey = new Map<string, Record<string, unknown>[]>(
      (post?.product_sections ?? []).map((section) => [section.key, section.products ?? []])
+   );
+   const productLinksByKey = new Map<string, { text: string; url: string }>(
+     (post?.product_sections ?? [])
+       .filter((section) => section.link?.url)
+       .map((section) => [section.key, section.link as { text: string; url: string }])
    );
    const contentHtml = post?.content || "<p>No content available</p>";
    const contentParts: ({ type: "html"; html: string } | { type: "products"; key: string })[] = [];
@@ -613,6 +619,7 @@
                        <BlogContentProducts
                          key={i}
                          products={(productSectionsByKey.get(part.key) ?? []).map(normalizePoolProduct)}
+                         link={productLinksByKey.get(part.key)}
                        />
                      )
                  )}
