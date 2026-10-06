@@ -1,0 +1,51 @@
+/* Product grid embedded inside blog content — uses the exact same .lsd-card
+   design as /listings/ (main.css), but 2 items per row instead of the
+   listings page's 4-5 column grid. Higher specificity than .lsd-grid /
+   .lsd-grid--4col so this wins regardless of CSS import order. */
+.blog-content-products {
+  margin: 32px 0;
+}
+
+.blog-content-products .lsd-grid,
+.blog-content-products .lsd-grid--4col {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .blog-content-products .lsd-grid,
+  .blog-content-products .lsd-grid--4col {
+    grid-template-columns: repeat(1, 1fr);
+    gap: 12px;
+  }
+}
+
+/* The card is a <Link> (renders as <a>) sitting inside the blog content
+   area (.single_blog), so the content's own generic link styling
+   (.single_blog a { color: #0d6efd }, .single_blog a:hover { underline
+   !important }) bleeds into it — reassert with higher specificity (3
+   class-level selectors beats .single_blog a:hover's 1 class + 1 tag +
+   1 pseudo-class) so the card looks like a real listing card, not an
+   inline text link. */
+.blog-content-products .lsd-card,
+.blog-content-products .lsd-card:hover {
+  color: inherit;
+  text-decoration: none !important;
+}
+
+/* .all-news p sets font-size/line-height/margin on every <p> in the blog
+   body, which clobbers the title's 2-line clamp (it's a <p> too) and
+   breaks the overlap-free layout — reassert with higher specificity
+   (2 classes beats .all-news p's 1 class + 1 tag). */
+.blog-content-products .lsd-card__title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.38;
+  margin: 0;
+  height: 42px;
+  color: #000000;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

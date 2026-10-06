@@ -638,7 +638,7 @@ input.loc-search-input:focus { box-shadow: 0 0 0 1.5px #7e7e7e !important; }
 .lsd-contact-modal .form-item { position: relative; margin-bottom: 15px; }
 .lsd-contact-modal .form-item p { margin-bottom: 0; position: relative; }
 .lsd-contact-modal .form-item input,
-.lsd-contact-modal .form-item textarea { background: #fff; border: 1px solid #c4e0e3; border-radius: 4px; outline: none; width: 100%; height: 60px; padding: 10px 15px 0; transition: 0.3s; display: block; box-shadow: none !important; color: #000; font-size: 15px; }
+.lsd-contact-modal .form-item textarea { background: #fff; border: 1px solid #c4e0e3; border-radius: 4px; outline: none; width: 100%; height: 60px; padding: 24px 15px 0; transition: 0.3s; display: block; box-shadow: none !important; color: #000; font-size: 15px; }
 .lsd-contact-modal .form-item textarea { height: 100px; padding-top: 30px; resize: vertical; }
 .lsd-contact-modal .form-item input:focus,
 .lsd-contact-modal .form-item textarea:focus { border-color: #ec7200; }
@@ -646,6 +646,11 @@ input.loc-search-input:focus { box-shadow: 0 0 0 1.5px #7e7e7e !important; }
 .lsd-contact-modal .phone_country { position: relative; }
 .lsd-contact-modal .phone-label { position: absolute; top: 58%; left: 10px; transform: translateY(-50%); color: #000; pointer-events: none; font-size: 16px; z-index: 1; }
 .lsd-contact-modal .form-item .phone_country input { padding-left: 40px; }
+/* The generic "left: 4px" label position (above) sits right under the "+61"
+   prefix for this field specifically, since .phone_country's own
+   position:relative makes it the positioning context — shift the "Phone"
+   label past the prefix so they don't overlap. */
+.lsd-contact-modal .phone_country label { left: 40px; }
 .lsd-contact-modal .cfs-error { color: #bc0505; font-size: 13px; margin-top: 3px; }
 .lsd-contact-modal .terms_text { font-size: 11px; margin-bottom: 10px; letter-spacing: -0.2px; }
 .lsd-contact-modal .terms_text a { color: #f58333; text-decoration: none; }

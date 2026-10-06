@@ -56,9 +56,24 @@ type RawPoolProduct = Record<string, any>;
 /** Adapt one raw `/pool` product into the shared Listing shape so every
  * existing renderer (ListingCard, formatPrice, getImages, etc.) keeps working
  * unchanged — only this mapping needs to know about the new field names. */
+// Some sources (e.g. blog content's product_sections) send category/make as
+// taxonomy objects ({ name, slug }) instead of the plain string most pool
+// endpoints use — extract a display string either way so callers never have
+// to care (ListingCard crashed calling .replace() on a raw object before).
+function toDisplayString(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "object") {
+    const o = value as { name?: unknown; label?: unknown; value?: unknown; slug?: unknown };
+    return String(o.name ?? o.label ?? o.value ?? o.slug ?? "");
+  }
+  return String(value);
+}
+
 export function normalizePoolProduct(raw: RawPoolProduct): Listing {
   const numToStr = (v: unknown): string | undefined =>
     v === null || v === undefined ? undefined : String(v);
+
+  const rawCategories: unknown[] = raw.category ?? raw.categories ?? [];
 
   return {
     id: raw.id,
@@ -70,12 +85,12 @@ export function normalizePoolProduct(raw: RawPoolProduct): Listing {
     suburb: raw.suburb || undefined,
     regular_price: numToStr(raw.regular_price) ?? "",
     sale_price: numToStr(raw.sale_price),
-    categories: raw.category ?? raw.categories ?? [],
+    categories: rawCategories.map(toDisplayString).filter(Boolean),
     image_format: raw.r2_thumbnails ?? raw.image_format ?? [],
     seller_type: raw.seller_type,
     kg: raw.atm != null ? String(raw.atm) : raw.kg,
     length: raw.length != null ? String(raw.length) : raw.length,
-    make: raw.make,
+    make: raw.make != null ? toDisplayString(raw.make) : undefined,
     is_premium: raw.premium ?? raw.is_premium ?? false,
     is_exclusive: raw.exclusive ?? raw.is_exclusive ?? false,
     is_featured: raw.is_featured ?? raw.featured ?? false,
