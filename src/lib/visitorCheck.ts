@@ -1,7 +1,10 @@
-/* ──────────────────────────────────────────────
+﻿/* ──────────────────────────────────────────────
    Visitor screening (MaxMind GeoIP Insights) + qualification
-   - Each visitor (cfs_vid cookie) is screened ONCE, in the background.
-   - Status: eligible | suspicious | unknown (timeouts/errors stay unknown).
+   - Each visitor (cfs_vid cookie) is screened once per SCREEN_TTL_S, in the background.
+     The result is reused across page views; a new lookup happens only when the
+     screening expires or the visitor's IP changes (cfs_scr cookie = IP fingerprint).
+   - IP screening status:  eligible | suspicious | unknown (timeouts/errors stay unknown — never passed).
+   - Remarketing eligibility (qualified) is stored separately and needs screening = eligible.
    - Nobody is blocked or redirected; results go to Vercel logs + Upstash Redis.
 ────────────────────────────────────────────── */
 
@@ -18,6 +21,7 @@ export interface VisitorRecord {
   status: VisitorStatus;
   reasons: string[];
   source: 'maxmind' | 'ip_cache' | 'ua' | 'error';
+  trigger?: string;
   country?: string;
   registeredCountry?: string;
   asnOrg?: string;
@@ -29,21 +33,34 @@ export interface VisitorRecord {
 
 type Verdict = Pick<VisitorRecord, 'status' | 'reasons' | 'country' | 'registeredCountry' | 'asnOrg' | 'userType' | 'risk' | 'anonProvider'>;
 
-export const VID_COOKIE = 'cfs_vid';
-export const VID_MAX_AGE_S = 30 * 86400;
+export const VID_COOKIE = 'cfs_vid';          // visitor ID
+export const SCREEN_COOKIE = 'cfs_scr';       // fingerprint of the IP that was screened
+export const VID_MAX_AGE_S = 30 * 86400;      // visitor ID + remarketing eligibility: 30 days
+export const SCREEN_TTL_S = 86400;            // IP screening result reused for 24h
 
 const MAXMIND_TIMEOUT_MS = 1500;
-const IP_CACHE_TTL_S = 86400;
+const IP_CACHE_TTL_S = 86400;                 // same IP across visitors: 24h
 const LOG_MAX = 5000;
+const LOG_TTL_S = 90 * 86400;                 // logs/counters expire 90 days after last write
 
 const K = {
-  visitor: (vid: string) => `vc:v:${vid}`,
-  qualified: (vid: string) => `vc:q:${vid}`,
-  ip: (ip: string) => `vc:ip:${ip}`,
+  screening: (vid: string) => `vc:screen:${vid}`,   // IP screening status (per visitor)
+  eligibility: (vid: string) => `vc:elig:${vid}`,   // remarketing eligibility (per visitor)
+  ip: (ip: string) => `vc:ip:${ip}`,                // MaxMind verdict cache (per IP)
   log: 'vc:log',
   qualifiedLog: 'vc:qualified',
   counts: 'vc:counts',
+  flagged: 'ads:flagged',
 };
+
+export const isValidVid = (v: string | undefined): v is string =>
+  !!v && /^[0-9a-f-]{36}$/i.test(v);
+
+/* Short SHA-256 fingerprint of the IP (cookie stores this, not the raw IP) */
+export async function ipFingerprint(ip: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`cfs:${ip}`));
+  return Array.from(new Uint8Array(buf).slice(0, 8), b => b.toString(16).padStart(2, '0')).join('');
+}
 
 /* Tunable thresholds (review after the log-only period) */
 const RISK_THRESHOLD = 50;
@@ -178,12 +195,17 @@ function classify(d: any): Verdict {
   };
 }
 
+
+export type ScreenTrigger = 'new_visitor' | 'ip_changed' | 'expired' | 'qualify_check';
+
 /**
- * Screen a visitor once and store the result against their visitor ID.
+ * Screen a visitor's IP and store the result against their visitor ID (for SCREEN_TTL_S).
  * Designed to run inside event.waitUntil() so it never delays the page.
  */
-export async function screenVisitor(vid: string, ip: string, path: string, ua: string, declaredBot: boolean): Promise<VisitorRecord> {
-  const base = { time: new Date().toISOString(), vid, ip, path, ua: ua.slice(0, 200) };
+export async function screenVisitor(
+  vid: string, ip: string, path: string, ua: string, declaredBot: boolean, trigger: ScreenTrigger = 'new_visitor',
+): Promise<VisitorRecord> {
+  const base = { time: new Date().toISOString(), vid, ip, path, ua: ua.slice(0, 200), trigger };
   let record: VisitorRecord;
   const cmds: (string | number)[][] = [];
 
@@ -201,15 +223,15 @@ export async function screenVisitor(vid: string, ip: string, path: string, ua: s
         record = { ...base, ...result.verdict, source: 'maxmind' };
         cmds.push(['SET', K.ip(ip), JSON.stringify(result.verdict), 'EX', IP_CACHE_TTL_S]);
       } else {
-        // Timeout / error → stays unknown for this visitor (IP not cached)
+        // Timeout / error → unknown (never passed), IP not cached
         record = { ...base, status: 'unknown', reasons: [], source: 'error', error: result.error };
       }
     }
     // Crawlers get a new ID on every request, so only real browsers are stored per visitor
-    cmds.push(['SET', K.visitor(vid), JSON.stringify(record), 'EX', VID_MAX_AGE_S]);
+    cmds.push(['SET', K.screening(vid), JSON.stringify(record), 'EX', SCREEN_TTL_S]);
   }
 
-  console.log(`[visitor-check] ${record.status.toUpperCase()} vid=${vid} ip=${ip} path=${path} src=${record.source}` +
+  console.log(`[visitor-check] ${record.status.toUpperCase()} vid=${vid} ip=${ip} path=${path} src=${record.source} trigger=${trigger}` +
     (record.reasons.length ? ` reasons=${record.reasons.join(',')}` : '') +
     (record.asnOrg ? ` asn="${record.asnOrg}"` : '') +
     (record.error ? ` error=${record.error}` : ''));
@@ -217,23 +239,33 @@ export async function screenVisitor(vid: string, ip: string, path: string, ua: s
   cmds.push(
     ['LPUSH', K.log, JSON.stringify(record)],
     ['LTRIM', K.log, 0, LOG_MAX - 1],
+    ['EXPIRE', K.log, LOG_TTL_S],
     ['HINCRBY', K.counts, record.source === 'ua' ? 'declared_bot' : record.status, 1],
+    ['EXPIRE', K.counts, LOG_TTL_S],
   );
-  if (record.status === 'suspicious' && !declaredBot) cmds.push(['LPUSH', 'ads:flagged', `${record.time}|${ip}`]);
+  if (record.status === 'suspicious' && !declaredBot) {
+    cmds.push(
+      ['LPUSH', K.flagged, `${record.time}|${ip}`],
+      ['LTRIM', K.flagged, 0, LOG_MAX - 1],
+      ['EXPIRE', K.flagged, LOG_TTL_S],
+    );
+  }
   await redis(cmds);
 
   return record;
 }
 
-export async function getVisitorRecord(vid: string): Promise<VisitorRecord | null> {
-  return parse<VisitorRecord>((await redis([['GET', K.visitor(vid)]]))?.[0]);
+/* Current IP screening result for a visitor (null once SCREEN_TTL_S has passed) */
+export async function getScreening(vid: string): Promise<VisitorRecord | null> {
+  return parse<VisitorRecord>((await redis([['GET', K.screening(vid)]]))?.[0]);
 }
 
-export async function getQualified(vid: string): Promise<{ time: string; rule: QualifyRule } | null> {
-  return parse((await redis([['GET', K.qualified(vid)]]))?.[0]);
+/* Remarketing eligibility — separate from IP screening */
+export async function getEligibility(vid: string): Promise<{ time: string; rule: QualifyRule } | null> {
+  return parse((await redis([['GET', K.eligibility(vid)]]))?.[0]);
 }
 
-export async function markQualified(record: VisitorRecord, rule: QualifyRule, s: QualifySignals): Promise<void> {
+export async function markEligible(record: VisitorRecord, rule: QualifyRule, s: QualifySignals): Promise<void> {
   const entry = {
     time: new Date().toISOString(), vid: record.vid, ip: record.ip, rule,
     listings: new Set(s.listingIds).size, filterUsed: s.filterUsed, activeSeconds: s.activeSeconds,
@@ -241,11 +273,13 @@ export async function markQualified(record: VisitorRecord, rule: QualifyRule, s:
   };
   console.log(`[visitor-check] QUALIFIED vid=${record.vid} rule=${rule}`);
   await redis([
-    ['SET', K.qualified(record.vid), JSON.stringify(entry), 'EX', VID_MAX_AGE_S],
+    ['SET', K.eligibility(record.vid), JSON.stringify(entry), 'EX', VID_MAX_AGE_S],
     ['LPUSH', K.qualifiedLog, JSON.stringify(entry)],
     ['LTRIM', K.qualifiedLog, 0, LOG_MAX - 1],
+    ['EXPIRE', K.qualifiedLog, LOG_TTL_S],
     ['HINCRBY', K.counts, 'qualified', 1],
     ['HINCRBY', K.counts, `qualified_${rule}`, 1],
+    ['EXPIRE', K.counts, LOG_TTL_S],
   ]);
 }
 

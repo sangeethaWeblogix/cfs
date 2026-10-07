@@ -1,23 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  VID_COOKIE, getClientIp, getQualified, getVisitorRecord, isPrivateIp, isScreeningDisabled,
-  markQualified, screenVisitor,
+  VID_COOKIE, SCREEN_COOKIE, VID_MAX_AGE_S, SCREEN_TTL_S,
+  getClientIp, getEligibility, getScreening, ipFingerprint, isPrivateIp, isScreeningDisabled, isValidVid,
+  markEligible, screenVisitor, type ScreenTrigger,
 } from "@/lib/visitorCheck";
 import { matchQualifyRule, type QualifySignals } from "@/utils/qualifyRules";
 
 export const dynamic = "force-dynamic";
 
-const json = (body: unknown, status = 200) =>
-  NextResponse.json(body, { status, headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow" } });
+const json = (body: unknown) =>
+  NextResponse.json(body, { headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow" } });
 
 /* POST /api/visitor-qualify/  { listingIds: string[], filterUsed: boolean, activeSeconds: number }
-   A visitor qualifies when their IP screening is "eligible" AND the engagement signals
-   meet one rule (see matchQualifyRule). Called by <VisitorQualifier /> once a rule is met. */
+   Remarketing eligibility = IP screening "eligible" (for the visitor's CURRENT IP)
+   AND one engagement rule met (see matchQualifyRule). Called by <VisitorQualifier />. */
 export async function POST(request: NextRequest) {
   if (isScreeningDisabled()) return json({ qualified: false, status: "disabled" });
-
-  const vid = request.cookies.get(VID_COOKIE)?.value;
-  if (!vid) return json({ qualified: false, status: "no_visitor" });
 
   let body: any = {};
   try { body = await request.json(); } catch {}
@@ -27,22 +25,40 @@ export async function POST(request: NextRequest) {
     activeSeconds: Math.max(0, Math.min(Number(body?.activeSeconds) || 0, 86400)),
   };
 
-  const already = await getQualified(vid);
+  const rule = matchQualifyRule(signals);
+  if (!rule) return json({ qualified: false, reason: "rules_not_met" });
+
+  const cookieVid = request.cookies.get(VID_COOKIE)?.value;
+  const vid = isValidVid(cookieVid) ? cookieVid : crypto.randomUUID();
+
+  const already = isValidVid(cookieVid) ? await getEligibility(vid) : null;
   if (already) return json({ qualified: true, rule: already.rule, already: true });
 
-  let record = await getVisitorRecord(vid);
-  if (!record) {
-    // Screening not stored yet (e.g. cookie set but Redis write failed) — screen once now
-    const ip = getClientIp(request.headers);
-    if (!ip || isPrivateIp(ip)) return json({ qualified: false, status: "unknown" });
-    record = await screenVisitor(vid, ip, "/api/visitor-qualify/", request.headers.get("user-agent") || "", false);
+  const ip = getClientIp(request.headers);
+  if (!ip || isPrivateIp(ip)) return json({ qualified: false, status: "unknown" });
+
+  // Screen before firing eligibility if there is no current screening for this IP
+  // (e.g. visitor only browsed blog pages, screening expired, or IP changed)
+  let record = isValidVid(cookieVid) ? await getScreening(vid) : null;
+  let screenedNow = false;
+  if (!record || record.ip !== ip) {
+    const trigger: ScreenTrigger = !isValidVid(cookieVid) ? "new_visitor" : record ? "ip_changed" : "qualify_check";
+    record = await screenVisitor(vid, ip, "/api/visitor-qualify/", request.headers.get("user-agent") || "", false, trigger);
+    screenedNow = true;
   }
 
-  if (record.status !== "eligible") return json({ qualified: false, status: record.status });
+  let res: NextResponse;
+  if (record.status !== "eligible") {
+    res = json({ qualified: false, status: record.status });   // suspicious or unknown — never passed
+  } else {
+    await markEligible(record, rule, signals);
+    res = json({ qualified: true, rule });
+  }
 
-  const rule = matchQualifyRule(signals);
-  if (!rule) return json({ qualified: false, status: "eligible", reason: "rules_not_met" });
-
-  await markQualified(record, rule, signals);
-  return json({ qualified: true, rule });
+  if (screenedNow) {
+    const cookieOpts = { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/" };
+    if (vid !== cookieVid) res.cookies.set(VID_COOKIE, vid, { ...cookieOpts, maxAge: VID_MAX_AGE_S });
+    res.cookies.set(SCREEN_COOKIE, await ipFingerprint(ip), { ...cookieOpts, maxAge: SCREEN_TTL_S });
+  }
+  return res;
 }

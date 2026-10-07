@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useEnquiryForm } from "@/app/components/ListContent/enquiryform";
 import CaravanDetailModal from "@/app/product/[slug]/CaravanDetailModal";
 import "./demo.css";
+import { trackListingView } from "@/utils/engagement";
 
 // WP blog titles come HTML-entity-encoded (e.g. "&#038;" for "&") — decode
 // before rendering as plain text, or entities show up literally on screen.
@@ -485,6 +486,12 @@ const priceUpperIdx = !isPOA ? PRICE_STEPS.findIndex(s => s >= displayPrice) : -
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.slug]);
+
+  // Visitor qualification — count distinct caravans by permanent listing ID (slug only as fallback)
+  useEffect(() => {
+    const listingId = product.id ?? (product.slug ? `slug:${product.slug}` : null);
+    if (listingId != null && listingId !== "") trackListingView(listingId);
+  }, [product.id, product.slug]);
 
   const [descOpen, setDescOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);

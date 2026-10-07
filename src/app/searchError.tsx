@@ -164,7 +164,8 @@ export default function SearchSection() {
   //   };
   // ------------- navigate helper (two routes) -------------
   const navigateWithKeyword = (s: Item) => {
-    const human = s.label?.trim();
+    // Suggestions carry `label`; typed searches (Enter / search button) carry `name`
+    const human = (s.label ?? s.name)?.trim();
     if (!human) return;
     trackEngagement("search");
 
@@ -183,6 +184,11 @@ export default function SearchSection() {
 
       router.push(`/listings/${slug}-search`, { scroll: true });
     }
+  };
+
+  const submitTypedQuery = () => {
+    const kw = query.trim();
+    if (kw) navigateWithKeyword({ name: kw });
   };
 
   const handleKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
@@ -214,7 +220,15 @@ export default function SearchSection() {
               {/* search box */}
               <div className="search-container">
                 <div className="search-wrap">
-                  <i className="bi bi-search search-icon" />
+                  <i
+                    className="bi bi-search search-icon"
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Search"
+                    style={{ cursor: "pointer", zIndex: 1 }}
+                    onClick={submitTypedQuery}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); submitTypedQuery(); } }}
+                  />
                   <input
                     ref={searchInputRef}
                     type="text"

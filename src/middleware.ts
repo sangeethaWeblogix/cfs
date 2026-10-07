@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
-import { screenVisitor, getClientIp, isPrivateIp, isScreeningDisabled, VID_COOKIE, VID_MAX_AGE_S } from "@/lib/visitorCheck";
+import {
+  screenVisitor, getClientIp, isPrivateIp, isScreeningDisabled, isValidVid, ipFingerprint,
+  VID_COOKIE, VID_MAX_AGE_S, SCREEN_COOKIE, SCREEN_TTL_S,
+} from "@/lib/visitorCheck";
 import { parseSlugToFilters, type Filters } from "@/app/components/urlBuilder";
 import { buildSlugFromFilters } from "@/app/components/slugBuilter";
 import { isAllowedSingleBand } from "@/utils/seo/band-utils";
@@ -181,8 +184,10 @@ async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest)
 
 /* ──────────────────────────────────────────────
    Visitor screening (MaxMind) — LOG-ONLY, never blocks or redirects.
-   Each visitor is screened once: on their first home / listings / product page
-   view they get a cfs_vid cookie and the lookup runs in waitUntil (no delay).
+   Screened pages: home / listings / caravan detail. A visitor is screened on their
+   first view (cfs_vid cookie) and the result is reused for 24h across page views.
+   It is re-screened only when that expires or their IP changes (cfs_scr cookie).
+   The lookup runs in waitUntil, so it never delays the page.
    Set env VISITOR_CHECK_DISABLED=1 (and redeploy) to switch it off.
 ────────────────────────────────────────────── */
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
@@ -199,7 +204,6 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     isScreenedPage &&
     response.status < 300 &&                       // skip redirects / 410s — the real page view gets screened
     request.method === 'GET' &&
-    !request.cookies.get(VID_COOKIE) &&
     !request.headers.get('x-skip-middleware') &&
     !request.headers.get('x-internal-render') &&
     !request.headers.get('next-router-prefetch') &&
@@ -208,13 +212,26 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     const ip = getClientIp(request.headers);
     if (ip && !isPrivateIp(ip)) {
       const userAgent = request.headers.get('user-agent') || '';
-      const declaredBot = isBot(userAgent);
-      const vid = crypto.randomUUID();
-      event.waitUntil(screenVisitor(vid, ip, pathname + request.nextUrl.search, userAgent, declaredBot).catch(() => {}));
-      if (!declaredBot) {
-        response.cookies.set(VID_COOKIE, vid, {
-          httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: VID_MAX_AGE_S,
-        });
+      const path = pathname + request.nextUrl.search;
+
+      if (isBot(userAgent)) {
+        // Declared crawler — logged, no MaxMind call, no cookies
+        event.waitUntil(screenVisitor(crypto.randomUUID(), ip, path, userAgent, true).catch(() => {}));
+      } else {
+        // Reuse the screening while cfs_scr (24h) matches the current IP; otherwise screen again
+        const existingVid = request.cookies.get(VID_COOKIE)?.value;
+        const fp = await ipFingerprint(ip);
+        const screenedFp = request.cookies.get(SCREEN_COOKIE)?.value;
+
+        if (!isValidVid(existingVid) || screenedFp !== fp) {
+          const vid = isValidVid(existingVid) ? existingVid : crypto.randomUUID();
+          const trigger = !isValidVid(existingVid) ? 'new_visitor' : screenedFp ? 'ip_changed' : 'expired';
+          event.waitUntil(screenVisitor(vid, ip, path, userAgent, false, trigger).catch(() => {}));
+
+          const cookieOpts = { httpOnly: true, secure: true, sameSite: 'lax' as const, path: '/' };
+          if (vid !== existingVid) response.cookies.set(VID_COOKIE, vid, { ...cookieOpts, maxAge: VID_MAX_AGE_S });
+          response.cookies.set(SCREEN_COOKIE, fp, { ...cookieOpts, maxAge: SCREEN_TTL_S });
+        }
       }
     }
   }
