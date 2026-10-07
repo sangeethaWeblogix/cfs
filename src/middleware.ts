@@ -204,8 +204,10 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
 
   /* 🕵️ Visitor check (MaxMind) — home + listings only, LOG-ONLY.
      Runs in waitUntil so it never delays the response. Only full page loads are
-     checked (client-side RSC navigations / prefetches are the same visitor). */
+     checked (client-side RSC navigations / prefetches are the same visitor).
+     Set env VISITOR_CHECK_DISABLED=1 (and redeploy) to switch it off. */
   if (
+    process.env.VISITOR_CHECK_DISABLED !== '1' &&
     (url.pathname === '/' || isListingsPath) &&
     request.method === 'GET' &&
     !request.headers.get('rsc') &&
