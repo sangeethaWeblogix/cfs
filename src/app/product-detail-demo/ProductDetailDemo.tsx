@@ -463,7 +463,7 @@ const priceUpperIdx = !isPOA ? PRICE_STEPS.findIndex(s => s >= displayPrice) : -
   const relatedSearches: { label: string; href: string }[] = [
     make ? { label: make, href: `/listings/${slugify(makeLabel)}/` } : null,
     state ? { label: `Caravans for Sale in ${state}`, href: `/listings/${slugify(state)}-state/` } : null,
-    locationCity ? { label: `Caravans for Sale in ${locationCity}`, href: `/listings/${slugify(state)}-state/${slugify(locationCity)}-region/` } : null,
+    locationCity ? { label: `Caravans for Sale in ${locationCity.replace(/\b\w/g, c => c.toUpperCase())}`, href: `/listings/${slugify(state)}-state/${slugify(locationCity)}-region/` } : null,
     shortCategory ? { label: `${shortCategory} Caravans for Sale`, href: `/listings/${slugify(shortCategory)}-category/` } : null,
     priceHi ? { label: `Caravans Under $${priceHi.toLocaleString("en-AU")}`, href: `/listings/under-${priceHi}/` } : null,
     (priceHi && priceLo) ? { label: `Caravans Between $${priceLo.toLocaleString("en-AU")} to $${priceHi.toLocaleString("en-AU")}`, href: `/listings/between-${priceLo}-${priceHi}/` } : null,
