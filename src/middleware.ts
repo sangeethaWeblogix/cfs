@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
-import { checkVisitor, getClientIp, isPrivateIp } from "@/lib/visitorCheck";
+import { screenVisitor, getClientIp, isPrivateIp, isScreeningDisabled, VID_COOKIE, VID_MAX_AGE_S } from "@/lib/visitorCheck";
 import { parseSlugToFilters, type Filters } from "@/app/components/urlBuilder";
 import { buildSlugFromFilters } from "@/app/components/slugBuilter";
 import { isAllowedSingleBand } from "@/utils/seo/band-utils";
@@ -179,7 +179,50 @@ async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest)
   } catch {}
 }
 
+/* ──────────────────────────────────────────────
+   Visitor screening (MaxMind) — LOG-ONLY, never blocks or redirects.
+   Each visitor is screened once: on their first home / listings / product page
+   view they get a cfs_vid cookie and the lookup runs in waitUntil (no delay).
+   Set env VISITOR_CHECK_DISABLED=1 (and redeploy) to switch it off.
+────────────────────────────────────────────── */
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
+  const response = await handleRequest(request);
+
+  const { pathname } = request.nextUrl;
+  const isScreenedPage =
+    pathname === '/' ||
+    pathname === '/listings' || pathname.startsWith('/listings/') ||
+    pathname.startsWith('/product/');
+
+  if (
+    !isScreeningDisabled() &&
+    isScreenedPage &&
+    response.status < 300 &&                       // skip redirects / 410s — the real page view gets screened
+    request.method === 'GET' &&
+    !request.cookies.get(VID_COOKIE) &&
+    !request.headers.get('x-skip-middleware') &&
+    !request.headers.get('x-internal-render') &&
+    !request.headers.get('next-router-prefetch') &&
+    request.headers.get('purpose') !== 'prefetch'
+  ) {
+    const ip = getClientIp(request.headers);
+    if (ip && !isPrivateIp(ip)) {
+      const userAgent = request.headers.get('user-agent') || '';
+      const declaredBot = isBot(userAgent);
+      const vid = crypto.randomUUID();
+      event.waitUntil(screenVisitor(vid, ip, pathname + request.nextUrl.search, userAgent, declaredBot).catch(() => {}));
+      if (!declaredBot) {
+        response.cookies.set(VID_COOKIE, vid, {
+          httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: VID_MAX_AGE_S,
+        });
+      }
+    }
+  }
+
+  return response;
+}
+
+async function handleRequest(request: NextRequest): Promise<NextResponse> {
   const url = request.nextUrl.clone();
   const fullPath = url.pathname + url.search;
   const userAgent = request.headers.get('user-agent') || '';
@@ -200,24 +243,6 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     const bypassHeaders = new Headers(request.headers);
     bypassHeaders.set('x-pathname', url.pathname);
     return NextResponse.next({ request: { headers: bypassHeaders } });
-  }
-
-  /* 🕵️ Visitor check (MaxMind) — home + listings only, LOG-ONLY.
-     Runs in waitUntil so it never delays the response. Only full page loads are
-     checked (client-side RSC navigations / prefetches are the same visitor).
-     Set env VISITOR_CHECK_DISABLED=1 (and redeploy) to switch it off. */
-  if (
-    process.env.VISITOR_CHECK_DISABLED !== '1' &&
-    (url.pathname === '/' || isListingsPath) &&
-    request.method === 'GET' &&
-    !request.headers.get('rsc') &&
-    !request.headers.get('next-router-prefetch') &&
-    request.headers.get('purpose') !== 'prefetch'
-  ) {
-    const ip = getClientIp(request.headers);
-    if (ip && !isPrivateIp(ip)) {
-      event.waitUntil(checkVisitor(ip, fullPath, userAgent, isBot(userAgent)).catch(() => {}));
-    }
   }
 
   // Forward pathname to server components (for per-slug metadata injection in root layout)

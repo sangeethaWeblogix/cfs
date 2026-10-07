@@ -4,6 +4,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { flushSync } from "react-dom";
+import { trackEngagement } from "@/utils/engagement";
 import {
   fetchHomeSearchList, // GET /home_search (base list)
   fetchKeywordSuggestions, // GET /home_search/?keyword=<q> (typed list)
@@ -165,6 +166,7 @@ export default function SearchSection() {
   const navigateWithKeyword = (s: Item) => {
     const human = s.label?.trim();
     if (!human) return;
+    trackEngagement("search");
 
     flushSync(() => setQuery(human));
     setIsSuggestionBoxOpen(false);

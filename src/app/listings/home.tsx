@@ -12,6 +12,7 @@ import type { BrowseSectionData } from "./browseSectionShared";
 import StateContent from "./StateContent";
 import { buildApiUrl, buildListingsSlug, buildFilterBreadcrumbs, buildExploreTravelTarget, parseDemoFilters } from "./urlUtils";
 import { bucketPoolResponse, bucketPoolResponseCombined } from "./listingShared";
+import { trackEngagement } from "@/utils/engagement";
 // import { useBanners } from "@/components/BannerHandler";
 // import { useBannerTracking } from "@/hooks/useBannerTracking";
 import "./main.css?=7";
@@ -590,6 +591,7 @@ export default function StateHome({
   const handleFilterChange = (f: FilterState) => {
     setFilters(f); setPage(1); setMaxPages(1); setClickid(null);
     pushFiltersToUrl(f);
+    trackEngagement(f.keyword ? "search" : "filter");
   };
   const handleClearAll = () => {
     setFilters({}); setPage(1); setMaxPages(1); setClickid(null);

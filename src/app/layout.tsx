@@ -15,6 +15,7 @@
   import UTMTracker from "./UTMTracker";
   // import NextTopLoader from "nextjs-toploader";
 import NavigationHistory from "@/components/NavigationHistory";
+import VisitorQualifier from "@/components/VisitorQualifier";
 import { BannerProvider } from "@/components/BannerHandler";
 import GlobalErrorTracker from "@/components/GlobalErrorTracker";
 import { headers } from "next/headers";
@@ -969,6 +970,9 @@ const RESERVED_TOP_LEVEL_SLUGS = new Set([
 </Suspense>
 <Suspense fallback={null}>
   <NavigationHistory />
+</Suspense>
+<Suspense fallback={null}>
+  <VisitorQualifier />
 </Suspense>
 <Suspense fallback={<NavbarSkeleton />}>
   <Navbar />
