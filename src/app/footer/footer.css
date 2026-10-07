@@ -269,8 +269,8 @@ footer.style-8 .content .logo-social .socials a:hover {
 
 /* ── Panel container ─────────────────────────────────── */
 .sell-panel {
-  background: #262626;
-  border-top: 1px solid #333;
+  background: #f8f9fa;
+  border-top: 1px solid #e8e8e8;
   border-radius: 8px;
   padding: 24px 20px 20px;
   margin-top: 12px;
@@ -288,10 +288,10 @@ footer.style-8 .content .logo-social .socials a:hover {
   justify-content: space-between;
   margin-bottom: 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #e8e8e8;
 }
 .sell-panel__main-link {
-  color: #ffffff !important;
+  color: #000000 !important;
   font-size: 15px;
   font-weight: 600;
   text-decoration: none;
@@ -305,7 +305,7 @@ footer.style-8 .content .logo-social .socials a:hover {
 }
 .sell-panel__close {
   background: none;
-  border: 1px solid #444;
+  border: 1px solid #ccc;
   border-radius: 50%;
   width: 26px;
   height: 26px;
@@ -313,14 +313,14 @@ footer.style-8 .content .logo-social .socials a:hover {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #a3a3a3;
+  color: #666;
   padding: 0;
   transition: border-color 0.2s, color 0.2s;
   flex-shrink: 0;
 }
 .sell-panel__close:hover {
-  border-color: #fff;
-  color: #fff;
+  border-color: #000;
+  color: #000;
 }
 
 /* ── State/region grid ───────────────────────────────── */
@@ -346,7 +346,7 @@ footer.style-8 .content .logo-social .socials a:hover {
 }
 .sell-panel__state-title {
   display: block;
-  color: #ffffff !important;
+  color: #000000 !important;
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
@@ -371,13 +371,274 @@ footer.style-8 .content .logo-social .socials a:hover {
   gap: 5px;
 }
 .sell-panel__region-list li a {
-  color: #a3a3a3;
-  font-size: 13px;
+  color: #1c1c1c;
+  font-size: 14px;
   text-decoration: none;
   transition: color 0.2s;
   display: block;
-  line-height: 1.4;
+  line-height: 1.6;
 }
 .sell-panel__region-list li a:hover {
   color: #ec7200;
+}
+
+/* ══════════════════════════════════════════════════════
+   New footer layout (replaces the old single-row nav bar)
+   ══════════════════════════════════════════════════════ */
+
+.cfs-footer {
+    z-index: 1;
+    background: #f1f1f1;
+    margin-top: 8px;
+    position: relative;
+    padding-top: 56px;
+}
+
+/* ── Brand row ── */
+.cfs-footer__brand-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 36px 0 28px;
+  border-bottom: 1px solid #e8e8e8;
+  margin-bottom: 36px;
+}
+.cfs-footer__logo {
+  display: flex;
+  align-items: center;
+}
+.cfs-footer__logo img {
+  height: 38px;
+  width: auto;
+}
+.cfs-footer__accent { color: #ec7200; }
+.cfs-footer__brand-divider {
+  width: 1px;
+  height: 36px;
+  background: #ddd;
+  flex-shrink: 0;
+}
+.cfs-footer__tagline {
+  color: #1c1c1c;
+  font-size: 15px;
+  margin: 0;
+}
+@media (max-width: 575px) {
+  .cfs-footer__brand-divider { display: none; }
+}
+
+/* ── Link columns ── */
+.cfs-footer__columns {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 28px;
+  padding-bottom: 8px;
+}
+.cfs-footer__col-title {
+  position: relative;
+  color: #000000;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 18px;
+  padding-bottom: 11px;
+}
+.cfs-footer__col-title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 28px;
+  height: 2px;
+  background: #ec7200;
+}
+.cfs-footer__col-title--sub { margin-top: 26px; }
+.cfs-footer__col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.cfs-footer__col ul a {
+  color: #1c1c1c;
+  font-size: 15px;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.cfs-footer__col ul a:hover { color: #000000; }
+.cfs-footer__link--accent { color: #ec7200 !important; font-weight: 600; }
+.cfs-footer__link--accent:hover { color: #c75f00 !important; }
+
+.cfs-footer__view-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 2px;
+  color: #ec7200;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.cfs-footer__view-all:hover { color: #c75f00; }
+
+@media (max-width: 991px) {
+  .cfs-footer__columns { grid-template-columns: repeat(3, 1fr); row-gap: 32px; }
+}
+@media (max-width: 767px) {
+  .cfs-footer__columns { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .cfs-footer__columns { grid-template-columns: 1fr; }
+}
+
+.cfs-footer__hr {
+  border: none;
+  border-top: 1px solid #e8e8e8;
+  margin: 32px 0;
+}
+
+/* ── Marketplace network cards ── */
+.cfs-footer__network-title {
+  position: relative;
+  color: #000000;
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0 0 18px;
+  padding-bottom: 11px;
+}
+.cfs-footer__network-title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 28px;
+  height: 2px;
+  background: #ec7200;
+}
+.cfs-footer__network-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.cfs-footer__network-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 22px 18px;
+  text-decoration: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+.cfs-footer__network-card:hover {
+  border-color: #ec7200;
+  background: #fff6ee;
+}
+.cfs-footer__network-card--current {
+  cursor: default;
+}
+.cfs-footer__network-card--current:hover {
+  border-color: #e8e8e8;
+  background: #f8f9fa;
+}
+.cfs-footer__network-logo {
+  height: 28px;
+  width: auto;
+}
+
+@media (max-width: 767px) {
+  .cfs-footer__network-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 420px) {
+  .cfs-footer__network-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Sell My Caravan by Location bar ── */
+.footer-sell-by-location { margin-bottom: 28px; }
+.footer-sell-by-location__bar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #f8f9fa;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 12px 20px;
+  cursor: pointer;
+  color: #ec7200;
+  font-family: inherit;
+  text-align: left;
+  transition: border-color 0.2s;
+}
+.footer-sell-by-location__bar:hover { border-color: #ec7200; }
+.footer-sell-by-location__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.footer-sell-by-location__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000000;
+}
+.footer-sell-by-location__sub {
+  font-size: 15px;
+  font-weight: 400;
+  color: #1c1c1c;
+}
+.footer-sell-by-location .sell-chevron--open { transform: rotate(45deg); }
+.footer-sell-by-location .sell-panel { margin-top: 14px; }
+
+/* ── Bottom bar ── */
+.cfs-footer__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding: 24px 0 28px;
+  border-top: 1px solid #e8e8e8;
+  margin-top: 8px;
+}
+.cfs-footer__legal {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0;
+  padding: 0;
+}
+.cfs-footer__legal li { position: relative; }
+.cfs-footer__legal li + li::before {
+  content: "";
+  position: absolute;
+  left: -11px;
+  top: 35%;
+  width: 1px;
+  height: 12px;
+  background: #ccc;
+}
+.cfs-footer__legal li a {
+  color: #1c1c1c;
+  font-size: 14px;
+  text-decoration: none;
+}
+.cfs-footer__legal li a:hover { color: #000000; }
+.cfs-footer__copyright {
+  color: #1c1c1c;
+  font-size: 14px;
+  margin: 0;
+}
+@media (max-width: 575px) {
+  .cfs-footer__bottom { flex-direction: column; align-items: flex-start; }
 }

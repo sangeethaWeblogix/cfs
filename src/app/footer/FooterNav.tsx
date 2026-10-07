@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const SELL_DATA = [
   {
@@ -88,114 +88,58 @@ const SELL_DATA = [
   },
 ];
 
+/** "Sell My Caravan by Location" accordion bar — a full-width trigger that
+ * expands into the state/region grid below it. Lives at the bottom of the
+ * new footer, between the marketplace-network cards and the legal bar. */
 export default function FooterNav() {
   const [open, setOpen] = useState(false);
 
-  return (
-    <div>
-      {/* Nav row — panel is NOT inside this ul so it never breaks the flex row */}
-      <ul className="footer_menu footer_xs">
-        <li>
-          <a href="/listings/">For Sale</a>
-        </li>
-        <li>
-          <button
-            className="sell-footer-btn"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-controls="sell-links-panel"
-          >
-            Sell
-            <svg
-              className={`sell-chevron${open ? " sell-chevron--open" : ""}`}
-              xmlns="http://www.w3.org/2000/svg"
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-        </li>
-        <li>
-          <a href="/blog/">Blog</a>
-        </li>
-        <li>
-          <a href="/terms-conditions/" rel="nofollow">Terms &amp; Conditions</a>
-        </li>
-        <li>
-          <a href="/privacy-policy/" rel="nofollow">Privacy Policy</a>
-        </li>
-        <li>
-          <a href="/privacy-collection-statement/" rel="nofollow">
-            Privacy Collection Statement
-          </a>
-        </li>
-        <li>
-          <a href="/buyer-safety-guide/" rel="nofollow">Buy Safely</a>
-        </li>
-        <li>
-          <a href="/cookie-policy/" rel="nofollow">Cookie Policy</a>
-        </li>
-        <li>
-          <a href="/about-us/">About</a>
-        </li>
-        <li>
-          <a href="/contact/">Contact Us</a>
-        </li>
-      </ul>
+  // Direct deep-link (e.g. /#footer-sell-by-location from another page) —
+  // open on initial load if the hash is already there.
+  useEffect(() => {
+    if (window.location.hash === "#footer-sell-by-location") setOpen(true);
+  }, []);
 
-      {/* Panel sits outside the <ul> — opens below the nav row without pushing any links */}
+  // "Sell by Location" (SellByLocationLink.tsx) dispatches this on every
+  // click, including repeat clicks after the panel's been closed — a plain
+  // hash link wouldn't fire "hashchange" again once the hash already matches.
+  useEffect(() => {
+    const openPanel = () => setOpen(true);
+    window.addEventListener("open-sell-by-location", openPanel);
+    return () => window.removeEventListener("open-sell-by-location", openPanel);
+  }, []);
+
+  return (
+    <div className="footer-sell-by-location">
+      <button
+        className="footer-sell-by-location__bar"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls="sell-links-panel"
+      >
+        <span className="footer-sell-by-location__text">
+          <span className="footer-sell-by-location__title">Sell My Caravan by Location</span>
+          <span className="footer-sell-by-location__sub">Browse selling pages by state, city and region</span>
+        </span>
+        <svg
+          className={`sell-chevron${open ? " sell-chevron--open" : ""}`}
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+
       {open && (
         <div className="sell-panel" id="sell-links-panel">
-          {/* Header */}
-          <div className="sell-panel__header">
-            <a href="/sell-my-caravan/" className="sell-panel__main-link">
-              Sell My Caravan
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ marginLeft: 5, verticalAlign: "middle" }}
-              >
-                <line x1="7" y1="17" x2="17" y2="7" />
-                <polyline points="7 7 17 7 17 17" />
-              </svg>
-            </a>
-            <button
-              className="sell-panel__close"
-              onClick={() => setOpen(false)}
-              aria-label="Close sell links"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-
-          {/* State + region grid */}
           <div className="sell-panel__grid">
             {SELL_DATA.map((s) => (
               <div key={s.stateSlug} className="sell-panel__col">
