@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
 import {
-  screenVisitor, getClientIp, isPrivateIp, isScreeningDisabled, isValidVid, ipFingerprint,
+  screenVisitor, getClientIp, isPrivateIp, isScreeningDisabled, isValidVid, ipFingerprint, isDeclaredCrawler, getRequestCountry,
   VID_COOKIE, VID_MAX_AGE_S, SCREEN_COOKIE, SCREEN_TTL_S,
 } from "@/lib/visitorCheck";
 import { parseSlugToFilters, type Filters } from "@/app/components/urlBuilder";
@@ -214,7 +214,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       const userAgent = request.headers.get('user-agent') || '';
       const path = pathname + request.nextUrl.search;
 
-      if (isBot(userAgent)) {
+      if (isBot(userAgent) || isDeclaredCrawler(userAgent, request.headers)) {
         // Declared crawler — logged, no MaxMind call, no cookies
         event.waitUntil(screenVisitor(crypto.randomUUID(), ip, path, userAgent, true).catch(() => {}));
       } else {
@@ -226,7 +226,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
         if (!isValidVid(existingVid) || screenedFp !== fp) {
           const vid = isValidVid(existingVid) ? existingVid : crypto.randomUUID();
           const trigger = !isValidVid(existingVid) ? 'new_visitor' : screenedFp ? 'ip_changed' : 'expired';
-          event.waitUntil(screenVisitor(vid, ip, path, userAgent, false, trigger).catch(() => {}));
+          event.waitUntil(screenVisitor(vid, ip, path, userAgent, false, trigger, getRequestCountry(request.headers)).catch(() => {}));
 
           const cookieOpts = { httpOnly: true, secure: true, sameSite: 'lax' as const, path: '/' };
           if (vid !== existingVid) response.cookies.set(VID_COOKIE, vid, { ...cookieOpts, maxAge: VID_MAX_AGE_S });

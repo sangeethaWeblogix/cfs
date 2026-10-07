@@ -20,7 +20,7 @@ export interface VisitorRecord {
   ua: string;
   status: VisitorStatus;
   reasons: string[];
-  source: 'maxmind' | 'ip_cache' | 'ua' | 'error';
+  source: 'maxmind' | 'ip_cache' | 'ua' | 'geo' | 'error';
   trigger?: string;
   country?: string;
   registeredCountry?: string;
@@ -52,6 +52,24 @@ const K = {
   counts: 'vc:counts',
   flagged: 'ads:flagged',
 };
+
+/* Crawlers that don't say "bot" in their user agent (Google-InspectionTool, GoogleOther,
+   Google-Read-Aloud, Lighthouse, headless browsers…) plus Cloudflare's verified-bot flag
+   (forwarded by a Cloudflare Request Header Transform Rule: X-Verified-Bot = to_string(cf.client.bot);
+   Cloudflare doesn't allow setting headers that start with x-cf-).
+   These skip the paid MaxMind lookup. */
+const EXTRA_CRAWLER_UA = /support\.google\.com\/webmasters|google-|googleother|chrome-lighthouse|headlesschrome|pagespeed|gtmetrix|crawl|scrapy|python-requests|curl\/|wget\//i;
+
+export function isDeclaredCrawler(ua: string, headers: Headers): boolean {
+  return EXTRA_CRAWLER_UA.test(ua) || headers.get('x-verified-bot') === 'true';
+}
+
+/* Visitor country from free edge geolocation (Cloudflare first, then Vercel).
+   Returns undefined when unknown ("XX") so the visitor still gets a MaxMind check. */
+export function getRequestCountry(headers: Headers): string | undefined {
+  const c = (headers.get('cf-ipcountry') || headers.get('x-vercel-ip-country') || '').trim().toUpperCase();
+  return c && c !== 'XX' ? c : undefined;
+}
 
 export const isValidVid = (v: string | undefined): v is string =>
   !!v && /^[0-9a-f-]{36}$/i.test(v);
@@ -204,6 +222,7 @@ export type ScreenTrigger = 'new_visitor' | 'ip_changed' | 'expired' | 'qualify_
  */
 export async function screenVisitor(
   vid: string, ip: string, path: string, ua: string, declaredBot: boolean, trigger: ScreenTrigger = 'new_visitor',
+  geoCountry?: string,
 ): Promise<VisitorRecord> {
   const base = { time: new Date().toISOString(), vid, ip, path, ua: ua.slice(0, 200), trigger };
   let record: VisitorRecord;
@@ -212,6 +231,10 @@ export async function screenVisitor(
   if (declaredBot) {
     // Self-identified crawlers (Googlebot etc.) — no paid lookup needed
     record = { ...base, status: 'suspicious', reasons: ['bot_user_agent'], source: 'ua' };
+  } else if (geoCountry && geoCountry !== 'AU') {
+    // Outside Australia (e.g. whitelisted IPs) — never eligible, so skip the paid lookup. Not blocked.
+    record = { ...base, status: 'suspicious', reasons: ['non_au'], source: 'geo', country: geoCountry };
+    cmds.push(['SET', K.screening(vid), JSON.stringify(record), 'EX', SCREEN_TTL_S]);
   } else {
     // Same IP already looked up in the last 24h (another visitor / cleared cookies) → reuse, no extra cost
     const cached = parse<Verdict>((await redis([['GET', K.ip(ip)]]))?.[0]);
@@ -240,10 +263,10 @@ export async function screenVisitor(
     ['LPUSH', K.log, JSON.stringify(record)],
     ['LTRIM', K.log, 0, LOG_MAX - 1],
     ['EXPIRE', K.log, LOG_TTL_S],
-    ['HINCRBY', K.counts, record.source === 'ua' ? 'declared_bot' : record.status, 1],
+    ['HINCRBY', K.counts, record.source === 'ua' ? 'declared_bot' : record.source === 'geo' ? 'non_au' : record.status, 1],
     ['EXPIRE', K.counts, LOG_TTL_S],
   );
-  if (record.status === 'suspicious' && !declaredBot) {
+  if (record.status === 'suspicious' && record.source !== 'ua' && record.source !== 'geo') {
     cmds.push(
       ['LPUSH', K.flagged, `${record.time}|${ip}`],
       ['LTRIM', K.flagged, 0, LOG_MAX - 1],
