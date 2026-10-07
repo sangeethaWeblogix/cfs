@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
+import { checkVisitor, getClientIp, isPrivateIp } from "@/lib/visitorCheck";
 import { parseSlugToFilters, type Filters } from "@/app/components/urlBuilder";
 import { buildSlugFromFilters } from "@/app/components/slugBuilter";
 import { isAllowedSingleBand } from "@/utils/seo/band-utils";
@@ -178,7 +179,7 @@ async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest)
   } catch {}
 }
 
-export async function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const url = request.nextUrl.clone();
   const fullPath = url.pathname + url.search;
   const userAgent = request.headers.get('user-agent') || '';
@@ -199,6 +200,22 @@ export async function middleware(request: NextRequest) {
     const bypassHeaders = new Headers(request.headers);
     bypassHeaders.set('x-pathname', url.pathname);
     return NextResponse.next({ request: { headers: bypassHeaders } });
+  }
+
+  /* 🕵️ Visitor check (MaxMind) — home + listings only, LOG-ONLY.
+     Runs in waitUntil so it never delays the response. Only full page loads are
+     checked (client-side RSC navigations / prefetches are the same visitor). */
+  if (
+    (url.pathname === '/' || isListingsPath) &&
+    request.method === 'GET' &&
+    !request.headers.get('rsc') &&
+    !request.headers.get('next-router-prefetch') &&
+    request.headers.get('purpose') !== 'prefetch'
+  ) {
+    const ip = getClientIp(request.headers);
+    if (ip && !isPrivateIp(ip)) {
+      event.waitUntil(checkVisitor(ip, fullPath, userAgent, isBot(userAgent)).catch(() => {}));
+    }
   }
 
   // Forward pathname to server components (for per-slug metadata injection in root layout)
