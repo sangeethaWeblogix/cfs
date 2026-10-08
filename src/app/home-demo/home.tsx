@@ -95,6 +95,7 @@ const handleBannerClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) =
     device_type: window.innerWidth < 768 ? "mobile" : "desktop",
     user_agent: navigator.userAgent,
     ip_address: visitorIp,
+    site: "cfs",
   });
   const trackUrl = `${process.env.NEXT_PUBLIC_CF7_BASE || "https://admin.marketplacenetwork.com.au"}/wp-json/ads-manager/v1/banners/track`;
   fetch(trackUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true })

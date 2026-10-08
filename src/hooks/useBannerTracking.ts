@@ -52,6 +52,7 @@ export function useBannerTracking(banners: Banner[], visitorIp?: string) {
             device_type: getDeviceType(),
             user_agent: navigator.userAgent,
             ip_address: ip,
+            site: "cfs",
           }),
         },
       );
