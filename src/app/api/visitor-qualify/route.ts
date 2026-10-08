@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   VID_COOKIE, SCREEN_COOKIE, VID_MAX_AGE_S, SCREEN_TTL_S,
-  getClientIp, getEligibility, getRequestCountry, getScreening, ipFingerprint, isPrivateIp, isScreeningDisabled, isValidVid,
+  getClientIp, getEligibility, getRequestCountry, getTestPaths, getScreening, ipFingerprint, isPrivateIp, isScreeningDisabled, isValidVid,
   markEligible, screenVisitor, type ScreenTrigger,
 } from "@/lib/visitorCheck";
 import { matchQualifyRule, type QualifySignals } from "@/utils/qualifyRules";
@@ -41,6 +41,13 @@ export async function POST(request: NextRequest) {
   // (e.g. visitor only browsed blog pages, screening expired, or IP changed)
   let record = isValidVid(cookieVid) ? await getScreening(vid) : null;
   let screenedNow = false;
+
+  // Test mode: only visitors already screened on a test URL can qualify — no new MaxMind lookups here
+  if (getTestPaths()) {
+    if (!record) return json({ qualified: false, status: "disabled", reason: "test_mode" });
+    if (record.ip !== ip) return json({ qualified: false, status: "unknown", reason: "test_mode_ip_changed" });
+  }
+
   if (!record || record.ip !== ip) {
     const trigger: ScreenTrigger = !isValidVid(cookieVid) ? "new_visitor" : record ? "ip_changed" : "qualify_check";
     record = await screenVisitor(vid, ip, "/api/visitor-qualify/", request.headers.get("user-agent") || "", false, trigger, getRequestCountry(request.headers));

@@ -88,6 +88,24 @@ export function isScreeningDisabled(): boolean {
   return process.env.VISITOR_CHECK_DISABLED === '1';
 }
 
+/* Test mode: env VISITOR_CHECK_TEST_PATHS = comma-separated exact paths
+   (e.g. "/product/some-caravan/"). When set, ONLY those pages start a MaxMind
+   screening; remove the env var to screen all home / listings / product pages. */
+const normPath = (p: string) => p.trim().toLowerCase().replace(/\/+$/, '') || '/';
+
+export function getTestPaths(): string[] | null {
+  const raw = process.env.VISITOR_CHECK_TEST_PATHS?.trim();
+  if (!raw) return null;
+  return raw.split(',').map(s => {
+    try { return normPath(new URL(s.trim(), 'https://x').pathname); } catch { return normPath(s); }
+  });
+}
+
+export function isTestModeAllowedPath(pathname: string): boolean {
+  const paths = getTestPaths();
+  return !paths || paths.includes(normPath(pathname));
+}
+
 /* ── Client IP ──
    Vercel sets x-forwarded-for to the connecting IP. If that connection is from
    Cloudflare (proxied DNS / Worker), trust Cloudflare's CF-Connecting-IP instead.

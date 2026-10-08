@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
 import {
-  screenVisitor, getClientIp, isPrivateIp, isScreeningDisabled, isValidVid, ipFingerprint, isDeclaredCrawler, getRequestCountry,
+  screenVisitor, getClientIp, isPrivateIp, isScreeningDisabled, isValidVid, ipFingerprint, isDeclaredCrawler, getRequestCountry, isTestModeAllowedPath,
   VID_COOKIE, VID_MAX_AGE_S, SCREEN_COOKIE, SCREEN_TTL_S,
 } from "@/lib/visitorCheck";
 import { parseSlugToFilters, type Filters } from "@/app/components/urlBuilder";
@@ -202,6 +202,8 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   if (
     !isScreeningDisabled() &&
     isScreenedPage &&
+    isTestModeAllowedPath(pathname) &&             // test mode: only VISITOR_CHECK_TEST_PATHS
+
     response.status < 300 &&                       // skip redirects / 410s — the real page view gets screened
     request.method === 'GET' &&
     !request.headers.get('x-skip-middleware') &&
