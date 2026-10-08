@@ -432,6 +432,21 @@ export default function RegionSeller({ region }: RegionSellerProps) {
         </div>
       </section>
 
+      {/* ── Have something other than a caravan to sell? ── */}
+      <section className="demo-sell-explore">
+        <div className="container text-center">
+          <h2 className="demo-sell-explore__title">Have something other than a caravan to sell in {regionLabel}?</h2>
+          <p className="demo-sell-explore__body">
+            You can{" "}
+            <a href={`https://www.motorhomesforsale.com.au/sell-my-motorhome/${stateSlug}/${region.pageSlug}/`} target="_blank" rel="noopener noreferrer">sell your motorhome</a>,{" "}
+            <a href={`https://www.campervansforsale.au/sell-my-campervan/${stateSlug}/${region.pageSlug}/`} target="_blank" rel="noopener noreferrer">sell your campervan</a>{" "}
+            or{" "}
+            <a href={`https://www.campingtrailersforsale.com.au/sell-my-camper-trailer/${stateSlug}/${region.pageSlug}/`} target="_blank" rel="noopener noreferrer">sell your camper trailer</a>{" "}
+            through our other marketplaces. Visit the relevant website to see your listing options and get started.
+          </p>
+        </div>
+      </section>
+
     </div>
   );
 }
