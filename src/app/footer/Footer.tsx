@@ -90,7 +90,7 @@ const Footer = () => {
           {/* ── Link columns ── */}
           <div className="cfs-footer__columns">
             <div className="cfs-footer__col">
-              <h3 className="cfs-footer__col-title">Browse Caravans</h3>
+              <h4 className="cfs-footer__col-title">Browse Caravans</h4>
               <ul>
                 {BROWSE_LINKS.map((l) => (
                   <li key={l.label}><a href={l.href}>{l.label}</a></li>
@@ -99,7 +99,7 @@ const Footer = () => {
             </div>
 
             <div className="cfs-footer__col">
-              <h3 className="cfs-footer__col-title">Browse by State</h3>
+              <h4 className="cfs-footer__col-title">Browse by State</h4>
               <ul>
                 {LOCATION_LINKS.map((l) => (
                   <li key={l.label}><a href={l.href}>{l.label}</a></li>
@@ -108,12 +108,12 @@ const Footer = () => {
             </div>
 
             <div className="cfs-footer__col">
-              <h3 className="cfs-footer__col-title">Popular Locations</h3>
+              <h4 className="cfs-footer__col-title">Popular Locations</h4>
               <FooterPopularLocations locations={POPULAR_LOCATIONS} initialCount={7} />
             </div>
 
             <div className="cfs-footer__col">
-              <h3 className="cfs-footer__col-title">Private Sellers</h3>
+              <h4 className="cfs-footer__col-title">Private Sellers</h4>
               <ul>
                 {SELLER_LINKS.map((l) => (
                   <li key={l.label}>
@@ -141,7 +141,7 @@ const Footer = () => {
             </div>
 
             <div className="cfs-footer__col">
-              <h3 className="cfs-footer__col-title">Guides &amp; Support</h3>
+              <h4 className="cfs-footer__col-title">Guides &amp; Support</h4>
               <ul>
                 {GUIDE_LINKS.map((l) => (
                   <li key={l.label}>
@@ -158,7 +158,7 @@ const Footer = () => {
 
           {/* ── Marketplace network ── */}
           <div className="cfs-footer__network">
-            <h3 className="cfs-footer__network-title">Our Marketplace Network</h3>
+            <h4 className="cfs-footer__network-title">Our Marketplace Network</h4>
             <div className="cfs-footer__network-grid">
               {NETWORK_SITES.map((s) =>
                 s.href ? (
