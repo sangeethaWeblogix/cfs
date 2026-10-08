@@ -1743,6 +1743,17 @@
     font-weight: 400;
 }
 
+.demo-cta-strip p.demo-cta-strip__alt-link {
+      margin-top: 15px;
+    font-size: 18px;
+}
+
+.demo-cta-strip p.demo-cta-strip__alt-link a {
+  color: #f58333;
+  text-decoration: none;
+  font-weight: 600;
+}
+
 .demo-cta-strip .white_btn {
   font-size: 16px;
   padding: 14px 36px;
@@ -1990,4 +2001,32 @@
   .demo-steps-trust {
     padding: 16px;
   }
+}
+
+/* ── Have something other than a caravan to sell? ── */
+.demo-sell-explore {
+  background: #ffffff;
+  padding: 0 0 40px;
+}
+.demo-sell-explore__title {
+  color: #000000;
+  margin: 0 0 14px;
+  font-size: 22px;
+  font-weight: 600;
+}
+.demo-sell-explore__body {
+  color: #1c1c1c;
+  margin: 0 auto;
+  max-width: 760px;
+  font-size: 16px;
+  line-height: 1.75;
+}
+.demo-sell-explore__body a {
+  color: #1153a6;
+  font-weight: 500;
+  text-decoration: none;
+}
+.demo-sell-explore__body a:hover { text-decoration: underline; }
+@media (max-width: 767px) {
+  .demo-sell-explore__title { font-size: 1.2rem; }
 }
