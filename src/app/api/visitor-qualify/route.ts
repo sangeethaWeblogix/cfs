@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 const json = (body: unknown) =>
   NextResponse.json(body, { headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow" } });
 
-/* POST /api/visitor-qualify/  { listingIds: string[], filterUsed: boolean, activeSeconds: number }
+/* POST /api/visitor-qualify/  { listingIds: string[], filterUsed, scrolled, clicked: boolean, activeSeconds: number }
    Remarketing eligibility = IP screening "eligible" (for the visitor's CURRENT IP)
    AND one engagement rule met (see matchQualifyRule). Called by <VisitorQualifier />. */
 export async function POST(request: NextRequest) {
@@ -22,8 +22,13 @@ export async function POST(request: NextRequest) {
   const signals: QualifySignals = {
     listingIds: Array.isArray(body?.listingIds) ? body.listingIds.map(String).slice(0, 50) : [],
     filterUsed: body?.filterUsed === true,
+    scrolled: body?.scrolled === true,
+    clicked: body?.clicked === true,
     activeSeconds: Math.max(0, Math.min(Number(body?.activeSeconds) || 0, 86400)),
   };
+
+  const str = (v: unknown) => (typeof v === "string" ? v.slice(0, 60) : undefined);
+  const entry = { source: str(body?.entry?.source), medium: str(body?.entry?.medium) };
 
   const rule = matchQualifyRule(signals);
   if (!rule) return json({ qualified: false, reason: "rules_not_met" });
@@ -58,7 +63,7 @@ export async function POST(request: NextRequest) {
   if (record.status !== "eligible") {
     res = json({ qualified: false, status: record.status });   // suspicious or unknown — never passed
   } else {
-    await markEligible(record, rule, signals);
+    await markEligible(record, rule, signals, entry);
     res = json({ qualified: true, rule });
   }
 

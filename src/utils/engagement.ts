@@ -11,14 +11,14 @@ export interface EngagementState extends QualifySignals {
   retryAt?: number;
 }
 
-const fresh = (): EngagementState => ({ listingIds: [], filterUsed: false, activeSeconds: 0, lastActive: Date.now() });
+const fresh = (): EngagementState => ({ listingIds: [], filterUsed: false, scrolled: false, clicked: false, activeSeconds: 0, lastActive: Date.now() });
 
 export function loadEngagement(): EngagementState {
   try {
     const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") as EngagementState | null;
     if (!s || typeof s.lastActive !== "number") return fresh();
     if (!s.done && Date.now() - s.lastActive > INACTIVITY_RESET_MS) return fresh();
-    return s;
+    return { ...fresh(), ...s };   // fills fields missing from older stored versions
   } catch {
     return fresh();
   }

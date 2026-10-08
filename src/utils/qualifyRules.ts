@@ -4,19 +4,23 @@
 export interface QualifySignals {
   listingIds: string[];   // distinct caravan detail pages viewed
   filterUsed: boolean;    // applied a listings filter or submitted a search
-  activeSeconds: number;  // active engagement time
+  scrolled: boolean;      // user scrolled (wheel / touch / keyboard — not programmatic scrolls)
+  clicked: boolean;       // user clicked / tapped
+  activeSeconds: number;  // active engagement time across the visit
 }
 
-export type QualifyRule = "detail_20s" | "filter_search_45s" | "two_listings";
+export type QualifyRule = "product_page" | "filter_search" | "scroll" | "click";
 
-const DETAIL_MIN_ACTIVE_S = 20;
-const FILTER_MIN_ACTIVE_S = 45;
-const DISTINCT_LISTINGS = 2;
+const MIN_ACTIVE_S = 40;
 
+/* Qualified = at least MIN_ACTIVE_S active time AND at least one real interaction.
+   Mouse movement alone keeps the timer running but never qualifies. The rule
+   returned is the strongest interaction seen (for reporting). */
 export function matchQualifyRule(s: QualifySignals): QualifyRule | null {
-  const distinct = new Set(s.listingIds).size;
-  if (distinct >= DISTINCT_LISTINGS) return "two_listings";
-  if (distinct >= 1 && s.activeSeconds >= DETAIL_MIN_ACTIVE_S) return "detail_20s";
-  if (s.filterUsed && s.activeSeconds >= FILTER_MIN_ACTIVE_S) return "filter_search_45s";
+  if (s.activeSeconds < MIN_ACTIVE_S) return null;
+  if (s.listingIds.length > 0) return "product_page";
+  if (s.filterUsed) return "filter_search";
+  if (s.scrolled) return "scroll";
+  if (s.clicked) return "click";
   return null;
 }

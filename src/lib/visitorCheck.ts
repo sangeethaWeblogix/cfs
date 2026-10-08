@@ -306,10 +306,19 @@ export async function getEligibility(vid: string): Promise<{ time: string; rule:
   return parse((await redis([['GET', K.eligibility(vid)]]))?.[0]);
 }
 
-export async function markEligible(record: VisitorRecord, rule: QualifyRule, s: QualifySignals): Promise<void> {
+/* Screening + eligibility in one Redis round-trip (for /api/visitor-status) */
+export async function getVisitorState(vid: string): Promise<{ screening: VisitorRecord | null; eligibility: { rule: QualifyRule } | null }> {
+  const out = await redis([['GET', K.screening(vid)], ['GET', K.eligibility(vid)]]);
+  return { screening: parse<VisitorRecord>(out?.[0]), eligibility: parse(out?.[1]) };
+}
+
+export async function markEligible(
+  record: VisitorRecord, rule: QualifyRule, s: QualifySignals, src?: { source?: string; medium?: string },
+): Promise<void> {
   const entry = {
     time: new Date().toISOString(), vid: record.vid, ip: record.ip, rule,
-    listings: new Set(s.listingIds).size, filterUsed: s.filterUsed, activeSeconds: s.activeSeconds,
+    entrySource: src?.source, entryMedium: src?.medium,
+    listings: new Set(s.listingIds).size, filterUsed: s.filterUsed, scrolled: s.scrolled, clicked: s.clicked, activeSeconds: s.activeSeconds,
     country: record.country, asnOrg: record.asnOrg,
   };
   console.log(`[visitor-check] QUALIFIED vid=${record.vid} rule=${rule}`);
