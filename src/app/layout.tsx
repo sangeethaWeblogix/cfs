@@ -61,9 +61,6 @@ const RESERVED_TOP_LEVEL_SLUGS = new Set([
     verification: {
       google: "6tT6MT6AJgGromLaqvdnyyDQouJXq0VHS-7HC194xEo", // ✅ this auto generates <meta name="google-site-verification" />
     },
-    other: {
-      "google-adsense-account": "ca-pub-7836481431078711",
-    },
 
   };
   
