@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
 
   const since = minutes > 0 ? Date.now() - minutes * 60_000 : 0;
   const inWindow = since ? records.filter(r => Date.parse(r.time) >= since) : records;
+  const qualifiedInWindow = since ? qualified.filter((q: any) => Date.parse(q.time) >= since) : qualified;
 
   let summary;
   if (since) {
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
       estimatedCostUsd: Number((lookups * MAXMIND_INSIGHTS_COST_USD).toFixed(4)),
       bySource: tally("source"),
       byStatus: tally("status"),
-      qualified: qualified.filter((q: any) => Date.parse(q.time) >= since).length,
+      qualified: qualifiedInWindow.length,
     };
   }
 
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
     .slice(0, limit);
 
   return NextResponse.json(
-    { redisConfigured: configured, summary, counts, qualified: since ? undefined : qualified, returned: filtered.length, records: filtered },
+    { redisConfigured: configured, summary, counts, qualified: qualifiedInWindow, returned: filtered.length, records: filtered },
     { headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow" } }
   );
 }
