@@ -90,7 +90,7 @@ export function isScreeningDisabled(): boolean {
 
 /* Test mode: env VISITOR_CHECK_TEST_PATHS = comma-separated exact paths
    (e.g. "/product/some-caravan/"). When set, ONLY those pages start a MaxMind
-   screening; remove the env var to screen all home / listings / product pages. */
+   screening; remove the env var to screen all pages. */
 const normPath = (p: string) => p.trim().toLowerCase().replace(/\/+$/, '') || '/';
 
 export function getTestPaths(): string[] | null {

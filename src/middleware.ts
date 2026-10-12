@@ -184,7 +184,7 @@ async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest)
 
 /* ──────────────────────────────────────────────
    Visitor screening (MaxMind) — LOG-ONLY, never blocks or redirects.
-   Screened pages: home / listings / caravan detail. A visitor is screened on their
+   Screened pages: all page views (not API / assets). A visitor is screened on their
    first view (cfs_vid cookie) and the result is reused for 24h across page views.
    It is re-screened only when that expires or their IP changes (cfs_scr cookie).
    The lookup runs in waitUntil, so it never delays the page.
@@ -193,11 +193,12 @@ async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest)
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const response = await handleRequest(request);
 
+  // Every real page view is screened (home, listings, product, blog posts at /{slug}/, other pages) —
+  // still only once per visitor per 24h. API calls, Next.js internals and files are skipped.
   const { pathname } = request.nextUrl;
   const isScreenedPage =
-    pathname === '/' ||
-    pathname === '/listings' || pathname.startsWith('/listings/') ||
-    pathname.startsWith('/product/');
+    !pathname.startsWith('/api/') && !pathname.startsWith('/_next/') &&
+    !/\.[a-z0-9]+$/i.test(pathname);
 
   if (
     !isScreeningDisabled() &&

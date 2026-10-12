@@ -11,16 +11,14 @@ import { getCachedStatus, getEntrySource, publishVisitorStatus, STATUS_CACHE_MS,
 const PENDING_RETRY_MS = 2_000;
 const PENDING_MAX_TRIES = 4;
 
-const isScreenedPage = (p: string) => p === "/" || p.startsWith("/listings") || p.startsWith("/product/");
-
 export default function VisitorStatus() {
   const pathname = usePathname();
 
   useEffect(() => {
     const src = getEntrySource();
     const cached = getCachedStatus();
-    // Cached status is reused, except "unscreened" is re-checked on pages that start a screening
-    if (cached && Date.now() - cached.at < STATUS_CACHE_MS && !(cached.status === "unscreened" && isScreenedPage(pathname))) {
+    // Cached status is reused, except "unscreened" — every page view starts a screening, so ask again
+    if (cached && Date.now() - cached.at < STATUS_CACHE_MS && cached.status !== "unscreened") {
       publishVisitorStatus(cached.status, src);
       return;
     }
