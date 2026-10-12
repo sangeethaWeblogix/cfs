@@ -329,6 +329,15 @@ export async function getEligibility(vid: string): Promise<{ time: string; rule:
   return parse((await redis([['GET', K.eligibility(vid)]]))?.[0]);
 }
 
+/* Eligibility for many visitors in one MGET (for the visitor-log report). Map: vid → entry */
+export async function getEligibilities(vids: string[]): Promise<Map<string, any>> {
+  const map = new Map<string, any>();
+  if (!vids.length) return map;
+  const vals: (string | null)[] = (await redis([['MGET', ...vids.map(K.eligibility)]]))?.[0] ?? [];
+  vids.forEach((vid, i) => { const e = parse<any>(vals[i]); if (e) map.set(vid, e); });
+  return map;
+}
+
 /* Screening + eligibility in one Redis round-trip (for /api/visitor-status) */
 export async function getVisitorState(vid: string): Promise<{ screening: VisitorRecord | null; eligibility: { rule: QualifyRule } | null }> {
   const out = await redis([['GET', K.screening(vid)], ['GET', K.eligibility(vid)]]);

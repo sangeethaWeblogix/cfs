@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readVisitorLog } from "@/lib/visitorCheck";
+import { getEligibilities, readVisitorLog } from "@/lib/visitorCheck";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,9 @@ const MAXMIND_INSIGHTS_COST_USD = 0.002;
      [&limit=200]    max records returned
      [&status=eligible|suspicious|unknown]
      [&source=maxmind|ip_cache|ua|geo|error]
-   Returns screening counts, the latest screened visitors and the latest qualified visitors. */
+     [&qualified=1|0] only visitors who did / didn't qualify
+   Returns screening counts, the latest screened visitors and the latest qualified visitors.
+   Each record carries visitorStatus (as | uk | ps) and `qualified` (when / rule / source, or false). */
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const secret = process.env.VISITOR_LOG_SECRET;
@@ -22,6 +24,7 @@ export async function GET(request: NextRequest) {
   const minutes = Number(params.get("minutes")) || 0;
   const status = params.get("status");
   const source = params.get("source");
+  const qualifiedParam = params.get("qualified");   // "1" = only qualified visitors, "0" = only not qualified
 
   // With a time window, scan the whole log (max 5000) so the summary is complete
   const { configured, counts, records, qualified } = await readVisitorLog(minutes > 0 ? 5000 : limit);
@@ -45,8 +48,26 @@ export async function GET(request: NextRequest) {
     };
   }
 
-  const filtered = inWindow
-    .filter(r => (!status || r.status === status) && (!source || r.source === source))
+  const matching = inWindow.filter(r => (!status || r.status === status) && (!source || r.source === source));
+
+  // Attach each visitor's qualification (stored separately, 30 days) to their screening records.
+  // Declared crawlers get a random ID per request and never qualify, so they're skipped.
+  const toJoin = qualifiedParam ? matching : matching.slice(0, limit);
+  const vids = [...new Set(toJoin.filter(r => r.source !== "ua").map(r => r.vid as string))];
+  const elig = await getEligibilities(vids);
+
+  const filtered = toJoin
+    .map(r => {
+      const q = elig.get(r.vid);
+      return {
+        ...r,
+        visitorStatus: r.status === "suspicious" ? "as" : q ? "ps" : "uk",
+        qualified: q
+          ? { time: q.time, rule: q.rule, activeSeconds: q.activeSeconds, entrySource: q.entrySource, entryMedium: q.entryMedium }
+          : false,
+      };
+    })
+    .filter(r => !qualifiedParam || (qualifiedParam === "1") === !!r.qualified)
     .slice(0, limit);
 
   return NextResponse.json(
