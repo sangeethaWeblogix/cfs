@@ -46,7 +46,7 @@ const LOG_TTL_S = 90 * 86400;                 // logs/counters expire 90 days af
 const K = {
   screening: (vid: string) => `vc:screen:${vid}`,   // IP screening status (per visitor)
   eligibility: (vid: string) => `vc:elig:${vid}`,   // remarketing eligibility (per visitor)
-  ip: (ip: string) => `vc:ip:${ip}`,                // MaxMind verdict cache (per IP)
+  ip: (ip: string) => `vc:ip:${ipNetworkKey(ip)}`,  // MaxMind verdict cache (per IPv4 / IPv6 /64)
   log: 'vc:log',
   qualifiedLog: 'vc:qualified',
   counts: 'vc:counts',
@@ -74,9 +74,28 @@ export function getRequestCountry(headers: Headers): string | undefined {
 export const isValidVid = (v: string | undefined): v is string =>
   !!v && /^[0-9a-f-]{36}$/i.test(v);
 
-/* Short SHA-256 fingerprint of the IP (cookie stores this, not the raw IP) */
+/* IPv6 → its /64 network ("2001:db8:1:2::/64"); IPv4 (incl. IPv4-mapped IPv6) unchanged.
+   Phones and many home connections rotate IPv6 "privacy addresses" every few hours inside
+   the same /64 (one subscriber), so comparing / caching by /64 avoids needless re-screens. */
+export function ipNetworkKey(ip: string): string {
+  const v = ip.trim().toLowerCase();
+  if (!v.includes(':')) return v;
+  const mapped = v.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (mapped) return mapped[1];
+
+  const [head, tail] = v.split('::');
+  const headParts = head ? head.split(':') : [];
+  const tailParts = tail ? tail.split(':') : [];
+  const missing = v.includes('::') ? 8 - headParts.length - tailParts.length : 0;
+  const parts = [...headParts, ...Array(Math.max(missing, 0)).fill('0'), ...tailParts];
+  return parts.slice(0, 4).map(h => (parseInt(h, 16) || 0).toString(16)).join(':') + '::/64';
+}
+
+export const sameNetwork = (a: string, b: string) => ipNetworkKey(a) === ipNetworkKey(b);
+
+/* Short SHA-256 fingerprint of the IP's network (cookie stores this, not the raw IP) */
 export async function ipFingerprint(ip: string): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`cfs:${ip}`));
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`cfs:${ipNetworkKey(ip)}`));
   return Array.from(new Uint8Array(buf).slice(0, 8), b => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -232,7 +251,10 @@ function classify(d: any): Verdict {
 }
 
 
-export type ScreenTrigger = 'new_visitor' | 'ip_changed' | 'expired' | 'qualify_check';
+/* new_visitor = new browser (no cfs_vid cookie) AND its IP wasn't seen in the last 24h.
+   A new browser whose IP is already in the IP cache (Incognito, cleared cookies, shared
+   connection) is logged as existing_visitor_new_session instead. */
+export type ScreenTrigger = 'new_visitor' | 'existing_visitor_new_session' | 'ip_changed' | 'expired' | 'qualify_check';
 
 /**
  * Screen a visitor's IP and store the result against their visitor ID (for SCREEN_TTL_S).
@@ -257,7 +279,8 @@ export async function screenVisitor(
     // Same IP already looked up in the last 24h (another visitor / cleared cookies) → reuse, no extra cost
     const cached = parse<Verdict>((await redis([['GET', K.ip(ip)]]))?.[0]);
     if (cached) {
-      record = { ...base, ...cached, source: 'ip_cache' };
+      const seenTrigger = trigger === 'new_visitor' ? 'existing_visitor_new_session' : trigger;
+      record = { ...base, trigger: seenTrigger, ...cached, source: 'ip_cache' };
     } else {
       const result = await lookupMaxMind(ip);
       if ('verdict' in result) {
@@ -272,7 +295,7 @@ export async function screenVisitor(
     cmds.push(['SET', K.screening(vid), JSON.stringify(record), 'EX', SCREEN_TTL_S]);
   }
 
-  console.log(`[visitor-check] ${record.status.toUpperCase()} vid=${vid} ip=${ip} path=${path} src=${record.source} trigger=${trigger}` +
+  console.log(`[visitor-check] ${record.status.toUpperCase()} vid=${vid} ip=${ip} path=${path} src=${record.source} trigger=${record.trigger}` +
     (record.reasons.length ? ` reasons=${record.reasons.join(',')}` : '') +
     (record.asnOrg ? ` asn="${record.asnOrg}"` : '') +
     (record.error ? ` error=${record.error}` : ''));
