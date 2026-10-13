@@ -12,7 +12,7 @@ import { fetchRequirements } from "@/api/postRquirements/api";
 import { fetchHomePage } from "@/api/home/api";
 import { fetchBlogs } from "@/api/blog/api";
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 const CANONICAL = "https://www.caravansforsale.com.au/caravan-sales/";
 
