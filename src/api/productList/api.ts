@@ -21,12 +21,14 @@ const mpnHeaders = (): Record<string, string> => ({
 // ---------------------------------------------------------------------------
 // fetchMakeDetails
 // make_details is not pre-warmed in KV — rely on Next.js 24h fetch cache.
+// This endpoint cannot handle frequent calls (confirmed live: dropping this
+// to 1h caused widespread "Failed to fetch make details" errors) — keep at 24h.
 // ---------------------------------------------------------------------------
 export const fetchMakeDetails = async () => {
   try {
     const res = await fetch(`${MPN_BASE}/make_details`, {
       headers: wpHeaders(),
-      next: { revalidate: 3600 },
+      next: { revalidate: 86400 },
     });
     if (!res.ok) throw new Error("Failed to fetch make details");
     const json = await res.json();

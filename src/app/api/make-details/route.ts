@@ -13,7 +13,9 @@ export async function GET() {
       Accept: "application/json",
       ...(API_KEY && { "X-Secret-Key": API_KEY }),
     },
-    next: { revalidate: 3600 },
+    // This endpoint can't handle frequent calls (confirmed live) — keep at 24h,
+    // matching fetchMakeDetails in src/api/productList/api.ts.
+    next: { revalidate: 86400 },
   });
 
   const raw = await res.text();
