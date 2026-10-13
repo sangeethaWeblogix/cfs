@@ -24,7 +24,7 @@ export async function fetchRequirements(): Promise<Requirement[]> {
   const url = `${API_BASE}/get-home-enquiries-list`;
   try {
     const res = await fetch(url, {
-      next: { revalidate: 86400 },
+      next: { revalidate: 3600 },
       headers: {
         Accept: "application/json",
         ...(API_KEY && { "X-Secret-Key": API_KEY }),

@@ -129,7 +129,7 @@ export async function fetchHomePage(): Promise<HomePageData> {
         Accept: "application/json",
         ...(API_KEY && { "X-Secret-Key": API_KEY }),
       },
-      next: { revalidate: 0 },
+      next: { revalidate: 3600 },
     });
     if (!res.ok) return EMPTY_HOME;
 

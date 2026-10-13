@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         Accept: "application/json",
         ...(API_KEY && { "X-Secret-Key": API_KEY }),
       },
-      next: { revalidate: 3600 }, // match WP transient TTL
+      next: { revalidate: 3600 },
     });
 
     clearTimeout(timeoutId);

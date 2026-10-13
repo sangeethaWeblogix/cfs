@@ -26,7 +26,7 @@ export const fetchMakeDetails = async () => {
   try {
     const res = await fetch(`${MPN_BASE}/make_details`, {
       headers: wpHeaders(),
-      next: { revalidate: 86400 },
+      next: { revalidate: 3600 },
     });
     if (!res.ok) throw new Error("Failed to fetch make details");
     const json = await res.json();
