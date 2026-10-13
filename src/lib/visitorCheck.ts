@@ -36,10 +36,15 @@ type Verdict = Pick<VisitorRecord, 'status' | 'reasons' | 'country' | 'registere
 export const VID_COOKIE = 'cfs_vid';          // visitor ID
 export const SCREEN_COOKIE = 'cfs_scr';       // fingerprint of the IP that was screened
 export const VID_MAX_AGE_S = 30 * 86400;      // visitor ID + remarketing eligibility: 30 days
-export const SCREEN_TTL_S = 86400;            // IP screening result reused for 24h
+// Screening result reused for 7 days while the visitor stays on the same IP / IPv6 /64.
+// A new network (e.g. switching to a VPN) is re-screened straight away (ip_changed).
+export const SCREEN_TTL_S = 7 * 86400;
 
 const MAXMIND_TIMEOUT_MS = 1500;
-const IP_CACHE_TTL_S = 86400;                 // same IP across visitors: 24h
+const IP_CACHE_TTL_S = 7 * 86400;             // same IP across visitors: 7 days
+// MaxMind error (e.g. credit ran out): the "unknown" result is retried by /api/visitor-qualify
+// once it is this old, so a short outage doesn't block real visitors from qualifying for 7 days
+export const ERROR_RETRY_S = 3600;
 const LOG_MAX = 5000;
 const LOG_TTL_S = 90 * 86400;                 // logs/counters expire 90 days after last write
 
@@ -251,7 +256,7 @@ function classify(d: any): Verdict {
 }
 
 
-/* new_visitor = new browser (no cfs_vid cookie) AND its IP wasn't seen in the last 24h.
+/* new_visitor = new browser (no cfs_vid cookie) AND its IP wasn't seen in the last 7 days.
    A new browser whose IP is already in the IP cache (Incognito, cleared cookies, shared
    connection) is logged as existing_visitor_new_session instead. */
 export type ScreenTrigger = 'new_visitor' | 'existing_visitor_new_session' | 'ip_changed' | 'expired' | 'qualify_check';
@@ -276,7 +281,7 @@ export async function screenVisitor(
     record = { ...base, status: 'suspicious', reasons: ['non_au'], source: 'geo', country: geoCountry };
     cmds.push(['SET', K.screening(vid), JSON.stringify(record), 'EX', SCREEN_TTL_S]);
   } else {
-    // Same IP already looked up in the last 24h (another visitor / cleared cookies) → reuse, no extra cost
+    // Same IP already looked up in the last 7 days (another visitor / cleared cookies) → reuse, no extra cost
     const cached = parse<Verdict>((await redis([['GET', K.ip(ip)]]))?.[0]);
     if (cached) {
       const seenTrigger = trigger === 'new_visitor' ? 'existing_visitor_new_session' : trigger;
@@ -300,14 +305,18 @@ export async function screenVisitor(
     (record.asnOrg ? ` asn="${record.asnOrg}"` : '') +
     (record.error ? ` error=${record.error}` : ''));
 
+  // Declared crawlers (Googlebot etc.) are only written to the Vercel log above — logging them in
+  // Redis used over half of the Upstash free-tier commands for no screening value
+  if (record.source === 'ua') return record;
+
   cmds.push(
     ['LPUSH', K.log, JSON.stringify(record)],
     ['LTRIM', K.log, 0, LOG_MAX - 1],
     ['EXPIRE', K.log, LOG_TTL_S],
-    ['HINCRBY', K.counts, record.source === 'ua' ? 'declared_bot' : record.source === 'geo' ? 'non_au' : record.status, 1],
+    ['HINCRBY', K.counts, record.source === 'geo' ? 'non_au' : record.status, 1],
     ['EXPIRE', K.counts, LOG_TTL_S],
   );
-  if (record.status === 'suspicious' && record.source !== 'ua' && record.source !== 'geo') {
+  if (record.status === 'suspicious' && record.source !== 'geo') {
     cmds.push(
       ['LPUSH', K.flagged, `${record.time}|${ip}`],
       ['LTRIM', K.flagged, 0, LOG_MAX - 1],

@@ -23,8 +23,6 @@ export default function VisitorQualifier() {
   const pendingScroll = useRef(false);
 
   useEffect(() => {
-    if (loadEngagement().done) return;
-
     const retryIn = (ms: number) => updateEngagement(st => { st.retryAt = Date.now() + ms; }, false);
 
     const tryQualify = (s: EngagementState) => {
@@ -44,7 +42,7 @@ export default function VisitorQualifier() {
         .then(r => r.json())
         .then(res => {
           if (res?.qualified) {
-            updateEngagement(st => { st.done = "qualified"; }, false);
+            updateEngagement(st => { st.done = "qualified"; st.doneAt = Date.now(); }, false);
             if (!res.already) {
               const w = window as any;
               w.dataLayer = w.dataLayer || [];
@@ -84,6 +82,9 @@ export default function VisitorQualifier() {
       const active = document.visibilityState === "visible" && Date.now() - lastInteraction.current < IDLE_LIMIT_MS;
       const click = pendingClick.current, scroll = pendingScroll.current;
       pendingClick.current = pendingScroll.current = false;
+      // Already qualified → paused (not stopped): resumes once the qualification expires
+      // after 30 days or the server resets it (see resetQualification)
+      if (loadEngagement().done) return;
       const s = active || click || scroll
         ? updateEngagement(st => {
             if (active) st.activeSeconds += 1;
@@ -91,8 +92,7 @@ export default function VisitorQualifier() {
             if (scroll) st.scrolled = true;
           })
         : loadEngagement();
-      if (s.done) clearInterval(timer);
-      else tryQualify(s);   // also picks up listing views / filters recorded by other components
+      tryQualify(s);   // also picks up listing views / filters recorded by other components
     }, 1000);
 
     return () => {

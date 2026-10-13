@@ -4,10 +4,12 @@ import type { QualifySignals } from "./qualifyRules";
 
 const STORAGE_KEY = "cfs_vq";
 const INACTIVITY_RESET_MS = 30 * 60_000; // 30 min with no activity → engagement counters reset
+const QUALIFIED_TTL_MS = 30 * 86400_000;  // same 30 days as the server's eligibility — then re-qualify
 
 export interface EngagementState extends QualifySignals {
   lastActive: number;                   // last real user activity (not background updates)
   done?: "qualified";
+  doneAt?: number;                      // when they qualified
   retryAt?: number;
 }
 
@@ -18,6 +20,8 @@ export function loadEngagement(): EngagementState {
     const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") as EngagementState | null;
     if (!s || typeof s.lastActive !== "number") return fresh();
     if (!s.done && Date.now() - s.lastActive > INACTIVITY_RESET_MS) return fresh();
+    // Qualification expired → start counting again (older states have no doneAt: lastActive ≈ when they qualified)
+    if (s.done && Date.now() - (s.doneAt ?? s.lastActive) > QUALIFIED_TTL_MS) return fresh();
     return { ...fresh(), ...s };   // fills fields missing from older stored versions
   } catch {
     return fresh();
@@ -32,6 +36,13 @@ export function updateEngagement(fn: (s: EngagementState) => void, activity = tr
   if (activity) s.lastActive = Date.now();
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {}
   return s;
+}
+
+/* Server says the visitor is no longer qualified (eligibility expired / new visitor ID) but this
+   browser still thinks it is — start engagement from zero so they can re-qualify. */
+export function resetQualification() {
+  if (!loadEngagement().done) return;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh())); } catch {}
 }
 
 /* Applied a listings filter or submitted a search */

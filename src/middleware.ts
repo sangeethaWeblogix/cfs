@@ -185,7 +185,7 @@ async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest)
 /* ──────────────────────────────────────────────
    Visitor screening (MaxMind) — LOG-ONLY, never blocks or redirects.
    Screened pages: all page views (not API / assets). A visitor is screened on their
-   first view (cfs_vid cookie) and the result is reused for 24h across page views.
+   first view (cfs_vid cookie) and the result is reused for 7 days across page views.
    It is re-screened only when that expires or their IP changes (cfs_scr cookie).
    The lookup runs in waitUntil, so it never delays the page.
    Set env VISITOR_CHECK_DISABLED=1 (and redeploy) to switch it off.
@@ -194,7 +194,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const response = await handleRequest(request);
 
   // Every real page view is screened (home, listings, product, blog posts at /{slug}/, other pages) —
-  // still only once per visitor per 24h. API calls, Next.js internals and files are skipped.
+  // still only once per visitor per 7 days (sooner on a new IP). API calls, Next.js internals and files are skipped.
   const { pathname } = request.nextUrl;
   const isScreenedPage =
     !pathname.startsWith('/api/') && !pathname.startsWith('/_next/') &&
@@ -218,10 +218,10 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       const path = pathname + request.nextUrl.search;
 
       if (isBot(userAgent) || isDeclaredCrawler(userAgent, request.headers)) {
-        // Declared crawler — logged, no MaxMind call, no cookies
+        // Declared crawler — Vercel log only (no Redis, no MaxMind call, no cookies)
         event.waitUntil(screenVisitor(crypto.randomUUID(), ip, path, userAgent, true).catch(() => {}));
       } else {
-        // Reuse the screening while cfs_scr (24h) matches the current IP; otherwise screen again
+        // Reuse the screening while cfs_scr (7 days) matches the current IP; otherwise screen again
         const existingVid = request.cookies.get(VID_COOKIE)?.value;
         const fp = await ipFingerprint(ip);
         const screenedFp = request.cookies.get(SCREEN_COOKIE)?.value;
@@ -232,7 +232,9 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
           event.waitUntil(screenVisitor(vid, ip, path, userAgent, false, trigger, getRequestCountry(request.headers)).catch(() => {}));
 
           const cookieOpts = { httpOnly: true, secure: true, sameSite: 'lax' as const, path: '/' };
-          if (vid !== existingVid) response.cookies.set(VID_COOKIE, vid, { ...cookieOpts, maxAge: VID_MAX_AGE_S });
+          // Re-set on every screening so the ID lasts 30 days from the last screened visit
+          // and outlives the 30-day qualification it is linked to
+          response.cookies.set(VID_COOKIE, vid, { ...cookieOpts, maxAge: VID_MAX_AGE_S });
           response.cookies.set(SCREEN_COOKIE, fp, { ...cookieOpts, maxAge: SCREEN_TTL_S });
         }
       }

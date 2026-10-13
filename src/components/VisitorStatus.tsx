@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { getCachedStatus, getEntrySource, publishVisitorStatus, STATUS_CACHE_MS, type VisitorStatusCode } from "@/utils/visitorStatus";
+import { resetQualification } from "@/utils/engagement";
 
 /* On every page view, pushes { visitor_status, entry_source, entry_medium } to the GTM dataLayer.
    Status comes from /api/visitor-status/ (cached for the session, re-checked every 10 min).
@@ -38,6 +39,8 @@ export default function VisitorStatus() {
             return;
           }
           const status = res?.status && res.status !== "pending" ? res.status : "unscreened";
+          // Server no longer has a qualification (30 days passed / new visitor ID) → let them re-qualify
+          if (status === "uk") resetQualification();
           publishVisitorStatus(status, src);
         })
         .catch(() => { if (!cancelled) publishVisitorStatus(cached?.status ?? "unscreened", src); });

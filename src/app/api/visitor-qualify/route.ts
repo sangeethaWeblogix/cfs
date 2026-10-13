@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  VID_COOKIE, SCREEN_COOKIE, VID_MAX_AGE_S, SCREEN_TTL_S,
+  VID_COOKIE, SCREEN_COOKIE, VID_MAX_AGE_S, SCREEN_TTL_S, ERROR_RETRY_S,
   getClientIp, getEligibility, getRequestCountry, getTestPaths, getScreening, ipFingerprint, isPrivateIp, isScreeningDisabled, isValidVid,
   markEligible, sameNetwork, screenVisitor, type ScreenTrigger,
 } from "@/lib/visitorCheck";
@@ -53,8 +53,12 @@ export async function POST(request: NextRequest) {
     if (!sameNetwork(record.ip, ip)) return json({ qualified: false, status: "unknown", reason: "test_mode_ip_changed" });
   }
 
-  if (!record || !sameNetwork(record.ip, ip)) {
-    const trigger: ScreenTrigger = !isValidVid(cookieVid) ? "new_visitor" : record ? "ip_changed" : "qualify_check";
+  // A MaxMind error ("unknown") older than ERROR_RETRY_S is retried rather than kept for the full 7 days
+  const staleError = !getTestPaths() && !!record && record.status === "unknown" && Date.now() - Date.parse(record.time) > ERROR_RETRY_S * 1000;
+
+  if (!record || !sameNetwork(record.ip, ip) || staleError) {
+    const trigger: ScreenTrigger = !isValidVid(cookieVid) ? "new_visitor"
+      : !record ? "qualify_check" : staleError && sameNetwork(record.ip, ip) ? "expired" : "ip_changed";
     record = await screenVisitor(vid, ip, "/api/visitor-qualify/", request.headers.get("user-agent") || "", false, trigger, getRequestCountry(request.headers));
     screenedNow = true;
   }
@@ -67,10 +71,9 @@ export async function POST(request: NextRequest) {
     res = json({ qualified: true, rule });
   }
 
-  if (screenedNow) {
-    const cookieOpts = { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/" };
-    if (vid !== cookieVid) res.cookies.set(VID_COOKIE, vid, { ...cookieOpts, maxAge: VID_MAX_AGE_S });
-    res.cookies.set(SCREEN_COOKIE, await ipFingerprint(ip), { ...cookieOpts, maxAge: SCREEN_TTL_S });
-  }
+  const cookieOpts = { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/" };
+  // New ID, or just qualified → (re)start the 30-day ID cookie so it outlives the 30-day qualification
+  if (screenedNow || record.status === "eligible") res.cookies.set(VID_COOKIE, vid, { ...cookieOpts, maxAge: VID_MAX_AGE_S });
+  if (screenedNow) res.cookies.set(SCREEN_COOKIE, await ipFingerprint(ip), { ...cookieOpts, maxAge: SCREEN_TTL_S });
   return res;
 }
