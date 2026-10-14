@@ -1,5 +1,5 @@
 /* Admin notification emails via the same SMTP server as the WordPress site.
-   Env: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, [SMTP_FROM], [SMTP_SECURE=true|false]
+   Env: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, [SMTP_FROM], [SMTP_SECURE=true|false], [SMTP_TLS_INSECURE=true]
         ALERT_EMAIL_TO (admin), [ALERT_EMAIL_CC] (comma-separated)
    Node.js runtime only (not Edge / middleware). */
 import nodemailer from "nodemailer";
@@ -22,6 +22,9 @@ export async function sendAdminEmail(subject: string, text: string, html: string
     // 465 = TLS from the start; 587/25 = STARTTLS. Override with SMTP_SECURE if the server differs.
     secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === "true" : port === 465,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    // Opt-in for mail servers with an incomplete certificate chain (Node: "unable to verify the first certificate").
+    // Still encrypted, but the server's identity is not verified — prefer fixing SMTP_HOST / SMTP_PORT first.
+    ...(process.env.SMTP_TLS_INSECURE === "true" ? { tls: { rejectUnauthorized: false } } : {}),
     connectionTimeout: 10_000,
     greetingTimeout: 10_000,
     socketTimeout: 15_000,
