@@ -179,7 +179,7 @@ export function isPrivateIp(ip: string): boolean {
 }
 
 /* ── Upstash Redis via REST (no extra dependency). No-op when env vars are missing. ── */
-async function redis(commands: (string | number)[][]): Promise<any[] | null> {
+export async function redis(commands: (string | number)[][]): Promise<any[] | null> {
   // Vercel Marketplace integration may expose these as KV_REST_API_* instead
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
@@ -191,8 +191,15 @@ async function redis(commands: (string | number)[][]): Promise<any[] | null> {
       body: JSON.stringify(commands),
       cache: 'no-store',
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // Failures stay non-fatal, but make Upstash's quota error easy to find in the Vercel logs
+      const body = await res.text().catch(() => '');
+      console.error(`[visitor-check] REDIS ERROR ${res.status}${/limit/i.test(body) ? ' (UPSTASH LIMIT REACHED)' : ''}: ${body.slice(0, 200)}`);
+      return null;
+    }
     const out = await res.json();
+    const failed = Array.isArray(out) ? out.find((r: any) => r?.error) : null;
+    if (failed) console.error(`[visitor-check] REDIS ERROR${/limit/i.test(failed.error) ? ' (UPSTASH LIMIT REACHED)' : ''}: ${String(failed.error).slice(0, 200)}`);
     return Array.isArray(out) ? out.map((r: any) => r?.result ?? null) : null;
   } catch {
     return null;
