@@ -62,11 +62,14 @@ const K = {
    Google-Read-Aloud, Lighthouse, headless browsers…) plus Cloudflare's verified-bot flag
    (forwarded by a Cloudflare Request Header Transform Rule: X-Verified-Bot = to_string(cf.client.bot);
    Cloudflare doesn't allow setting headers that start with x-cf-).
-   These skip the paid MaxMind lookup. */
+   Also any client that is not a browser: every real browser's user agent contains "Mozilla/",
+   while scripts and scrapers (axios, node-fetch, Java, Go, empty UA…) don't. They never keep
+   cookies, so screening them would re-run (and write to Redis) on every single request.
+   These skip the paid MaxMind lookup and Redis — Vercel log only. */
 const EXTRA_CRAWLER_UA = /support\.google\.com\/webmasters|google-|googleother|chrome-lighthouse|headlesschrome|pagespeed|gtmetrix|crawl|scrapy|python-requests|curl\/|wget\//i;
 
 export function isDeclaredCrawler(ua: string, headers: Headers): boolean {
-  return EXTRA_CRAWLER_UA.test(ua) || headers.get('x-verified-bot') === 'true';
+  return !/mozilla\//i.test(ua) || EXTRA_CRAWLER_UA.test(ua) || headers.get('x-verified-bot') === 'true';
 }
 
 /* Visitor country from free edge geolocation (Cloudflare first, then Vercel).
