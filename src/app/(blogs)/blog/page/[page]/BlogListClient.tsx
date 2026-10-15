@@ -48,6 +48,11 @@ const loading = !data || !blogPosts || blogPosts.length === 0 && data.totalPages
     const doc = new DOMParser().parseFromString(str, "text/html");
     return doc.documentElement.textContent || "";
   }
+  // WP's default excerpt truncation marker decodes to "[…]" — show a plain
+  // "..." instead of the bracketed ellipsis.
+  function decodeExcerpt(str: string = "") {
+    return decodeHTML(str).replace(/\s*\[…\]\s*$/, "...");
+  }
   // React to route segment changes (back/forward, manual URL input)
  
 
@@ -173,7 +178,7 @@ const loading = !data || !blogPosts || blogPosts.length === 0 && data.totalPages
                               {decodeHTML(post.title)}
                             </a>
 
-                            <p>{decodeHTML(post.excerpt)}</p>{" "}
+                            <p>{decodeExcerpt(post.excerpt)}</p>{" "}
                             <a
                               href={href}
                               className="btn rounded-pill bg-blue4 fw-bold text-white mt-10"
