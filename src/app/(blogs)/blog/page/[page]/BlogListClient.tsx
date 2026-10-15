@@ -148,7 +148,7 @@ const loading = !data || !blogPosts || blogPosts.length === 0 && data.totalPages
                             <a href={href}>
                               <Image
                                 src={post.image || "/images/download.svg"}
-                                alt={post.title}
+                                alt={decodeHTML(post.title)}
                                 width={1024}
                                 height={683}
                                 className="w-100 h-auto"
@@ -170,7 +170,7 @@ const loading = !data || !blogPosts || blogPosts.length === 0 && data.totalPages
                               </a>
                             </small>
                             <a href={href} className="card-title mb-10">
-                              {post.title}
+                              {decodeHTML(post.title)}
                             </a>
 
                             <p>{decodeHTML(post.excerpt)}</p>{" "}
