@@ -10,6 +10,20 @@ import { formatPostDate } from "@/utils/date";
 import { toSlug } from "@/utils/seo/slug";
 import { type BlogPost as ApiBlogPost } from "@/api/blog/api";
 
+// WP blog titles come HTML-entity-encoded (e.g. "&#038;" for "&") — decode
+// before rendering as plain text, or entities show up literally on screen.
+function decodeEntities(s = ""): string {
+  return s
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+}
+
 interface BlogPost {
   id: number;
   title: string;
@@ -74,7 +88,7 @@ export default function HomeLatestBlogs({ posts: rawPosts }: Props) {
                         {post.image && (
                           <Image
                             src={post.image}
-                            alt={post.title}
+                            alt={decodeEntities(post.title)}
                             fill
                             style={{ objectFit: "cover" }}
                             sizes="(max-width: 768px) 100vw, 33vw"
@@ -83,7 +97,7 @@ export default function HomeLatestBlogs({ posts: rawPosts }: Props) {
                         )}
                       </div>
                       <div className="blog-card__info">
-                        <h3 className="blog-card__title">{post.title}</h3>
+                        <h3 className="blog-card__title">{decodeEntities(post.title)}</h3>
                         <div className="blog-card__date">
                           {formatPostDate(post.date ?? "")}
                         </div>
