@@ -33,31 +33,6 @@ const readPage = (id: string): number | null => {
 
 const SEED_MAX = 15;
 
-// ── Seeded shuffle ────────────────────────────────────────────────────────────
-// Mulberry32 PRNG — deterministic, fast, well-distributed.
-// Used to shuffle the pool in the live-fetch path so that even when the
-// pool-listings KV cache serves identical JSON for every seed (the cache key
-// strips `seed`), each refresh still displays a different product order.
-function mulberry32(seed: number) {
-  return () => {
-    seed += 0x6D2B79F5;
-    let t = seed ^ (seed >>> 15);
-    t = Math.imul(t, 1 | seed);
-    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-function seededShuffle<T>(arr: T[], seed: number): T[] {
-  if (arr.length <= 1) return arr;
-  const out = [...arr];
-  const rand = mulberry32(seed);
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
-// ─────────────────────────────────────────────────────────────────────────────
 
 /** Full pool data fetched server-side in page.tsx and passed as a prop so the
  *  SSR / KV-cached HTML contains real product listings from the first byte. */
@@ -520,26 +495,16 @@ export default function StateHome({
         const seoData = json?.seo ?? json?.data?.seo_v2 ?? json?.seo_v2;
         if (seoData) setSeo(seoData);
 
-        // seededShuffle reorders each bucket using the client's random seed so
-        // different products appear on each refresh even when the pool-listings
-        // KV cache serves the same JSON for every seed value. Shuffle the raw
-        // per-bucket arrays before normalizing/bucketing so the hero-slot pick
-        // (buildFeaturedOrder's first 2 items) sees the shuffled order.
-        const shuffledJson = {
-          ...json,
-          featured_products: seededShuffle(json?.featured_products ?? [], seed),
-          new_products: seededShuffle(json?.new_products ?? [], seed + 1000),
-          used_products: seededShuffle(json?.used_products ?? [], seed + 2000),
-        };
-
+        // Trust the backend's own order/seed logic as-is — no client-side
+        // reordering on top of it.
         if (isIndexed) {
           // Indexed pages split into Featured/New/Used (already bucketed server-side).
-          const { featured, new: newItems, used: usedItems, totalPages } = bucketPoolResponse(shuffledJson);
+          const { featured, new: newItems, used: usedItems, totalPages } = bucketPoolResponse(json);
           setPool({ featured, new: newItems, used: usedItems });
           handleTotalPages(totalPages);
         } else {
           // Non-indexed pages get one combined grid instead of a split.
-          const { combined, totalPages } = bucketPoolResponseCombined(shuffledJson);
+          const { combined, totalPages } = bucketPoolResponseCombined(json);
           setPool({ featured: combined, new: [], used: [] });
           handleTotalPages(totalPages);
         }
