@@ -1,9 +1,16 @@
 import "./footer.css?=20";
 import Image from "next/image";
+import { FaFacebookF, FaInstagram, FaLinkedinIn } from "react-icons/fa";
 import BackToTopButton from "./BackToTopButton";
 import FooterNav from "./FooterNav";
 import FooterPopularLocations from "./FooterPopularLocations";
 import SellByLocationLink from "./SellByLocationLink";
+
+const SOCIAL_LINKS = [
+  { label: "Facebook", href: "https://www.facebook.com/caravansforsale.com.au/", Icon: FaFacebookF, className: "cfs-footer__social-link--facebook" },
+  { label: "Instagram", href: "https://www.instagram.com/caravansforsale.com.au/", Icon: FaInstagram, className: "cfs-footer__social-link--instagram" },
+  { label: "LinkedIn", href: "https://www.linkedin.com/company/caravansforsale-au/", Icon: FaLinkedinIn, className: "cfs-footer__social-link--linkedin" },
+];
 
 const BROWSE_LINKS = [
   { label: "All Caravans for Sale", href: "/listings/" },
@@ -186,9 +193,18 @@ const Footer = () => {
                 <li key={l.label}><a href={l.href} rel="nofollow">{l.label}</a></li>
               ))}
             </ul>
-            <p className="cfs-footer__copyright">
-              © {currentYear ?? "----"} Marketplace Network Pty Ltd&nbsp;&nbsp;·&nbsp;&nbsp;ABN 70 694 987 052
-            </p>
+            <div className="cfs-footer__bottom-right">
+              <p className="cfs-footer__copyright">
+                © {currentYear ?? "----"} Marketplace Network Pty Ltd&nbsp;&nbsp;·&nbsp;&nbsp;ABN 70 694 987 052
+              </p>
+              <div className="cfs-footer__socials">
+                {SOCIAL_LINKS.map(({ label, href, Icon, className }) => (
+                  <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className={`cfs-footer__social-link ${className}`}>
+                    <Icon />
+                  </a>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </footer>
