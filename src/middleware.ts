@@ -5,9 +5,9 @@ import {
 } from "@/lib/visitorCheck";
 import { parseSlugToFilters, type Filters } from "@/app/components/urlBuilder";
 import { buildSlugFromFilters } from "@/app/components/slugBuilter";
-import { isAllowedSingleBand } from "@/utils/seo/band-utils";
 import regionPathsData from "../cfs-paths/regions.json";
 import makesData from "../cfs-paths/makes.json";
+import indexableUrlsData from "../cfs-paths/indexable-urls.json";
 const API_KEY = process.env.CFS_API_KEY;
 const SERVER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
 
@@ -24,10 +24,15 @@ const VALID_MAKE_SLUGS = new Set<string>(
   (makesData.paths as string[]).map(p => p.replace(/\/$/, ''))
 );
 
+/* Curated indexable paths from url.csv (cfs-paths/indexable-urls.json snapshot —
+ * same source the <meta name="robots"> tag uses, see src/utils/seo/indexable-urls.ts).
+ * Single source of truth for the X-Robots-Tag header below — no live API call needed. */
+const INDEXABLE_PATHS = new Set<string>(indexableUrlsData as string[]);
+
 /* ──────────────────────────────────────────────
    Edge-safe in-memory cache
 ────────────────────────────────────────────── */
-const seoCache = new Map<string, { robots: string; isEmpty: boolean; hasExclusiveOnly: boolean; expires: number; staleExpires: number }>();
+const seoCache = new Map<string, { isEmpty: boolean; hasExclusiveOnly: boolean; expires: number; staleExpires: number }>();
 const productCache = new Map<string, { exists: boolean; expires: number }>();
 const CACHE_TTL = 10 * 60 * 1000;       // 10 min fresh
 const CACHE_STALE_TTL = 60 * 60 * 1000; // 1 hr stale-while-revalidate window
@@ -40,7 +45,7 @@ const VALID_AU_STATES = new Set([
   'nsw', 'vic', 'qld', 'sa', 'wa', 'tas', 'nt', 'act',
 ]);
 
-const API_WP = 'https://admin.marketplacenetwork.com.au/wp-json/mpn/v1';
+const API_WP = 'https://admin.marketplacenetwork.com.au/wp-json/mpn/v1/caravans';
 
 
 
@@ -169,15 +174,10 @@ async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest)
       const exclusiveOnly = data?.exclusive_products ?? [];
       const isEmpty = totalCount === 0 && exclusiveOnly.length === 0;
       const hasExclusiveOnly = totalCount === 0 && exclusiveOnly.length > 0;
-      const seo = data?.seo ?? data?.seo_v2 ?? {};
-      const rawIndex = String(seo?.index ?? "").toLowerCase().trim();
-      const rawFollow = String(seo?.follow ?? "").toLowerCase().trim();
-      let robots = (rawIndex === "noindex" ? "noindex" : "index") + ", " + (rawFollow === "nofollow" ? "nofollow" : "follow");
-      const hasBand = !!(filters.maxKg || filters.minKg || filters.to_price || filters.from_price || filters.to_length || filters.from_length || filters.to_sleep || filters.from_sleep);
-      const hasOtherFilters = !!(filters.make || filters.model || filters.state || filters.region || filters.category);
-      const isSingleAllowedBand = hasBand && !hasOtherFilters && isAllowedSingleBand(slugParts);
-      if ((hasBand && !isSingleAllowedBand) || isEmpty || hasExclusiveOnly) robots = "noindex, nofollow";
-      seoCache.set(cacheKey, { robots, isEmpty, hasExclusiveOnly, expires: Date.now() + CACHE_TTL, staleExpires: Date.now() + CACHE_STALE_TTL });
+      // X-Robots-Tag itself is decided purely from INDEXABLE_PATHS (url.csv) in
+      // the main handler, not from this cache — only isEmpty/hasExclusiveOnly
+      // (which still require a live product-count check) are cached here.
+      seoCache.set(cacheKey, { isEmpty, hasExclusiveOnly, expires: Date.now() + CACHE_TTL, staleExpires: Date.now() + CACHE_STALE_TTL });
     }
   } catch {}
 }
@@ -469,7 +469,15 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
   }
 
   /* 3️⃣ SEO Middleware (LISTINGS ONLY) */
-  let robotsHeader = "index, follow";
+  // X-Robots-Tag is decided purely from the curated url.csv allowlist
+  // (cfs-paths/indexable-urls.json) — the same source the <meta name="robots">
+  // tag uses (src/utils/seo/indexable-urls.ts) — instead of a live WP call +
+  // band-filter heuristic. Overridden to noindex below only when the live
+  // product count for this exact filter combo is genuinely zero.
+  let robotsHeader = "noindex, nofollow";
+  if (isListingsPath && INDEXABLE_PATHS.has(url.pathname)) {
+    robotsHeader = "index, follow";
+  }
 
   if (isListingsPath) {
     const cacheKey = fullPath;
@@ -492,7 +500,7 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
         url.searchParams.forEach((v, k) => rewriteUrl.searchParams.set(k, v));
         return NextResponse.rewrite(rewriteUrl);
       }
-      robotsHeader = cached!.robots;
+      if (cached!.isEmpty) robotsHeader = "noindex, nofollow";
     } else {
       try {
         const slugParts = url.pathname
@@ -546,40 +554,20 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
           if (totalCount === 0) {
             if (empExclusive.length === 0) {
               // Don't 410 from middleware — ISR/page component handles empty state
-              seoCache.set(cacheKey, { robots: "noindex, nofollow", isEmpty: true, hasExclusiveOnly: false, expires: Date.now() + CACHE_TTL, staleExpires: Date.now() + CACHE_STALE_TTL });
+              seoCache.set(cacheKey, { isEmpty: true, hasExclusiveOnly: false, expires: Date.now() + CACHE_TTL, staleExpires: Date.now() + CACHE_STALE_TTL });
               robotsHeader = "noindex, nofollow";
             } else {
-              seoCache.set(cacheKey, { robots: "noindex, nofollow", isEmpty: false, hasExclusiveOnly: true, expires: Date.now() + CACHE_TTL, staleExpires: Date.now() + CACHE_STALE_TTL });
+              seoCache.set(cacheKey, { isEmpty: false, hasExclusiveOnly: true, expires: Date.now() + CACHE_TTL, staleExpires: Date.now() + CACHE_STALE_TTL });
               const rewriteUrl = new URL(`/api/listings-410/${slugParts.join('/')}${url.search}`, request.url);
               return NextResponse.rewrite(rewriteUrl);
             }
           } else {
-
-          const seo = data?.seo ?? data?.seo_v2 ?? {};
-          const rawIndex = String(seo?.index ?? "").toLowerCase().trim();
-          const rawFollow = String(seo?.follow ?? "").toLowerCase().trim();
-
-          robotsHeader =
-            (rawIndex === "noindex" ? "noindex" : "index") +
-            ", " +
-            (rawFollow === "nofollow" ? "nofollow" : "follow");
-
-          // Band pages: noindex unless it's a single allowed band filter with no other filters.
-          const hasBand = !!(filters.maxKg || filters.minKg || filters.to_price || filters.from_price ||
-            filters.to_length || filters.from_length || filters.to_sleep || filters.from_sleep);
-          const hasOtherFilters = !!(filters.make || filters.model || filters.state || filters.region || filters.category);
-          const isSingleAllowedBand = hasBand && !hasOtherFilters && isAllowedSingleBand(slugParts);
-          if (hasBand && !isSingleAllowedBand) {
-            robotsHeader = "noindex, nofollow";
-          }
-
-          seoCache.set(cacheKey, {
-            robots: robotsHeader,
-            isEmpty: false,
-            hasExclusiveOnly: false,
-            expires: Date.now() + CACHE_TTL,
-            staleExpires: Date.now() + CACHE_STALE_TTL,
-          });
+            seoCache.set(cacheKey, {
+              isEmpty: false,
+              hasExclusiveOnly: false,
+              expires: Date.now() + CACHE_TTL,
+              staleExpires: Date.now() + CACHE_STALE_TTL,
+            });
           } // close else (products > 0)
         } else if (apiRes.status === 410) {
           // WordPress returns 410 for 0 products — set noindex but let ISR/page handle display
@@ -589,16 +577,16 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
             const data410 = JSON.parse(idx410 > 0 ? raw410.substring(idx410) : raw410);
             const empExclusive410 = data410?.emp_exclusive_products ?? [];
             if (empExclusive410.length === 0) {
-              seoCache.set(cacheKey, { robots: "noindex, nofollow", isEmpty: true, hasExclusiveOnly: false, expires: Date.now() + CACHE_TTL, staleExpires: Date.now() + CACHE_STALE_TTL });
+              seoCache.set(cacheKey, { isEmpty: true, hasExclusiveOnly: false, expires: Date.now() + CACHE_TTL, staleExpires: Date.now() + CACHE_STALE_TTL });
               robotsHeader = "noindex, nofollow";
               // Don't render410 — let ISR serve cached HTML
             } else {
-              seoCache.set(cacheKey, { robots: "noindex, nofollow", isEmpty: false, hasExclusiveOnly: true, expires: Date.now() + CACHE_TTL, staleExpires: Date.now() + CACHE_STALE_TTL });
+              seoCache.set(cacheKey, { isEmpty: false, hasExclusiveOnly: true, expires: Date.now() + CACHE_TTL, staleExpires: Date.now() + CACHE_STALE_TTL });
               const rewriteUrl410 = new URL(`/api/listings-410/${slugParts.join('/')}${url.search}`, request.url);
               return NextResponse.rewrite(rewriteUrl410);
             }
           } catch {
-            seoCache.set(cacheKey, { robots: "noindex, nofollow", isEmpty: true, hasExclusiveOnly: false, expires: Date.now() + CACHE_TTL, staleExpires: Date.now() + CACHE_STALE_TTL });
+            seoCache.set(cacheKey, { isEmpty: true, hasExclusiveOnly: false, expires: Date.now() + CACHE_TTL, staleExpires: Date.now() + CACHE_STALE_TTL });
             robotsHeader = "noindex, nofollow";
             // Don't render410 — let ISR serve cached HTML
           }

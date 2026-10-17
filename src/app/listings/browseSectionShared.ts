@@ -96,7 +96,7 @@ export const POPULAR_REGION_PATHS = [
   { name: "Perth",          path: "western-australia-state/perth-region/" },
   { name: "Sydney",         path: "new-south-wales-state/sydney-region/" },
   { name: "Cairns",         path: "queensland-state/cairns-region/" },
-  { name: "Canberra",       path: "new-south-wales-state/canberra-region/" },
+  { name: "Canberra",       path: "australian-capital-territory-state/australian-capital-territory-region/" },
   { name: "Geelong",        path: "victoria-state/geelong-region/" },
   { name: "Hobart",         path: "tasmania-state/hobart-region/" },
   { name: "Newcastle",      path: "new-south-wales-state/newcastle-region/" },
