@@ -170,8 +170,16 @@ export default async function ProductDetailPage({ params }: PageProps) {
   // without one it returns the same set on every request. The backend only
   // honors seed values 1-10 — anything higher silently falls back to the
   // unseeded/default order (verified directly against the live API).
+  // NOTE: the live blog/caravans/{slug} endpoint currently 404s the whole
+  // post lookup whenever ANY seed is present (backend regression — verified
+  // directly against the API, every seed value 1-10 fails the same way), so
+  // fall back to the unseeded request rather than redirecting real posts to
+  // /404.
   const seed = Math.floor(Math.random() * 10) + 1;
-  const data = await fetchBlogDetail(slug, seed);
+  let data = await fetchBlogDetail(slug, seed);
+  if (!data || !data?.data?.blog_detail) {
+    data = await fetchBlogDetail(slug);
+  }
 
   if (slug.startsWith("thank-you-")) {
     return <Thankyou />;
