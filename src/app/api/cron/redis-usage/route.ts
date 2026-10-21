@@ -8,7 +8,9 @@ export const runtime = "nodejs";   // nodemailer needs Node.js, not Edge
 /* GET /api/cron/redis-usage/ — daily usage check (Vercel Cron, see vercel.json) for
    Upstash Redis commands AND MaxMind credit. Emails ALERT_EMAIL_TO (cc ALERT_EMAIL_CC):
      Redis   ≥ 80% of the monthly limit → warning, once per month
-             ≥ 100%                      → "limit reached", every daily run while over (Redis can't record it)
+             ≥ 100%, still accepting     → "limit reached", once per month
+             ≥ 100%, rejecting commands  → "BLOCKED", every daily run while blocked (Redis can't record it)
+             back under the limit        → "back to normal", once (new month, or REDIS_MONTHLY_LIMIT raised after upgrading)
      MaxMind < MAXMIND_ALERT_QUERIES lookups left (default 2,500) → warning, at most once every 7 days
              0 left / out-of-credit error                        → every daily run
    Env: UPSTASH_EMAIL + UPSTASH_API_KEY (Upstash Management API), [REDIS_MONTHLY_LIMIT=500000],
@@ -60,16 +62,32 @@ async function getMonthlyUsage(): Promise<{ used: number; database: string; sour
   return { used, database: db.database_name, source: "dailyrequests" };
 }
 
-function buildEmail(level: "warning" | "limit", used: number, limit: number, database: string) {
+type RedisAlert = "warning" | "limit" | "blocked" | "recovered";
+
+const OVER_MARKER = "alert:redis:over";   // set while over the limit (value = first seen), read back for "back to normal"
+const OVER_MARKER_TTL_S = 70 * 86400;
+
+const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+
+/* detail: the Upstash error (blocked) or when the database first went over the limit (recovered) */
+function buildEmail(level: RedisAlert, used: number, limit: number, database: string, detail?: string) {
   const pct = Math.round((used / limit) * 100);
   const n = (x: number) => x.toLocaleString("en-AU");
-  const subject = level === "limit"
-    ? `[caravansforsale.com.au] Redis limit REACHED — ${pct}% of monthly commands used`
-    : `[caravansforsale.com.au] Redis usage warning — ${pct}% of monthly commands used`;
-  const impact = level === "limit"
-    ? "The limit has been reached. Visitor screening keeps running but cannot save results: every new visitor now costs a paid MaxMind lookup, visitors show as \"unscreened\", qualifications are not saved (the ps remarketing audience stops filling) and the visitor log is empty."
-    : `If usage reaches 100% before the month resets, visitor screening stops saving results: MaxMind costs rise, the ps remarketing audience stops filling and the visitor log goes empty.`;
-  const action = "Upgrade the database to Pay as you go in the Upstash console (console.upstash.com → database → Details / Plan). At this site's volume that is roughly US$1–3 per month. Usage resets at the start of each month.";
+  const subject = {
+    warning: `[caravansforsale.com.au] Redis usage warning — ${pct}% of monthly commands used`,
+    limit: `[caravansforsale.com.au] Redis limit REACHED — ${pct}% of monthly commands used`,
+    blocked: `[caravansforsale.com.au] Redis BLOCKED — Upstash is rejecting commands (${pct}% used)`,
+    recovered: `[caravansforsale.com.au] Redis back to normal — ${pct}% of monthly commands used`,
+  }[level];
+  const impact = {
+    warning: "If usage reaches 100% before the month resets, Upstash can start rejecting commands and visitor screening stops saving results: MaxMind costs rise, visitors show as \"unscreened\" in GTM / GA and the visitor log goes empty.",
+    limit: "The limit has been reached, but Upstash is still accepting commands for now, so tracking works normally. It can start rejecting them at any time — you will get a separate \"Redis BLOCKED\" email when it does.",
+    blocked: `Upstash is now rejecting commands${detail ? ` ("${detail}")` : ""}. Visitor screening keeps running but cannot save or read results: visitors show as "unscreened" in GTM / GA, qualified visitors still fire the qualified_visitor event but drop back from "ps" to "unscreened" on later pages, every qualification check costs an extra MaxMind lookup and the visitor log is empty.`,
+    recovered: `Redis is under the monthly limit again${detail ? ` (it went over on ${detail.slice(0, 10)})` : ""}. Visitor screening saves results normally again; visitors screened while it was blocked are re-screened on their next qualification check.`,
+  }[level];
+  const action = level === "recovered"
+    ? "Nothing — this is just to confirm tracking is back to normal."
+    : "Upgrade the database to Pay as you go in the Upstash console (console.upstash.com → database → Details / Plan). At this site's volume that is roughly US$1–3 per month. Usage resets at the start of each month. If you have already upgraded, set REDIS_MONTHLY_LIMIT in Vercel to your new cap so these emails stop.";
   const text = [
     `Upstash Redis usage for database "${database}":`,
     `${n(used)} of ${n(limit)} commands this month (${pct}%).`,
@@ -77,9 +95,9 @@ function buildEmail(level: "warning" | "limit", used: number, limit: number, dat
     "Sent automatically by the daily check at /api/cron/redis-usage/ on caravansforsale.com.au.",
   ].join("\n");
   const html = `
-    <p>Upstash Redis usage for database <b>${database}</b>:</p>
+    <p>Upstash Redis usage for database <b>${esc(database)}</b>:</p>
     <p style="font-size:18px"><b>${n(used)}</b> of ${n(limit)} commands this month (<b>${pct}%</b>)</p>
-    <p>${impact}</p>
+    <p>${esc(impact)}</p>
     <p><b>What to do:</b> ${action}</p>
     <p style="color:#6b7280;font-size:12px">Sent automatically by the daily check at /api/cron/redis-usage/ on caravansforsale.com.au.</p>`;
   return { subject, text, html };
@@ -139,13 +157,58 @@ async function checkRedis(dry: boolean, mailConfigured: boolean): Promise<Record
   }
 
   const ratio = usage.used / limit;
-  const level = ratio >= 1 ? "limit" : ratio >= WARN_AT ? "warning" : null;
-  const result = { ...usage, limit, percent: Math.round(ratio * 1000) / 10, level: level ?? "ok", mailConfigured };
-  if (!level || dry) return { ...result, emailed: false };
+  const base = { ...usage, limit, percent: Math.round(ratio * 1000) / 10, mailConfigured };
+  const month = new Date().toISOString().slice(0, 7);
 
-  // Warning: once per month. Limit: every run — Redis rejects writes once over the limit, so no marker is possible.
-  const marker = level === "warning" ? `alert:redis:warning:${new Date().toISOString().slice(0, 7)}` : undefined;
-  return { ...result, ...(await sendOnce("redis-usage", buildEmail(level, usage.used, limit, usage.database), marker, 40 * 86400)) };
+  if (ratio >= 1) {
+    // Over the limit: Upstash may still accept commands for a while, so test with a real one.
+    // The same command records the over-limit state for the "back to normal" email.
+    const probe = await probeRedis();
+    const level: RedisAlert = probe.accepting ? "limit" : "blocked";
+    const result = { ...base, level, redisAccepting: probe.accepting, ...(probe.error ? { redisError: probe.error } : {}) };
+    if (dry) return { ...result, emailed: false };
+    // Limit (still accepting): once per month. Blocked: every run — Redis can't record that it was sent.
+    const marker = level === "limit" ? `alert:redis:limit:${month}` : undefined;
+    return { ...result, ...(await sendOnce("redis-usage", buildEmail(level, usage.used, limit, usage.database, probe.error), marker, 40 * 86400)) };
+  }
+
+  // Back under the limit (new month, or REDIS_MONTHLY_LIMIT raised after upgrading) → "back to normal", once
+  const overSince = (await redis([["GET", OVER_MARKER]]))?.[0];
+  if (typeof overSince === "string") {
+    const result = { ...base, level: "recovered", overSince };
+    if (dry) return { ...result, emailed: false };
+    const sent = await sendOnce("redis-usage", buildEmail("recovered", usage.used, limit, usage.database, overSince));
+    if (sent.emailed) await redis([["DEL", OVER_MARKER]]);
+    return { ...result, ...sent };
+  }
+
+  const level = ratio >= WARN_AT ? "warning" : null;
+  const result = { ...base, level: level ?? "ok" };
+  if (!level || dry) return { ...result, emailed: false };
+  return { ...result, ...(await sendOnce("redis-usage", buildEmail(level, usage.used, limit, usage.database), `alert:redis:warning:${month}`, 40 * 86400)) };
+}
+
+/* One real command against the database: SET NX of the over-limit marker (keeps the first time seen).
+   Called directly rather than via redis() so Upstash's rejection message can be reported. */
+async function probeRedis(): Promise<{ accepting: boolean; error?: string }> {
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  if (!url || !token) return { accepting: false, error: "Missing env: UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN" };
+  try {
+    const res = await fetch(`${url}/pipeline`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify([["SET", OVER_MARKER, new Date().toISOString(), "NX", "EX", OVER_MARKER_TTL_S]]),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    const body: any = await res.json().catch(() => null);
+    const error = res.ok ? body?.[0]?.error : body?.error ?? `HTTP_${res.status}`;
+    if (error) console.error(`[redis-usage] Redis is rejecting commands: ${error}`);
+    return error ? { accepting: false, error: String(error).slice(0, 200) } : { accepting: true };
+  } catch (e: any) {
+    return { accepting: false, error: String(e?.message ?? e) };
+  }
 }
 
 /* ── MaxMind credit ──
