@@ -475,7 +475,10 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
   // band-filter heuristic. Overridden to noindex below only when the live
   // product count for this exact filter combo is genuinely zero.
   let robotsHeader = "noindex, nofollow";
-  if (isListingsPath && INDEXABLE_PATHS.has(url.pathname)) {
+  // ?keyword= / ?search= results echo arbitrary text (spam links crawled by bots)
+  // — url.csv only lists clean paths, so never index the query-string variants.
+  const isKeywordQuery = url.searchParams.has("keyword") || url.searchParams.has("search");
+  if (isListingsPath && !isKeywordQuery && INDEXABLE_PATHS.has(url.pathname)) {
     robotsHeader = "index, follow";
   }
 
