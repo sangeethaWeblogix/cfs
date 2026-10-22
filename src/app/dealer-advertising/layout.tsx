@@ -5,7 +5,7 @@ import { ReactNode } from "react";
 
  export const metadata: Metadata = {
    title: {
-     default: "Caravan Dealer Advertising | Unlimited Listings $299/Month | CaravansForSale",
+     default: "Caravan Dealer Advertising | Unlimited Listings $199/Month | CaravansForSale",
      template: "%s ",
    },
    description:
