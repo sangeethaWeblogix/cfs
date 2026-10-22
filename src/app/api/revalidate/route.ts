@@ -8,6 +8,10 @@ import { NextRequest, NextResponse } from "next/server";
 //   POST /api/revalidate?secret=YOUR_SECRET
 //   Body: { "slug": "pro-rv-dingo-13ft6-touring-hybrid-ensuite-outdoor-kitchen" }
 //
+// Blog post saved/published/unpublished (purges its cached detail data):
+//   POST /api/revalidate/?secret=YOUR_SECRET
+//   Body: { "slug": "caravan-suspension-explained" }
+//
 // Revalidate all pages (full site cache purge):
 //   POST /api/revalidate?secret=YOUR_SECRET
 //   Body: { "all": true }
@@ -29,6 +33,7 @@ export async function POST(request: NextRequest) {
       // Purge all product detail pages; mark listing data stale (stale-on-error via unstable_cache)
       revalidatePath("/[slug]", "page");
       revalidateTag("listings", "days");
+      revalidateTag("blog-detail", { expire: 0 });
       return NextResponse.json({ revalidated: true, scope: "all pages" });
     }
 
@@ -39,6 +44,8 @@ export async function POST(request: NextRequest) {
     // Purge specific product detail page; mark listing data stale (not purged)
     revalidatePath(`/${slug}`, "page");
     revalidateTag("listings", "days");
+    // Blog posts: hard-expire (not stale-while-revalidate) so an edit shows on the next view
+    revalidateTag(`blog:${slug.replace(/^\/+|\/+$/g, "")}`, { expire: 0 });
     return NextResponse.json({ revalidated: true, paths: [`/${slug}`, "/listings"] });
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
