@@ -19,25 +19,6 @@ const mpnHeaders = (): Record<string, string> => ({
 });
 
 // ---------------------------------------------------------------------------
-// fetchMakeDetails
-// make_details is not pre-warmed in KV — rely on Next.js 24h fetch cache.
-// ---------------------------------------------------------------------------
-export const fetchMakeDetails = async () => {
-  try {
-    const res = await fetch(`${MPN_BASE}/make_details`, {
-      headers: wpHeaders(),
-      next: { revalidate: 86400 },
-    });
-    if (!res.ok) throw new Error("Failed to fetch make details");
-    const json = await res.json();
-    return json?.data?.make_options || [];
-  } catch (error) {
-    console.error("fetchMakeDetails error:", error);
-    return [];
-  }
-};
-
-// ---------------------------------------------------------------------------
 // fetchModelCounts — KV first (params-count:group_by=model&make={slug})
 // Pre-warmed for every indexed make by cfs-params-cache-warmer.php.
 // ---------------------------------------------------------------------------

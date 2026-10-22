@@ -6,7 +6,7 @@ import { parseDemoFilters, buildListingsSlug } from "../urlUtils";
 import { metaFromSlug } from "@/utils/seo/meta";
 import { fetchBrowseSectionData, fetchGroupCountsServer } from "../fetchBrowseSectionData";
 import { fetchInitialPool } from "../fetchInitialPool";
-import { fetchProductList, fetchMakeDetails } from "@/api/productList/api";
+import { fetchProductList } from "@/api/productList/api";
 import { buildCategoryCountScope, buildMakeCountScope } from "../paramsCountScope";
 import "../../globals.css";
 
@@ -82,11 +82,12 @@ export default async function LocationStateDemoPage({
   const makeCountScope = Object.fromEntries(buildMakeCountScope(initialFilters));
 
   // const [browseData, initialPool, productList, makeOptions, categoryCounts, makeCounts] = await Promise.all([
-  const [browseData, initialPool, productList, makeOptions, categoryCounts, makeCounts] = await Promise.all([
+  // The WP /make_details route no longer exists (404) — the make/model lists
+  // come from the group-count fetches below, so it is no longer called here.
+  const [browseData, initialPool, productList, categoryCounts, makeCounts] = await Promise.all([
     fetchBrowseSectionData(initialFilters),
     fetchInitialPool(initialFilters, isIndexed, shuffleSeed),
     fetchProductList(),
-    fetchMakeDetails(),
     fetchGroupCountsServer("category", categoryCountScope),
     fetchGroupCountsServer("make", makeCountScope),
   ]);
@@ -99,7 +100,6 @@ export default async function LocationStateDemoPage({
       serverIsIndexed={isIndexed}
       initialCategories={productList?.data?.all_categories ?? []}
       initialStates={productList?.data?.states ?? []}
-      initialMakes={makeOptions}
       initialCategoryCounts={categoryCounts}
       initialMakeCounts={makeCounts}
     />
