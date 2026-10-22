@@ -8,6 +8,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getLocationLabel } from "./locationUtils";
 import { type FeaturedListing as Listing } from "@/api/homeApi/featured/api";
+import { useFeaturedFallback } from "./useFeaturedFallback";
 
 const formatPrice = (price: string | number): string => {
   const n = Number(price);
@@ -19,7 +20,8 @@ interface Props {
   items: Listing[];
 }
 
-export default function HomeFeatured({ items }: Props) {
+export default function HomeFeatured({ items: serverItems }: Props) {
+  const items = useFeaturedFallback(serverItems, "all");
   const swiperRef = useRef<SwiperType | null>(null);
   const [isBeginning, setIsBeginning] = useState(true);
   const [isEnd, setIsEnd] = useState(false);

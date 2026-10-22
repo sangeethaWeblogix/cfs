@@ -2,6 +2,8 @@ const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
 const API_KEY = process.env.CFS_API_KEY;
 const SERVER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+const MAX_ATTEMPTS = 2;
+const ATTEMPT_TIMEOUT_MS = 8000;
 
 export type FeaturedListing = {
   id: number;
@@ -56,43 +58,48 @@ export async function fetchHomeFeatured(params: {
     seed ? `&seed=${encodeURIComponent(seed)}` : ""
   }${category ? `&category=${encodeURIComponent(category)}` : ""}`;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  // The home page HTML is CDN-cached for 24h, so a single failed call here (→ [])
+  // would be baked into the cached page for every visitor — retry before giving up.
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
+    const tag = `[home_featured] type=${type} (attempt ${attempt}/${MAX_ATTEMPTS})`;
 
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        Accept: "application/json",
-        "User-Agent": SERVER_UA,
-        ...(API_KEY && { "X-Secret-Key": API_KEY }),
-        ...(visitorIp && { "X-Visitor-IP": visitorIp }),
-      },
-      cache: "no-store",
-    });
+    try {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          Accept: "application/json",
+          "User-Agent": SERVER_UA,
+          ...(API_KEY && { "X-Secret-Key": API_KEY }),
+          ...(visitorIp && { "X-Visitor-IP": visitorIp }),
+        },
+        cache: "no-store",
+      });
 
-    clearTimeout(timeoutId);
+      if (!res.ok) {
+        console.error(`${tag} non-OK status: ${res.status}`);
+        continue;
+      }
 
-    if (!res.ok) {
-      console.error(`[home_featured] type=${type} non-OK status: ${res.status}`);
-      return [];
+      const raw = await res.text();
+
+      if (raw.includes("sgcaptcha") || raw.includes("cf-chl") || raw.trimStart().startsWith("<html")) {
+        console.error(`${tag} CLOUDFLARE CHALLENGE blocked request`);
+        continue;
+      }
+
+      const jsonStart = raw.indexOf("{");
+      const json = JSON.parse(jsonStart > 0 ? raw.substring(jsonStart) : raw);
+
+      const rawProducts: any[] = json?.items ?? json?.products ?? json?.data?.products ?? [];
+      return rawProducts.map(normalizeProduct);
+    } catch (err: any) {
+      console.error(`${tag} fetch error:`, err?.message);
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    const raw = await res.text();
-
-    if (raw.includes("sgcaptcha") || raw.includes("cf-chl") || raw.trimStart().startsWith("<html")) {
-      console.error(`[home_featured] type=${type} CLOUDFLARE CHALLENGE blocked request`);
-      return [];
-    }
-
-    const jsonStart = raw.indexOf("{");
-    const json = JSON.parse(jsonStart > 0 ? raw.substring(jsonStart) : raw);
-
-    const rawProducts: any[] = json?.items ?? json?.products ?? json?.data?.products ?? [];
-    return rawProducts.map(normalizeProduct);
-  } catch (err: any) {
-    clearTimeout(timeoutId);
-    console.error(`[home_featured] type=${type} fetch error:`, err?.message);
-    return [];
   }
+
+  return [];
 }
