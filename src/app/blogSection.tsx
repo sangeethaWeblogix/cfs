@@ -1,6 +1,7 @@
 "use client";
 
  import Image from "next/image";
+import { useEffect, useState } from "react";
 // import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation } from "swiper/modules";
@@ -38,7 +39,26 @@ interface Props {
   posts: ApiBlogPost[];
 }
 
-export default function HomeLatestBlogs({ posts: rawPosts }: Props) {
+export default function HomeLatestBlogs({ posts: serverPosts }: Props) {
+  const [livePosts, setLivePosts] = useState<ApiBlogPost[] | null>(null);
+
+  // The home page HTML is CDN-cached for 24h, so the posts baked in at render time go
+  // stale (and are empty if that render's blog fetch failed). Pull the latest ones in
+  // the browser — /api/home-blogs/ is CDN-cached for 60s, so a new post shows within ~1-2 min.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/home-blogs/", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((items) => {
+        if (!cancelled && Array.isArray(items) && items.length) setLivePosts(items.slice(0, 6));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const rawPosts = livePosts ?? serverPosts;
   const posts = rawPosts.filter((p) => !!p?.id && !!p?.title && !!p?.slug);
 
   const getHref = (p: BlogPost) => {
