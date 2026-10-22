@@ -4,6 +4,7 @@ const SERVER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
 const MAX_ATTEMPTS = 2;
 const ATTEMPT_TIMEOUT_MS = 8000;
+const RETRY_DELAY_MS = 400;
 
 export type FeaturedListing = {
   id: number;
@@ -61,6 +62,7 @@ export async function fetchHomeFeatured(params: {
   // The home page HTML is CDN-cached for 24h, so a single failed call here (→ [])
   // would be baked into the cached page for every visitor — retry before giving up.
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    if (attempt > 1) await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * (attempt - 1)));
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
     const tag = `[home_featured] type=${type} (attempt ${attempt}/${MAX_ATTEMPTS})`;

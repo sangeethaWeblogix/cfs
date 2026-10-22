@@ -42,6 +42,8 @@ export type BlogPageResult = {
 
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_ATTEMPTS = 3;
+// Back-to-back retries all hit the same bot challenge — space them out.
+const RETRY_DELAY_MS = 400;
 
 // WP occasionally stores featured_image with a doubled protocol
 // (e.g. "https://https://...") from a bad copy-paste in the admin — that
@@ -77,6 +79,7 @@ export const fetchBlogs = async (page: number = 1): Promise<BlogPageResult> => {
 
   let lastErr: unknown;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    if (attempt > 1) await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * (attempt - 1)));
     console.log(`[Blog API] GET ${url} (attempt ${attempt}/${MAX_ATTEMPTS})`); // ✅ Server terminal-ல் தெரியும்
     try {
       const res = await fetchWithTimeout(url);
