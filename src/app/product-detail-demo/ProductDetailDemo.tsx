@@ -7,6 +7,7 @@ import { useEnquiryForm } from "@/app/components/ListContent/enquiryform";
 import CaravanDetailModal from "@/app/product/[slug]/CaravanDetailModal";
 import "./demo.css";
 import { trackListingView } from "@/utils/engagement";
+import { atmBandPath, lengthBandPath } from "@/utils/seo/spec-bands";
 
 // WP blog titles come HTML-entity-encoded (e.g. "&#038;" for "&") — decode
 // before rendering as plain text, or entities show up literally on screen.
@@ -371,6 +372,13 @@ export default function ProductDetailDemo({ data, similarData }: Props) {
     const v = String(value ?? "").trim();
     const L = label.toLowerCase();
     if (L === "year" || L === "years") { const n = toInt(v); return n ? `/listings/${n}-caravans-range/` : ""; }
+    // Length / ATM: link to the indexable band the value falls in — the API url is the exact
+    // value (e.g. under-3300-kg-atm, under-215-length-in-feet) which has no indexable page
+    if (L === "length" || L === "atm") {
+      const n = parseFloat(v.replace(/[^\d.]/g, ""));
+      const band = L === "length" ? lengthBandPath(n) : atmBandPath(n);
+      if (band) return `/listings/${band}/`;
+    }
     if (apiUrl) return linkFromApiUrl(apiUrl, v).href;
     if (L === "type" || L === "category") return v ? `/listings/${slugify(v.replace(/\s*caravans?\s*/gi, " ").trim())}-category/` : "";
     if (L === "make") return v ? `/listings/${valueSlug || slugify(v)}/` : "";
