@@ -32,6 +32,12 @@ export default function robots(): MetadataRoute.Robots {
           
         ],
       },
+      // Only these crawlers are shut out entirely (Cloudflare WAF blocks them too);
+      // everything else follows the "*" rules above.
+      {
+        userAgent: ["CCBot", "AhrefsBot", "MJ12bot"],
+        disallow: "/",
+      },
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,
   };
