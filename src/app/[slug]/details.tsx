@@ -204,6 +204,7 @@
    slug: string;
    title: string;
    date: string;
+   last_updated?: string | null;
    banner_image?: string;
    image?: string;
    toc?: string;
@@ -462,10 +463,13 @@
      ? `${Math.max(1, Math.round(stripHtml(post.content).split(/\s+/).length / 200))} min read`
      : null;
  
+   // null / empty / unparseable last_updated → formatPostDate returns "" → label and date stay hidden
+   const lastUpdated = post?.last_updated ? formatPostDate(post.last_updated) : "";
+
    if (!post) {
      redirect("/404");
    }
- 
+
    return (
      <div className="blog-page style-5 color-4">
        {/* ── Hero ── */}
@@ -476,6 +480,7 @@
              <h1 className="blog-hero__title">{plainTitle}</h1>
              <div className="blog-hero__meta">
                <span><i className="bi bi-calendar3" />{formatPostDate(post.date)}</span>
+               {lastUpdated && <span><i className="bi bi-arrow-repeat" />Last Updated On: {lastUpdated}</span>}
                {readingTime && <span><i className="bi bi-clock" />{readingTime}</span>}
                <button onClick={handleShare} className="blog-share-btn">
                  <i className={`bi ${copyDone ? "bi-check-lg" : "bi-share"}`} />
