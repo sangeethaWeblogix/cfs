@@ -1,0 +1,57 @@
+name: Sync Model URLs
+
+# Keeps the model landing pages (/listings/<make>/<model>/) in src/app/url.csv
+# in step with the live stock:
+#   - a model that has products and is not in url.csv yet is added;
+#   - a model that has dropped to 0 products is removed.
+# Also appends any brand-new make to cfs-paths/makes.json (the middleware 410s
+# makes that are not in that snapshot).
+#
+# scripts/sync-model-urls.js does the work (and refuses to write anything if
+# the API answer looks wrong). When something changed, url.csv,
+# cfs-paths/indexable-urls.json (and makes.json) are committed back to main.
+# The commit deliberately has no "[skip ci]" so Vercel redeploys with the new
+# url.csv — the middleware and the models sitemap read it at build time.
+
+on:
+  schedule:
+    - cron: '0 20 * * *'   # daily, 06:00 AEST / 07:00 AEDT
+  workflow_dispatch:
+
+concurrency:
+  group: sync-model-urls
+  cancel-in-progress: false
+
+jobs:
+  sync-model-urls:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Sync model rows in url.csv
+        env:
+          CFS_API_KEY: ${{ secrets.CFS_API_KEY }}
+        run: node scripts/sync-model-urls.js
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/app/url.csv cfs-paths/indexable-urls.json cfs-paths/makes.json
+          if git diff --cached --quiet; then
+            echo "Nothing changed — nothing to commit."
+          else
+            git commit -m "chore: sync model URLs in url.csv with live stock"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

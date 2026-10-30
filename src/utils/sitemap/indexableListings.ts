@@ -25,6 +25,7 @@ const OTHER_LISTING_TYPES = [
   "states",
   "regions",
   "makes",
+  "models",
   "atm",
   "price",
   "length",

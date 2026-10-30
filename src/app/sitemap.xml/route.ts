@@ -12,6 +12,7 @@ export async function GET() {
     "states-sitemap.xml",
     "regions-sitemap.xml",
     "makes-sitemap.xml",
+    "models-sitemap.xml",
     "blogs-sitemap.xml",
     "weights-sitemap.xml",
     "prices-sitemap.xml",
