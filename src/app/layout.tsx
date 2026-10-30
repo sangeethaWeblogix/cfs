@@ -285,14 +285,18 @@ const RESERVED_TOP_LEVEL_SLUGS = new Set([
                 ? "https://schema.org/NewCondition"
                 : "https://schema.org/UsedCondition",
           }),
-          offers: {
-            "@type": "Offer",
-            priceCurrency: "AUD",
-            ...(priceStr && { price: priceStr }),
-            availability: "https://schema.org/InStock",
-            url: canonicalUrl,
-            seller: { "@type": "Organization", name: "Caravans For Sale" },
-          },
+          // Google rejects an Offer without a price, so price-on-application listings
+          // (null regular/sale price) get no Offer at all instead of an invalid one.
+          ...(Number(priceStr) > 0 && {
+            offers: {
+              "@type": "Offer",
+              priceCurrency: "AUD",
+              price: priceStr,
+              availability: "https://schema.org/InStock",
+              url: canonicalUrl,
+              seller: { "@type": "Organization", name: "Caravans For Sale" },
+            },
+          }),
         };
       }
     }
