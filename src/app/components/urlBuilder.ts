@@ -253,14 +253,16 @@ export function parseSlugToFilters(
     if (
       !hasReservedSuffix(part) &&
       !part.includes("=") &&
-      isNaN(Number(part)) &&
       !filters.search // prevent make/model if search is there
     ) {
-      if (!filters.make) {
+      // A number never starts the path as a make, but once the make is known a
+      // numeric-looking segment is its model (e.g. /listings/crv/651/, /listings/mdc/12/).
+      // 4-digit numbers never get here — they are pincodes, handled above.
+      if (!filters.make && isNaN(Number(part))) {
         filters.make = part;
         return;
       }
-      if (!filters.model) {
+      if (filters.make && !filters.model) {
         filters.model = part;
         return;
       }
