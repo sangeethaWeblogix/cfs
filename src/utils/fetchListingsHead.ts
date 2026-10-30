@@ -4,11 +4,15 @@ import { parseSlugToFilters } from "@/app/components/urlBuilder";
 /** Local shapes for the /pool response fields this file actually reads —
  * kept here instead of importing from the (removed) old listings API module. */
 type Item = {
+  id?: number;
+  sku?: string;
   title: string;
   slug?: string;
   make?: string;
   model?: string;
+  condition?: string;
   length?: number | string | null;
+  atm?: number | string | null;
   regular_price?: number | string | null;
   sale_price?: number | string | null;
   r2_thumbnails?: string[];
@@ -34,6 +38,8 @@ type ApiResponse = {
     premium_products?: Item[];
   };
   emp_exclusive_products?: Item[];
+  /** Make names (e.g. "Jayco Caravans"), longest first — /pool items carry no make/model, so the brand is matched from the title. */
+  makes?: string[];
 };
 
 const BASE_URL = "https://www.caravansforsale.com.au";
@@ -176,44 +182,66 @@ function parseFaq(raw?: string): Faq[] {
   }
 }
 
-function buildProductListItem(item: Item, position: number) {
+const SCHEMA = "https://schema.org";
+const titleCase = (s: string) => s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+function splitYearAndBrand(title: string, makes: string[]): { year?: string; brand?: string } {
+  const m = title.match(/^((?:19|20)\d{2})\s+(.*)$/);
+  const rest = (m ? m[2] : title).toLowerCase();
+  const brand = makes.find((n) => rest.startsWith(n.toLowerCase() + " ") || rest === n.toLowerCase());
+  return { year: m?.[1], brand };
+}
+
+function conditionUrl(raw?: string): string | undefined {
+  const c = String(raw ?? "").trim().toLowerCase();
+  if (c === "new") return `${SCHEMA}/NewCondition`;
+  if (c === "used" || c.includes("near")) return `${SCHEMA}/UsedCondition`;
+  return undefined;
+}
+
+function buildVehicle(item: Item, makes: string[]) {
+  if (!item.slug) return null;
+  const url = `${BASE_URL}/product/${item.slug}/`;
+  const { year, brand } = splitYearAndBrand(item.title, makes);
+  const itemCondition = conditionUrl(item.condition);
+
   const rawPrice = item.sale_price != null && item.sale_price !== "" ? item.sale_price : item.regular_price;
-  const price = cleanPrice(String(rawPrice ?? ""));
+  const price = Number(cleanPrice(String(rawPrice ?? "")));
   const lengthFt = parseLengthFt(String(item.length ?? ""));
-  const widthMt =
-    !isNaN(lengthFt) && lengthFt > 0
-      ? (lengthFt * 0.3048).toFixed(2)
-      : "";
-  const images = (item.r2_thumbnails ?? [])
-    .slice(0, 5)
-    .map((url) => ({ "@type": "ImageObject", url }));
+  const atm = Number(item.atm);
+
+  const additionalProperty = [
+    ...(item.category && item.category.length > 0
+      ? [{ "@type": "PropertyValue", name: "Category", value: item.category.map(titleCase).join(", ") }]
+      : []),
+    ...(lengthFt > 0 ? [{ "@type": "PropertyValue", name: "Length", value: Math.round(lengthFt * 100) / 100, unitCode: "FOT" }] : []),
+    ...(atm > 0 ? [{ "@type": "PropertyValue", name: "ATM", value: atm, unitCode: "KGM" }] : []),
+  ];
+  const images = (item.r2_thumbnails ?? []).slice(0, 5);
+
   return {
-    "@type": "ListItem",
-    position,
-    item: {
-      "@type": "Caravan",
-      bodyType: item.category && item.category.length > 0
-        ? item.category.join(", ")
-        : "",
-      width: {
-        "@type": "QuantitativeValue",
-        unitCode: "MT",
-        value: widthMt,
-      },
-      url: item.slug ? `${BASE_URL}/product/${item.slug}/` : BASE_URL,
-      name: item.title,
-      model: item.model ?? "",
-      brand: {
-        "@type": "Brand",
-        name: item.make ?? "",
-      },
+    "@type": "Vehicle",
+    "@id": `${url}#vehicle`,
+    name: item.title,
+    url,
+    ...(item.sku && { sku: item.sku }),
+    bodyType: "Caravan",
+    ...(brand && { brand: { "@type": "Brand", name: brand } }),
+    ...(year && { vehicleModelDate: year }),
+    ...(additionalProperty.length > 0 && { additionalProperty }),
+    ...(images.length > 0 && { image: images }),
+    ...(itemCondition && { itemCondition }),
+    // No Offer without a real price (POA listings) — Google requires one
+    ...(price > 0 && {
       offers: {
         "@type": "Offer",
+        url,
+        price,
         priceCurrency: "AUD",
-        price: price,
+        availability: `${SCHEMA}/InStock`,
+        ...(itemCondition && { itemCondition }),
       },
-      image: images,
-    },
+    }),
   };
 }
 
@@ -226,13 +254,23 @@ export function buildListingsJsonLd(
     response?.seo_v2?.h1 ||
     response?.seo_v2?.meta_title ||
     "Caravans for Sale in Australia";
-  const totalProducts = response?.pagination?.total_products ?? 0;
 
-  const allProducts = [
+  // Every product shown on the page: regular + premium + exclusive, de-duplicated
+  const seen = new Set<string>();
+  const products = [
     ...(response.data?.products || []),
+    ...(response.data?.premium_products || []),
     ...(response.data?.emp_exclusive_products || []),
-  ];
-const weburl = "https://www.caravansforsale.com.au"
+  ].filter((p) => {
+    const key = String(p.id ?? p.slug ?? p.title);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const makes = response.makes ?? [];
+  const vehicles = products
+    .map((p) => buildVehicle(p, makes))
+    .filter((v): v is NonNullable<typeof v> => v !== null);
 
   const footerDescription = response?.seo_v2?.footer_description
     ? stripHtml(response.seo_v2.footer_description)
@@ -242,20 +280,37 @@ const weburl = "https://www.caravansforsale.com.au"
 
   const faqItems = parseFaq(response?.seo_v2?.faq);
 
+  const siteId = `${BASE_URL}/#website`;
+  const pageId = `${pageUrl}#webpage`;
+  const crumbId = `${pageUrl}#breadcrumb`;
+  const listId = `${pageUrl}#itemlist`;
+  // "6,909 Caravans for Sale in Australia" → "Caravans for Sale in Australia – Page 1"
+  const listName = `${pageTitle.replace(/^[\d,]+\s+/, "")} – Page 1`;
+
   const collectionPageLd = {
-    "@context": "https://schema.org",
+    "@context": SCHEMA,
     "@graph": [
       {
-        "@type": "CollectionPage",
-        "@id": pageUrl,
-        name: pageTitle,
-        url: pageUrl,
+        "@type": "WebSite",
+        "@id": siteId,
+        url: `${BASE_URL}/`,
+        name: "Caravans For Sale",
         inLanguage: "en-AU",
+      },
+      {
+        "@type": "CollectionPage",
+        "@id": pageId,
+        url: pageUrl,
+        name: pageTitle,
         ...(pageDescription && { description: pageDescription }),
-        ...(totalProducts > 0 && { numberOfItems: totalProducts }),
+        inLanguage: "en-AU",
+        isPartOf: { "@id": siteId },
+        breadcrumb: { "@id": crumbId },
+        ...(vehicles.length > 0 && { mainEntity: { "@id": listId } }),
       },
       {
         "@type": "BreadcrumbList",
+        "@id": crumbId,
         itemListElement: breadcrumbs.map((b, i) => ({
           "@type": "ListItem",
           position: i + 1,
@@ -263,6 +318,23 @@ const weburl = "https://www.caravansforsale.com.au"
           item: b.url,
         })),
       },
+      ...(vehicles.length > 0
+        ? [
+            {
+              "@type": "ItemList",
+              "@id": listId,
+              name: listName,
+              numberOfItems: vehicles.length,
+              itemListOrder: `${SCHEMA}/ItemListUnordered`,
+              itemListElement: vehicles.map((v, i) => ({
+                "@type": "ListItem",
+                position: i + 1,
+                url: v.url,
+                item: v,
+              })),
+            },
+          ]
+        : []),
       ...(faqItems.length > 0
         ? [
             {
@@ -281,41 +353,61 @@ const weburl = "https://www.caravansforsale.com.au"
     ],
   };
 
-  const searchResultsLd = {
-    "@context": "https://schema.org/",
-    "@type": "SearchResultsPage",
-    audience: { "@type": "Audience", audienceType: "caravan buyers" },
-    potentialAction: {
-      "@type": "SearchAction",
-      target: { "@type": "EntryPoint", urlTemplate: weburl },
-    },
-    mainEntity: {
-      "@type": "OfferCatalog",
-      numberOfItems: allProducts.length,
-      itemListElement: allProducts.map((item, idx) =>
-        buildProductListItem(item, idx + 1)
-      ),
-    },
-  };
+  return { collectionPageLd };
+}
 
-  return { collectionPageLd, searchResultsLd };
+let makeNamesCache: { names: string[]; expires: number } | null = null;
+
+/** Make names from params-count, longest first so "Snowy River Caravans" wins over "Snowy". */
+async function getMakeNames(): Promise<string[]> {
+  if (makeNamesCache && makeNamesCache.expires > Date.now()) return makeNamesCache.names;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(`${API_BASE}/params-count?group_by=make`, {
+      headers: { Accept: "application/json", ...(API_KEY && { "X-Secret-Key": API_KEY }) },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const raw = await res.text();
+    const json = JSON.parse(raw.substring(Math.max(0, raw.indexOf("{"))));
+    const names = (Array.isArray(json?.data) ? json.data : [])
+      .map((m: { name?: string }) => String(m?.name ?? "").trim())
+      .filter(Boolean)
+      .sort((x: string, y: string) => y.length - x.length);
+    if (names.length === 0) throw new Error("empty make list");
+    makeNamesCache = { names, expires: Date.now() + HEAD_POOL_CACHE_TTL };
+    return names;
+  } catch {
+    // Brand is optional in the schema — retry soon, but don't hammer the API during an outage
+    makeNamesCache = { names: [], expires: Date.now() + 60 * 1000 };
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // React.cache deduplicates within a single request; the 1hr cross-request cache
 // is handled by headPoolCache above.
+async function fetchListingsPool(pathnameKey: string): Promise<ApiResponse | null> {
+  if (pathnameKey === "/listings/") {
+    return fetchPoolListingsForHead({}, 1);
+  }
+  const slugString = pathnameKey
+    .replace(/^\/listings\//, "")
+    .replace(/\/$/, "");
+  const slugParts = slugString.split("/").filter(Boolean);
+  const rawFilters = parseSlugToFilters(slugParts, {});
+  const page = rawFilters.page ? Number(rawFilters.page) : 1;
+  return fetchPoolListingsForHead(rawFilters, page);
+}
+
 const fetchListingsForHead = cache(
   async (pathnameKey: string): Promise<ApiResponse | null> => {
     try {
-      if (pathnameKey === "/listings/") {
-        return await fetchPoolListingsForHead({}, 1);
-      }
-      const slugString = pathnameKey
-        .replace(/^\/listings\//, "")
-        .replace(/\/$/, "");
-      const slugParts = slugString.split("/").filter(Boolean);
-      const rawFilters = parseSlugToFilters(slugParts, {});
-      const page = rawFilters.page ? Number(rawFilters.page) : 1;
-      return await fetchPoolListingsForHead(rawFilters, page);
+      const data = await fetchListingsPool(pathnameKey);
+      return data ? { ...data, makes: await getMakeNames() } : null;
     } catch {
       return null;
     }

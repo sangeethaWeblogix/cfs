@@ -297,23 +297,21 @@ const RESERVED_TOP_LEVEL_SLUGS = new Set([
       }
     }
 
-    // Listings JSON-LD — fetched here so both schemas render inside <head>
-    // Second call hits Next.js data cache (revalidate: 3600), no extra network round-trip.
+    // Listings JSON-LD (one @graph: WebSite, CollectionPage, BreadcrumbList, ItemList of Vehicles)
+    // — fetched here so it renders inside <head>.
     let listingsCollectionLd: object | null = null;
-    let listingsSearchResultsLd: object | null = null;
     if (isMainListings || isListingSlug) {
       const normalizedPath = pathname.endsWith("/") ? pathname : pathname + "/";
       const listingsData = await fetchListingsForHead(normalizedPath);
       if (listingsData) {
         const crumbs = buildBreadcrumbs(pathname);
         const pageUrl = `https://www.caravansforsale.com.au${normalizedPath}`;
-        const { collectionPageLd, searchResultsLd } = buildListingsJsonLd(
+        const { collectionPageLd } = buildListingsJsonLd(
           listingsData,
           pageUrl,
           crumbs
         );
         listingsCollectionLd = collectionPageLd;
-        listingsSearchResultsLd = searchResultsLd;
       }
     }
 
@@ -918,18 +916,11 @@ const RESERVED_TOP_LEVEL_SLUGS = new Set([
               }}
             />
           )}
-          {/* Listings page JSON-LD — CollectionPage + BreadcrumbList */}
+          {/* Listings page JSON-LD — WebSite + CollectionPage + BreadcrumbList + ItemList (Vehicles) */}
           {listingsCollectionLd && (
             <script
               type="application/ld+json"
               dangerouslySetInnerHTML={{ __html: JSON.stringify(listingsCollectionLd) }}
-            />
-          )}
-          {/* Listings page JSON-LD — SearchResultsPage with product list */}
-          {listingsSearchResultsLd && (
-            <script
-              type="application/ld+json"
-              dangerouslySetInnerHTML={{ __html: JSON.stringify(listingsSearchResultsLd) }}
             />
           )}
           {/* ✅ Google Tag Manager (Head) */}
