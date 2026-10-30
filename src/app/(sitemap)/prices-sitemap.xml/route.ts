@@ -1,4 +1,5 @@
     import { NextResponse } from "next/server";
+import { isIndexableListing } from "@/utils/sitemap/indexableListings";
       const API_KEY = process.env.CFS_API_KEY; // ✅ Added
       const MPN_API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
 
@@ -29,6 +30,7 @@
       
   
       const urls = data.paths
+        .filter(isIndexableListing)
         .map(
           (path: string) => `
     <url>

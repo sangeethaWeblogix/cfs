@@ -1,4 +1,5 @@
    import { NextResponse } from "next/server";
+import { isIndexableListing } from "@/utils/sitemap/indexableListings";
  
  const SITE_URL =
    process.env.NEXT_PUBLIC_SITE_URL ||
@@ -29,6 +30,7 @@
      
  
      const urls = data.paths
+       .filter(isIndexableListing)
        .map(
          (path: string) => `
    <url>
