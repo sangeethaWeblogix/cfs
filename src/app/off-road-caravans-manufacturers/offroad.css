@@ -129,7 +129,7 @@
 }
 
 .buzzstone_inline_210659395 {
-  background-image: url(https://admin.caravansforsale.com.au/images/banner1.jpg);
+  background-image: url(/images/banner1.jpg);
 }
 
 .sc_recent_news_style_news-announce .post_size_medium {
@@ -522,7 +522,7 @@ main .section-head a {
 /* --------------- clients style-4 --------------- */
 
 .clients.style-4 {
-  background: url(https://admin.caravansforsale.com.au/images/bg_rugged.jpg);
+  background: url(/images/bg_rugged.jpg);
   position: relative;
   z-index: 25;
   background-size: cover;
