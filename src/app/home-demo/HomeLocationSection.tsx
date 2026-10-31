@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { isLinkableListingPath, linkHasListings, type ListingLinkCounts } from "@/app/listings/browseSectionShared";
 
 const MAJOR_CITIES = [
   { name: "Adelaide",   href: "/listings/south-australia-state/adelaide-region/",    imgSrc: "/images/Adelaide.png"   },
@@ -79,7 +80,15 @@ const FILTERS = [
 ];
 
 
-export default function HomeLocationSection() {
+export default function HomeLocationSection({ linkCounts }: { linkCounts?: ListingLinkCounts | null }) {
+  // Every city/chip must lead to a non-empty page that isn't a 410; hidden
+  // ones come back by themselves once the live counts show stock.
+  const showLink = (href: string) => isLinkableListingPath(href) && linkHasListings(href, linkCounts);
+  const majorCities = MAJOR_CITIES.filter((city) => showLink(city.href));
+  const minorCities = MINOR_CITIES.filter((city) => showLink(city.href));
+  const filters = FILTERS
+    .map((f) => ({ ...f, items: f.items.filter((item) => showLink(item.href)) }))
+    .filter((f) => f.items.length > 0);
   return (
     <section className="hloc-section">
       <div className="container">
@@ -93,7 +102,7 @@ export default function HomeLocationSection() {
         </div>
 
         <div className="hloc-major-grid">
-          {MAJOR_CITIES.map((city) => (
+          {majorCities.map((city) => (
             <a key={city.name} href={city.href} className="hloc-city-card">
               <div className="hloc-city-img-wrap">
                 <div className="hloc-city-circle" />
@@ -114,7 +123,7 @@ export default function HomeLocationSection() {
         </div>
 
         <div className="hloc-minor-wrap">
-          {MINOR_CITIES.map((city, idx) => (
+          {minorCities.map((city, idx) => (
             <a
               key={city.name}
               href={city.href}
@@ -132,7 +141,7 @@ export default function HomeLocationSection() {
         </div>
         <div className="hloc-filters">
           
-          {FILTERS.map((f) => (
+          {filters.map((f) => (
             <div key={f.label} className="hloc-filter-row">
               <div className="hloc-filter-label">
                 <span className="hloc-filter-icon-box">{f.icon}</span>

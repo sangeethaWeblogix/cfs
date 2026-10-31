@@ -9,6 +9,7 @@ import { fetchHomePage } from "@/api/home/api";
 import { fetchTypeCounts } from "@/api/homeApi/typeCounts/api";
 import { fetchHomeFeatured } from "@/api/homeApi/featured/api";
 import { fetchBlogs } from "@/api/blog/api";
+import { fetchListingLinkCounts } from "@/app/listings/fetchBrowseSectionData";
 
 const FEATURED_SEED_MAX = 15;
 
@@ -69,6 +70,7 @@ export default async function Page() {
     featuredNew,
     featuredUsed,
     blogPosts,
+    linkCounts,
   ] = await Promise.all([
     fetchStateBasedCaravans(),
     fetchRequirements(),
@@ -78,6 +80,7 @@ export default async function Page() {
     fetchHomeFeatured({ type: "new", seed: featuredSeed, visitorIp }),
     fetchHomeFeatured({ type: "used", seed: featuredSeed, visitorIp }),
     fetchBlogs(1),
+    fetchListingLinkCounts(),
   ]);
 
   return (
@@ -91,6 +94,7 @@ export default async function Page() {
       featuredUsed={featuredUsed}
       blogPosts={blogPosts.items.slice(0, 6)}
       visitorIp={visitorIp}
+      linkCounts={linkCounts}
     />
   );
 }

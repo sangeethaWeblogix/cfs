@@ -6,6 +6,7 @@ import { Navigation } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import CaravansByStateSkeleton from "../components/Caravansbystateskeleton";
+import { isLinkableListingPath, linkHasListings, type ListingLinkCounts } from "@/app/listings/browseSectionShared";
 
 interface Item {
   state: string;
@@ -15,6 +16,7 @@ interface Item {
 
 interface Props {
   stateBands: Item[];
+  linkCounts?: ListingLinkCounts | null;
 }
 
 const stateMeta: Record<string, { code: string; image: string }> = {
@@ -37,9 +39,14 @@ function buildStateHref(permalink: string): string {
   return path.endsWith("/") ? path : `${path}/`;
 }
 
-export default function HomeStateSection({ stateBands }: Props) {
+export default function HomeStateSection({ stateBands, linkCounts }: Props) {
+  // States with no listings (or a link that would 410) are left out; they
+  // return by themselves once the live counts show stock there.
   const visibleStateBands = stateBands.filter(
-    (item) => !HIDDEN_STATES.has(item.state.toLowerCase())
+    (item) =>
+      !HIDDEN_STATES.has(item.state.toLowerCase()) &&
+      isLinkableListingPath(buildStateHref(item.permalink)) &&
+      linkHasListings(buildStateHref(item.permalink), linkCounts)
   );
   const loading = visibleStateBands.length === 0;
 

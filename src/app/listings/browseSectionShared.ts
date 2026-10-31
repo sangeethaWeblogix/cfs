@@ -1,4 +1,45 @@
 import { getRegionsByState } from "../sell-my-caravan-region/regions-data";
+import { parseSlugToFilters } from "@/app/components/urlBuilder";
+import { buildSlugFromFilters } from "@/app/components/slugBuilter";
+import regionPathsData from "../../../cfs-paths/regions.json";
+import makesData from "../../../cfs-paths/makes.json";
+
+// Same state/region/make allowlists middleware.ts 410s against.
+const LINKABLE_STATES = new Set([
+  "queensland", "new-south-wales", "victoria", "south-australia",
+  "western-australia", "tasmania", "northern-territory", "australian-capital-territory",
+]);
+const LINKABLE_REGIONS = new Set(
+  (regionPathsData.paths as string[]).map((p) => p.split("/").find((s) => s.endsWith("-region"))?.replace(/-region$/, "") ?? "")
+);
+const LINKABLE_MAKES = new Set((makesData.paths as string[]).map((p) => p.replace(/\/$/, "")));
+
+/** True when a /listings/ href would not 410: already in canonical segment
+ * order, with a known state/region/make — the same checks middleware.ts runs. */
+export function isLinkableListingPath(href: string): boolean {
+  const slugParts = href.split("?")[0].replace(/^\/listings/, "").split("/").filter(Boolean);
+  if (slugParts.length === 0) return true;
+  try {
+    const filters = parseSlugToFilters(slugParts);
+    const norm = (p: string) => p.replace(/\/$/, "").toLowerCase();
+    if (norm(buildSlugFromFilters(filters)) !== norm(`/listings/${slugParts.join("/")}`)) return false;
+    const state = slugParts.find((s) => s.endsWith("-state"))?.replace(/-state$/, "");
+    const region = slugParts.find((s) => s.endsWith("-region"))?.replace(/-region$/, "");
+    if (state && !LINKABLE_STATES.has(state)) return false;
+    if (region && !LINKABLE_REGIONS.has(region)) return false;
+    if (filters.make && !LINKABLE_MAKES.has(filters.make)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** False only when counts are known and show none for this slug — unknown
+ * counts (API down) keep the link, so links never vanish on a failed fetch. */
+export function hasListings(counts: CountItem[] | null | undefined, slug: string): boolean {
+  if (!counts?.length) return true;
+  return counts.some((c) => c.slug === slug && c.count > 0);
+}
 
 export function toStateSlug(state: string): string {
   return state.trim().toLowerCase().replace(/ /g, "-");
@@ -141,7 +182,8 @@ export const SLEEP_BANDS = [
   { text: "3 Berth",  href: "/listings/3-people-sleeping-capacity/",      query: "from_sleep=3&to_sleep=3" },
   { text: "4 Berth",  href: "/listings/4-people-sleeping-capacity/",      query: "from_sleep=4&to_sleep=4" },
   { text: "5 Berth",  href: "/listings/5-people-sleeping-capacity/",      query: "from_sleep=5&to_sleep=5" },
-  { text: "6+ Berth", href: "/listings/over-5-people-sleeping-capacity/", query: "from_sleep=6" },
+  // over-5 parses to from_sleep=5 (urlBuilder.ts) — count what the page shows.
+  { text: "6+ Berth", href: "/listings/over-5-people-sleeping-capacity/", query: "from_sleep=5" },
 ];
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -217,8 +259,39 @@ export interface BrowseSectionData {
   stateCounts?: CountItem[] | null;
   regionCounts?: CountItem[] | null;
   categoryCounts?: CountItem[] | null;
-  priceCounts?: number[] | null;
-  atmCounts?: number[] | null;
-  lengthCounts?: number[] | null;
-  sleepCounts?: number[] | null;
+  /** Per-band counts in *_BANDS order; a null entry = unknown (link kept). */
+  priceCounts?: (number | null)[] | null;
+  atmCounts?: (number | null)[] | null;
+  lengthCounts?: (number | null)[] | null;
+  sleepCounts?: (number | null)[] | null;
+}
+
+/** Australia-wide counts for the home page's and footer's /listings/ links. */
+export interface ListingLinkCounts extends BrowseSectionData {
+  conditionCounts?: CountItem[] | null;
+}
+
+/** False when Australia-wide counts show a single-filter /listings/ href
+ * (region, state, category, condition or a FILTERS_NO_STATE band) has no
+ * stock. Unknown counts keep the link, so it returns once stock arrives. */
+export function linkHasListings(href: string, counts?: ListingLinkCounts | null): boolean {
+  if (!counts) return true;
+  const slug = (suffix: string) => href.match(new RegExp(`/([a-z0-9-]+)-${suffix}/`))?.[1];
+  const region = slug("region");
+  if (region) return hasListings(counts.regionCounts, region);
+  const state = slug("state");
+  if (state) return hasListings(counts.stateCounts, state);
+  const category = slug("category");
+  if (category) return hasListings(counts.categoryCounts, category);
+  const condition = slug("condition");
+  if (condition) return hasListings(counts.conditionCounts, condition);
+  const bands: [{ href: string }[], (number | null)[] | null | undefined][] = [
+    [PRICE_BANDS, counts.priceCounts], [ATM_BANDS, counts.atmCounts],
+    [LENGTH_BANDS, counts.lengthCounts], [SLEEP_BANDS, counts.sleepCounts],
+  ];
+  for (const [list, bandCounts] of bands) {
+    const i = list.findIndex((b) => b.href === href);
+    if (i >= 0) return (bandCounts?.[i] ?? 1) > 0;
+  }
+  return true;
 }

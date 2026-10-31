@@ -19,6 +19,8 @@ import {
   buildAllRegionsForState,
   buildTypesForState,
   buildFiltersForState,
+  isLinkableListingPath,
+  hasListings,
   type CountItem,
   type BrowseSectionData,
 } from "./browseSectionShared";
@@ -86,10 +88,10 @@ export default function StateBrowseSection({ state, region, category, initialDat
   const [stateCounts,    setStateCounts]    = useState<CountItem[] | null>(initialData?.stateCounts ?? null);
   const [regionCounts,   setRegionCounts]   = useState<CountItem[] | null>(initialData?.regionCounts ?? null);
   const [categoryCounts, setCategoryCounts] = useState<CountItem[] | null>(initialData?.categoryCounts ?? null);
-  const [priceCounts,    setPriceCounts]    = useState<number[] | null>(initialData?.priceCounts ?? null);
-  const [atmCounts,      setAtmCounts]      = useState<number[] | null>(initialData?.atmCounts ?? null);
-  const [lengthCounts,   setLengthCounts]   = useState<number[] | null>(initialData?.lengthCounts ?? null);
-  const [sleepCounts,    setSleepCounts]    = useState<number[] | null>(initialData?.sleepCounts ?? null);
+  const [priceCounts,    setPriceCounts]    = useState<(number | null)[] | null>(initialData?.priceCounts ?? null);
+  const [atmCounts,      setAtmCounts]      = useState<(number | null)[] | null>(initialData?.atmCounts ?? null);
+  const [lengthCounts,   setLengthCounts]   = useState<(number | null)[] | null>(initialData?.lengthCounts ?? null);
+  const [sleepCounts,    setSleepCounts]    = useState<(number | null)[] | null>(initialData?.sleepCounts ?? null);
 
   // initialData only covers the filters the server rendered this page with —
   // filter changes happen via client-side pushState (see home.tsx), not a
@@ -163,10 +165,11 @@ export default function StateBrowseSection({ state, region, category, initialDat
 
   // Shared shape for the "By Budget/ATM/Length/Sleep"-style vertical-list
   // filter columns used by every dynamic mode below.
-  const bandPanel = (basePath: string, bands: typeof PRICE_BANDS, counts: number[] | null) =>
+  const bandPanel = (basePath: string, bands: typeof PRICE_BANDS, counts: (number | null)[] | null) =>
     bands
       .filter((_, i) => (counts?.[i] ?? 1) > 0)
-      .map((b) => ({ text: b.text, href: `${basePath}${b.href.replace("/listings", "")}` }));
+      .map((b) => ({ text: b.text, href: `${basePath}${b.href.replace("/listings", "")}` }))
+      .filter((l) => isLinkableListingPath(l.href));
 
   // group_by-based panels (make/state/region/category) only know what to show
   // once their /api/params-count/ response arrives — unlike the band panels
@@ -210,15 +213,18 @@ export default function StateBrowseSection({ state, region, category, initialDat
     // than an empty panel — narrowed down the moment counts arrive.
     const makePanel = (makeCounts ?? [])
       .filter((m) => m.count > 0)
-      .map((m) => ({ text: m.name, href: `/listings/${m.slug}/${category}-category/` }));
+      .map((m) => ({ text: m.name, href: `/listings/${m.slug}/${category}-category/` }))
+      .filter((m) => isLinkableListingPath(m.href));
 
     const statePanel = buildStatesForCategory(category!)
       .filter((s) => stateCounts === null || (stateCounts.find((sc) => sc.slug === s.slug)?.count ?? 0) > 0)
-      .map((s) => ({ text: s.name, href: s.href }));
+      .map((s) => ({ text: s.name, href: s.href }))
+      .filter((s) => isLinkableListingPath(s.href));
 
     const regionPanel = buildPopularRegionsForCategory(category!)
       .filter((r) => regionCounts === null || (regionCounts.find((rc) => rc.slug === r.slug)?.count ?? 0) > 0)
-      .map((r) => ({ text: r.name, href: r.href }));
+      .map((r) => ({ text: r.name, href: r.href }))
+      .filter((r) => isLinkableListingPath(r.href));
 
     const pricePanel = bandPanel(`/listings/${category}-category`, PRICE_BANDS, priceCounts);
 
@@ -303,7 +309,8 @@ export default function StateBrowseSection({ state, region, category, initialDat
 
     const makePanel = (makeCounts ?? [])
       .filter((m) => m.count > 0)
-      .map((m) => ({ text: m.name, href: `/listings/${m.slug}/${stateSlug}-state/${regionSlug}-region/` }));
+      .map((m) => ({ text: m.name, href: `/listings/${m.slug}/${stateSlug}-state/${regionSlug}-region/` }))
+      .filter((m) => isLinkableListingPath(m.href));
 
     const categoryPanel = TYPES_NO_STATE
       .filter((t) => {
@@ -314,7 +321,8 @@ export default function StateBrowseSection({ state, region, category, initialDat
       .map((t) => {
         const slug = t.href.match(/\/listings\/([a-z-]+)-category\//)?.[1] ?? "";
         return { text: t.label, href: `/listings/${slug}-category/${stateSlug}-state/${regionSlug}-region/` };
-      });
+      })
+      .filter((c) => isLinkableListingPath(c.href));
 
     const panels = [
       { icon: "/images/Budget.png",   title: `Browse Caravans by Price in ${regionName}`,            links: bandPanel(basePath, PRICE_BANDS, priceCounts) },
@@ -372,11 +380,13 @@ export default function StateBrowseSection({ state, region, category, initialDat
 
     const regionPanel = (regionCounts ?? [])
       .filter((r) => r.count > 0)
-      .map((r) => ({ text: cleanRegionName(r.name), href: `${basePath}/${r.slug}-region/` }));
+      .map((r) => ({ text: cleanRegionName(r.name), href: `${basePath}/${r.slug}-region/` }))
+      .filter((r) => isLinkableListingPath(r.href));
 
     const makePanel = (makeCounts ?? [])
       .filter((m) => m.count > 0)
-      .map((m) => ({ text: m.name, href: `/listings/${m.slug}/${category}-category/${stateSlug}-state/` }));
+      .map((m) => ({ text: m.name, href: `/listings/${m.slug}/${category}-category/${stateSlug}-state/` }))
+      .filter((m) => isLinkableListingPath(m.href));
 
     const panels = [
       { icon: "/images/Budget.png",   title: `Browse ${label} Caravans by Price in ${stateName}`,            links: bandPanel(basePath, PRICE_BANDS, priceCounts) },
@@ -436,7 +446,8 @@ export default function StateBrowseSection({ state, region, category, initialDat
 
     const makePanel = (makeCounts ?? [])
       .filter((m) => m.count > 0)
-      .map((m) => ({ text: m.name, href: `/listings/${m.slug}/${category}-category/${stateSlug}-state/${regionSlug}-region/` }));
+      .map((m) => ({ text: m.name, href: `/listings/${m.slug}/${category}-category/${stateSlug}-state/${regionSlug}-region/` }))
+      .filter((m) => isLinkableListingPath(m.href));
 
     const panels = [
       { icon: "/images/Budget.png",   title: `Browse ${label} Caravans by Price in ${regionName}`,            links: bandPanel(basePath, PRICE_BANDS, priceCounts) },
@@ -469,9 +480,23 @@ export default function StateBrowseSection({ state, region, category, initialDat
     );
   }
 
-  const regions = hasState ? buildAllRegionsForState(state!) : STATES;
-  const types   = hasState ? buildTypesForState(state!) : TYPES_NO_STATE;
-  const filters = hasState ? buildFiltersForState(state!) : FILTERS_NO_STATE;
+  // Default mode: static pills, narrowed by the server-fetched counts (only
+  // while still on the filters they were fetched for) so none lead to an
+  // empty page, and by isLinkableListingPath so none lead to a 410.
+  const counts = isInitialFilters ? initialData : undefined;
+  const slugOf = (href: string, suffix: string) => href.match(new RegExp(`/([a-z0-9-]+)-${suffix}/$`))?.[1] ?? "";
+  const bandCounts = [counts?.priceCounts, counts?.atmCounts, counts?.lengthCounts, counts?.sleepCounts];
+  const regions = (hasState ? buildAllRegionsForState(state!) : STATES)
+    .filter((r) => isLinkableListingPath(r.href))
+    .filter((r) => hasState
+      ? hasListings(counts?.regionCounts, slugOf(r.href, "region"))
+      : hasListings(counts?.stateCounts, slugOf(r.href, "state")));
+  const types = (hasState ? buildTypesForState(state!) : TYPES_NO_STATE)
+    .filter((t) => isLinkableListingPath(t.href))
+    .filter((t) => hasListings(counts?.categoryCounts, t.href.match(/\/listings\/([a-z-]+)-category\//)?.[1] ?? ""));
+  const filters = (hasState ? buildFiltersForState(state!) : FILTERS_NO_STATE)
+    .map((f, fi) => ({ ...f, links: f.links.filter((l, i) => (bandCounts[fi]?.[i] ?? 1) > 0 && isLinkableListingPath(l.href)) }))
+    .filter((f) => f.links.length > 0);
 
   const leftTitle  = hasState ? `Browse Caravans by Region in ${stateLabel(state!)}` : "Browse Caravans by State";
   const rightTitle = hasState ? `Browse Caravans by Type in ${stateLabel(state!)}`   : "Browse Caravans by Type";

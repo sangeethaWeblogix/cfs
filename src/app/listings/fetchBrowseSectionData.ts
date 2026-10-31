@@ -6,6 +6,7 @@ import {
   SLEEP_BANDS,
   type CountItem,
   type BrowseSectionData,
+  type ListingLinkCounts,
 } from "./browseSectionShared";
 
 const API_BASE = process.env.NEXT_PUBLIC_CFS_API_BASE;
@@ -73,6 +74,49 @@ async function fetchBandCountServer(scope: Record<string, string>, query: string
   } catch {
     return 0;
   }
+}
+
+/** Listings matching a scope (params-count total_products); null = unknown.
+ * group_by=condition is used because it honours every scope param. */
+async function fetchTotalServer(scope: Record<string, string>): Promise<number | null> {
+  try {
+    const qs = new URLSearchParams({ group_by: "condition", ...scope });
+    const res = await fetch(`${MPN_BASE}/params-count?${qs.toString()}`, {
+      headers: mpnHeaders(),
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return typeof json?.total_products === "number" ? json.total_products : null;
+  } catch {
+    return null;
+  }
+}
+
+const bandScope = (scope: Record<string, string>, query: string) =>
+  ({ ...scope, ...Object.fromEntries(new URLSearchParams(query)) });
+
+/** Per-band totals for the static browse links (no product_exists_check —
+ * that WP route is gone), so a band with no stock is never linked. */
+async function fetchBandTotalsServer(scope: Record<string, string>) {
+  const totals = (bands: { query: string }[]) => Promise.all(bands.map((b) => fetchTotalServer(bandScope(scope, b.query))));
+  const [priceCounts, atmCounts, lengthCounts, sleepCounts] = await Promise.all([
+    totals(PRICE_BANDS), totals(ATM_BANDS), totals(LENGTH_BANDS), totals(SLEEP_BANDS),
+  ]);
+  return { priceCounts, atmCounts, lengthCounts, sleepCounts };
+}
+
+/** Australia-wide counts behind the home page's and footer's /listings/ links,
+ * so none lead to an empty page — links reappear once stock arrives. */
+export async function fetchListingLinkCounts(): Promise<ListingLinkCounts> {
+  const [stateCounts, regionCounts, categoryCounts, conditionCounts, bands] = await Promise.all([
+    fetchGroupCountsServer("state", {}),
+    fetchGroupCountsServer("region", {}),
+    fetchGroupCountsServer("category", {}),
+    fetchGroupCountsServer("condition", {}),
+    fetchBandTotalsServer({}),
+  ]);
+  return { stateCounts, regionCounts, categoryCounts, conditionCounts, ...bands };
 }
 
 async function fetchAllBandCountsServer(scope: Record<string, string>) {
@@ -160,8 +204,18 @@ export async function fetchBrowseSectionData(
     };
   }
 
-  // Default mode (no state/category, or state-only) — the pills rendered
-  // here are static (STATES/TYPES_NO_STATE/FILTERS_NO_STATE) or come from
-  // getRegionsByState, none of which need count data at all.
-  return {};
+  // Default mode (no state/category, or state-only) — the pills are static
+  // (STATES/TYPES_NO_STATE/FILTERS_NO_STATE or getRegionsByState); these
+  // counts hide the ones with no stock.
+  if (hasState) {
+    const scope = { state: state! };
+    const [regionCounts, categoryCounts, bands] = await Promise.all([
+      fetchGroupCountsServer("region", scope),
+      fetchGroupCountsServer("category", scope),
+      fetchBandTotalsServer(scope),
+    ]);
+    return { regionCounts, categoryCounts, ...bands };
+  }
+  const { stateCounts, categoryCounts, priceCounts, atmCounts, lengthCounts, sleepCounts } = await fetchListingLinkCounts();
+  return { stateCounts, categoryCounts, priceCounts, atmCounts, lengthCounts, sleepCounts };
 }

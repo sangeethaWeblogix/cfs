@@ -12,6 +12,7 @@ import { type HomeBlogPost } from "@/api/home/api";
 import { type TypeCounts } from "@/api/homeApi/typeCounts/api";
 import { type FeaturedListing } from "@/api/homeApi/featured/api";
 import { type BlogPost } from "@/api/blog/api";
+import type { ListingLinkCounts } from "@/app/listings/browseSectionShared";
 import HomeFeatured from "./HomeFeatured";
 import HomeStateSection from "./HomeStateSection";
 import HomeTypeSection from "./HomeTypeSection";
@@ -49,6 +50,7 @@ interface Props {
   featuredUsed: FeaturedListing[];
   blogPosts: BlogPost[];
   visitorIp: string;
+  linkCounts?: ListingLinkCounts | null;
 }
 /* --------------------------------- Page ---------------------------------- */
 export default function HomePage({
@@ -62,6 +64,7 @@ export default function HomePage({
   featuredUsed,
   blogPosts,
   visitorIp,
+  linkCounts = null,
 
  }: Props) {
 
@@ -284,7 +287,7 @@ const handleBannerClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) =
       />
 
       {/* ── Browse by State ── */}
-      <HomeStateSection stateBands={stateBands} />
+      <HomeStateSection stateBands={stateBands} linkCounts={linkCounts} />
 
       {/* ── Post Requirements ── */}
       <div className="hd-postreq-wrap">
@@ -294,10 +297,10 @@ const handleBannerClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) =
       </div>
 
       {/* ── Browse by Type ── */}
-      <HomeTypeSection typeCounts={typeCounts} />
+      <HomeTypeSection typeCounts={typeCounts} linkCounts={linkCounts} />
 
       {/* ── Find by Location ── */}
-      <HomeLocationSection />
+      <HomeLocationSection linkCounts={linkCounts} />
 
       {/* ── Buyer Guide + Why Australians ── */}
       <HomeBuyerGuide />

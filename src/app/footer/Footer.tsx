@@ -5,6 +5,8 @@ import BackToTopButton from "./BackToTopButton";
 import FooterNav from "./FooterNav";
 import FooterPopularLocations from "./FooterPopularLocations";
 import SellByLocationLink from "./SellByLocationLink";
+import { fetchListingLinkCounts } from "@/app/listings/fetchBrowseSectionData";
+import { isLinkableListingPath, linkHasListings, type ListingLinkCounts } from "@/app/listings/browseSectionShared";
 
 const SOCIAL_LINKS = [
   { label: "Facebook", href: "https://www.facebook.com/caravansforsale.com.au/", Icon: FaFacebookF, className: "cfs-footer__social-link--facebook" },
@@ -87,8 +89,20 @@ const LEGAL_LINKS = [
   { label: "Cookie Policy", href: "/cookie-policy/" },
 ];
 
-const Footer = () => {
+type FooterLink = { label: string; href: string };
+
+/** Drops listings links that would 410 or land on an empty page. Counts are
+ * live (unknown keeps the link), so links come back once stock arrives. */
+function withListings(links: FooterLink[], counts: ListingLinkCounts): FooterLink[] {
+  return links.filter(({ href }) => href === "/listings/" || (isLinkableListingPath(href) && linkHasListings(href, counts)));
+}
+
+const Footer = async () => {
   const currentYear = new Date().getFullYear();
+  const linkCounts = await fetchListingLinkCounts();
+  const browseLinks = withListings(BROWSE_LINKS, linkCounts);
+  const locationLinks = withListings(LOCATION_LINKS, linkCounts);
+  const popularLocations = withListings(POPULAR_LOCATIONS, linkCounts);
 
   return (
     <>
@@ -99,7 +113,7 @@ const Footer = () => {
             <div className="cfs-footer__col">
               <h4 className="cfs-footer__col-title">Browse Caravans</h4>
               <ul>
-                {BROWSE_LINKS.map((l) => (
+                {browseLinks.map((l) => (
                   <li key={l.label}><a href={l.href}>{l.label}</a></li>
                 ))}
               </ul>
@@ -108,7 +122,7 @@ const Footer = () => {
             <div className="cfs-footer__col">
               <h4 className="cfs-footer__col-title">Browse by State</h4>
               <ul>
-                {LOCATION_LINKS.map((l) => (
+                {locationLinks.map((l) => (
                   <li key={l.label}><a href={l.href}>{l.label}</a></li>
                 ))}
               </ul>
@@ -116,7 +130,7 @@ const Footer = () => {
 
             <div className="cfs-footer__col">
               <h4 className="cfs-footer__col-title">Popular Locations</h4>
-              <FooterPopularLocations locations={POPULAR_LOCATIONS} initialCount={7} />
+              <FooterPopularLocations locations={popularLocations} initialCount={7} />
             </div>
 
             <div className="cfs-footer__col">

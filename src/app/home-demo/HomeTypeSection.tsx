@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { type TypeCounts } from "@/api/homeApi/typeCounts/api";
+import { linkHasListings, type ListingLinkCounts } from "@/app/listings/browseSectionShared";
 
 const TYPES = [
   {
@@ -48,9 +49,13 @@ const TYPES = [
 
 interface Props {
   typeCounts?: TypeCounts;
+  linkCounts?: ListingLinkCounts | null;
 }
 
-export default function HomeTypeSection({ typeCounts }: Props) {
+export default function HomeTypeSection({ typeCounts, linkCounts }: Props) {
+  // Types with no listings are left out until the live counts show stock.
+  const types = TYPES.filter((t) => linkHasListings(`/listings/${t.slug}/`, linkCounts));
+
   return (
     <section className="htype-section">
       <div className="container">
@@ -59,7 +64,7 @@ export default function HomeTypeSection({ typeCounts }: Props) {
         </div>
 
         <div className="htype-grid">
-          {TYPES.map((t) => (
+          {types.map((t) => (
             <a key={t.slug} href={`/listings/${t.slug}/`} className="htype-card">
               <div className="htype-card__img-wrap">
                 <Image
