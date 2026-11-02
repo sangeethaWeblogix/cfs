@@ -46,7 +46,7 @@ function buildPoolKvKey(filters: FilterState): string {
     filters.make || filters.model ||
     filters.suburb || filters.pincode ||
     filters.from_year || filters.to_year ||
-    filters.keyword
+    filters.keyword || filters.seller_type
   );
   if (hasNonCacheable) return "";   // empty string = skip KV lookup
 
@@ -79,6 +79,7 @@ function buildApiParams(filters: FilterState, seed: number): URLSearchParams {
   if (filters.to_length)          params.set("to_length",         String(filters.to_length));
   if (filters.from_year)  params.set("from_year", String(filters.from_year));
   if (filters.to_year)    params.set("to_year",   String(filters.to_year));
+  if (filters.seller_type)        params.set("seller_type",       String(filters.seller_type));
   if (filters.keyword) {
     const kw = String(filters.keyword).replace(/\+/g, " ").trim().replace(/\s+/g, " ");
     if (kw) params.set("search", kw);

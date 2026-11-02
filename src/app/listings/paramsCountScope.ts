@@ -27,6 +27,7 @@ export function buildCategoryCountScope(filters: FilterState): URLSearchParams {
   if (filters.to_length)          params.set("to_length", String(filters.to_length));
   if (filters.from_sleep)         params.set("from_sleep", String(filters.from_sleep));
   if (filters.to_sleep)           params.set("to_sleep", String(filters.to_sleep));
+  if (filters.seller_type)        params.set("seller_type", filters.seller_type);
   if (filters.keyword)            params.set("keyword", filters.keyword);
   return params;
 }
@@ -51,6 +52,7 @@ export function buildMakeCountScope(filters: FilterState): URLSearchParams {
   if (filters.to_length)         params.set("to_length", String(filters.to_length));
   if (filters.from_sleep)        params.set("from_sleep", String(filters.from_sleep));
   if (filters.to_sleep)          params.set("to_sleep", String(filters.to_sleep));
+  if (filters.seller_type)       params.set("seller_type", filters.seller_type);
   if (filters.keyword)           params.set("keyword", filters.keyword);
   return params;
 }

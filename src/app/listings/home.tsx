@@ -338,7 +338,7 @@ export default function StateHome({
     // registered yet when that earlier popstate event fires (this is a fresh
     // mount). Detect the mismatch once on mount instead and self-heal by
     // resyncing `filters` from the real URL, which drives a fresh live fetch.
-    const expectedPath = buildListingsSlug(initialFilters ?? {});
+    const expectedPath = buildListingsSlug(initialFilters ?? {}).split("?")[0];
     const actualPath = window.location.pathname.endsWith("/")
       ? window.location.pathname
       : `${window.location.pathname}/`;
@@ -567,7 +567,7 @@ export default function StateHome({
     filters.category || filters.condition || filters.make ||
     filters.from_price || filters.to_price || filters.minKg || filters.maxKg ||
     filters.region || filters.suburb || filters.from_sleep || filters.to_sleep ||
-    filters.from_year || filters.from_length || filters.keyword
+    filters.from_year || filters.from_length || filters.keyword || filters.seller_type
   );
 
   const handleNextPage = () => {
@@ -672,7 +672,7 @@ export default function StateHome({
             <>
               <StateListingGrid
                 title={ip.seo?.meta_title ? `Featured ${ip.seo.meta_title}` : ""}
-                viewAllHref={`${buildListingsSlug(filters)}?featured=1`}
+                viewAllHref={`${buildListingsSlug(filters)}${buildListingsSlug(filters).includes("?") ? "&" : "?"}featured=1`}
                 items={ip.featured}
                 loading={false}
                 showSpotlight={true}
@@ -858,7 +858,7 @@ export default function StateHome({
           <>
             <StateListingGrid
               title={seo?.meta_title ? `Featured ${seo.meta_title}` : ""}
-              viewAllHref={`${buildListingsSlug(filters)}?featured=1`}
+              viewAllHref={`${buildListingsSlug(filters)}${buildListingsSlug(filters).includes("?") ? "&" : "?"}featured=1`}
               items={pool.featured}
               loading={poolLoading}
               showSpotlight={true}

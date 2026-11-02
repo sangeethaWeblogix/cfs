@@ -6,6 +6,7 @@ import SearchSuggestionSkeleton from "../components/Searchsuggestionskeleton ";
 import { fetchLocations } from "@/api/location/api";
 import { fetchHomeSearchList, fetchKeywordSuggestions } from "@/api/homeSearch/api";
 import { buildCategoryCountScope, buildMakeCountScope } from "./paramsCountScope";
+import { SELLER_TYPE_FILTER_ENABLED, SELLER_TYPES } from "./urlUtils";
 
 type KeywordItem = { label: string; url?: string };
 
@@ -43,6 +44,7 @@ export interface FilterState {
   from_length?: string | number;
   to_length?: string | number;
   keyword?: string;
+  seller_type?: string;
   [key: string]: any;
 }
 
@@ -153,7 +155,7 @@ export default function StateFilterBar({
     currentFilters.suburb, currentFilters.pincode, currentFilters.from_price, currentFilters.to_price,
     currentFilters.minKg, currentFilters.maxKg, currentFilters.from_year, currentFilters.to_year,
     currentFilters.from_length, currentFilters.to_length, currentFilters.from_sleep, currentFilters.to_sleep,
-    currentFilters.keyword,
+    currentFilters.keyword, currentFilters.seller_type,
   ]);
 
   // Cache the last non-empty result so a transient 0-count response (or one
@@ -230,7 +232,7 @@ export default function StateFilterBar({
     currentFilters.suburb, currentFilters.pincode, currentFilters.from_price, currentFilters.to_price,
     currentFilters.minKg, currentFilters.maxKg, currentFilters.from_year, currentFilters.to_year,
     currentFilters.from_length, currentFilters.to_length, currentFilters.from_sleep, currentFilters.to_sleep,
-    currentFilters.keyword,
+    currentFilters.keyword, currentFilters.seller_type,
   ]);
 
   // Live state counts — only used when a make filter is active (e.g. /listings/jayco/).
@@ -255,6 +257,7 @@ export default function StateFilterBar({
     if (currentFilters.from_sleep)        params.set("from_sleep", String(currentFilters.from_sleep));
     if (currentFilters.to_sleep)          params.set("to_sleep", String(currentFilters.to_sleep));
     if (currentFilters.keyword)           params.set("keyword", currentFilters.keyword);
+    if (currentFilters.seller_type)       params.set("seller_type", currentFilters.seller_type);
     params.set("group_by", "state");
     fetch(`/api/params-count/?${params.toString()}`, { signal: controller.signal })
       .then(r => r.json())
@@ -266,7 +269,7 @@ export default function StateFilterBar({
     currentFilters.from_price, currentFilters.to_price, currentFilters.minKg, currentFilters.maxKg,
     currentFilters.from_year, currentFilters.to_year,
     currentFilters.from_length, currentFilters.to_length, currentFilters.from_sleep, currentFilters.to_sleep,
-    currentFilters.keyword,
+    currentFilters.keyword, currentFilters.seller_type,
   ]);
 
   // After state counts arrive, pre-fetch region counts for every state returned.
@@ -298,6 +301,7 @@ export default function StateFilterBar({
       if (currentFilters.from_sleep)        params.set("from_sleep", String(currentFilters.from_sleep));
       if (currentFilters.to_sleep)          params.set("to_sleep", String(currentFilters.to_sleep));
       if (currentFilters.keyword)           params.set("keyword", currentFilters.keyword);
+      if (currentFilters.seller_type)       params.set("seller_type", currentFilters.seller_type);
       fetch(`/api/params-count/?${params}`, { signal: ctrl.signal })
         .then(r => r.json())
         .then(json => {
@@ -339,6 +343,7 @@ export default function StateFilterBar({
   const [tempRegion,       setTempRegion]       = useState<string | null>(null);
   const [tempRegionRaw,    setTempRegionRaw]    = useState<string | null>(null);
   const [tempCondition,    setTempCondition]    = useState<string | null>(null);
+  const [tempSellerType,   setTempSellerType]   = useState<string | null>(null);
   const [tempPriceFrom,    setTempPriceFrom]    = useState<number | null>(null);
   const [tempPriceTo,      setTempPriceTo]      = useState<number | null>(null);
   const [tempAtmFrom,      setTempAtmFrom]      = useState<number | null>(null);
@@ -356,8 +361,40 @@ export default function StateFilterBar({
   const [locationSubView, setLocationSubView] = useState<"states" | "regions">("states");
 
   const [openModal, setOpenModal] = useState<
-    "type"|"location"|"price"|"atm"|"make"|"condition"|"sleep"|"allFilters"|null
+    "type"|"location"|"price"|"atm"|"make"|"condition"|"sellerType"|"sleep"|"allFilters"|null
   >(null);
+
+  // Dealer/Private counts — params-count has no group_by=seller_type, so ask
+  // once per seller type and read total_products. group_by=condition clears
+  // the condition filter server-side, so when one is applied read that
+  // condition's facet count instead.
+  const [sellerTypeCounts, setSellerTypeCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!SELLER_TYPE_FILTER_ENABLED) return;
+    if (openModal !== "sellerType" && openModal !== "allFilters") return;
+    const controller = new AbortController();
+    const scope = buildCategoryCountScope({ ...currentFilters, seller_type: undefined });
+    if (currentFilters.category) scope.set("category", currentFilters.category);
+    if (currentFilters.make) scope.set("make", resolveMakeSlug(currentFilters.make));
+    scope.set("group_by", "condition");
+    const cond = currentFilters.condition?.toLowerCase();
+    Promise.all(SELLER_TYPES.map(st => {
+      const params = new URLSearchParams(scope);
+      params.set("seller_type", st);
+      return fetch(`/api/params-count/?${params.toString()}`, { signal: controller.signal })
+        .then(r => r.json())
+        .then(json => {
+          const count = cond
+            ? (json.data ?? []).find((d: any) => d.slug?.toLowerCase() === cond || d.name?.toLowerCase() === cond)?.count ?? 0
+            : json.total_products ?? 0;
+          return [st, Number(count)] as const;
+        });
+    }))
+      .then(entries => { if (!controller.signal.aborted) setSellerTypeCounts(Object.fromEntries(entries)); })
+      .catch(e => { if (e.name !== "AbortError") console.error(e); });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openModal, currentFilters]);
 
   // Chips for filters without a toolbar button (year, length, keyword) open the
   // All-filters modal scrolled to that filter's section.
@@ -490,6 +527,7 @@ export default function StateFilterBar({
     !!applied && (o.name.toLowerCase() === applied.toLowerCase() || o.value.toLowerCase() === applied.toLowerCase());
   const typeOptions      = pinToTop(visibleCategories, currentFilters.category);
   const conditionOptions = pinFirst(["New", "Used"] as const, c => c.toLowerCase() === currentFilters.condition?.toLowerCase());
+  const sellerTypeOptions = pinFirst([...SELLER_TYPES], st => st === currentFilters.seller_type);
   const locationStates   = pinFirst(visibleStates, s => isApplied(s, currentFilters.state));
   const locationRegions  = pinFirst(filteredRegions, r => isApplied(r, currentFilters.region));
 
@@ -549,6 +587,11 @@ export default function StateFilterBar({
   const handleConditionOpen   = () => { setTempCondition(currentFilters.condition?.toLowerCase() ?? null); setOpenModal("condition"); };
   const handleConditionSearch = () => { updateFiltersAndURL({ condition: tempCondition ?? undefined }); setOpenModal(null); };
   const handleConditionClear  = () => { setTempCondition(null); updateFiltersAndURL({ condition: undefined }); setOpenModal(null); };
+
+  /* ── Seller type (Dealer / Private) ── */
+  const handleSellerTypeOpen   = () => { setTempSellerType(currentFilters.seller_type ?? null); setOpenModal("sellerType"); };
+  const handleSellerTypeSearch = () => { updateFiltersAndURL({ seller_type: tempSellerType ?? undefined }); setOpenModal(null); };
+  const handleSellerTypeClear  = () => { setTempSellerType(null); updateFiltersAndURL({ seller_type: undefined }); setOpenModal(null); };
 
   /* ── Price ── */
   const handlePriceOpen   = () => { setTempPriceFrom(currentFilters.from_price ? Number(currentFilters.from_price) : null); setTempPriceTo(currentFilters.to_price ? Number(currentFilters.to_price) : null); setOpenModal("price"); };
@@ -619,6 +662,7 @@ export default function StateFilterBar({
     setAllFiltersFocus(focusField ?? null);
     setTempCategory(currentFilters.category ?? null);
     setTempCondition(currentFilters.condition?.toLowerCase() ?? null);
+    setTempSellerType(currentFilters.seller_type ?? null);
     setTempPriceFrom(currentFilters.from_price ? Number(currentFilters.from_price) : null);
     setTempPriceTo(currentFilters.to_price ? Number(currentFilters.to_price) : null);
     setTempAtmFrom(currentFilters.minKg ? Number(currentFilters.minKg) : null);
@@ -670,6 +714,7 @@ export default function StateFilterBar({
     const updates: Partial<FilterState> = {
       category:          tempCategory ?? undefined,
       condition:         tempCondition ?? undefined,
+      seller_type:       tempSellerType ?? undefined,
       from_price:        tempPriceFrom ?? undefined,
       to_price:          tempPriceTo ?? undefined,
       minKg:             tempAtmFrom ?? undefined,
@@ -701,6 +746,7 @@ export default function StateFilterBar({
     currentFilters.category,
     currentFilters.state || currentFilters.region || currentFilters.suburb,
     currentFilters.condition,
+    currentFilters.seller_type,
     currentFilters.make,
     currentFilters.from_price || currentFilters.to_price,
     currentFilters.minKg || currentFilters.maxKg,
@@ -755,6 +801,13 @@ export default function StateFilterBar({
                     {currentFilters.condition && <span className="active_filter"><i className="bi bi-circle-fill" /></span>}
                   </button>
 
+                  {SELLER_TYPE_FILTER_ENABLED && (
+                    <button className={`tag${currentFilters.seller_type ? " active" : ""}`} onClick={handleSellerTypeOpen}>
+                      Dealer / Private
+                      {currentFilters.seller_type && <span className="active_filter"><i className="bi bi-circle-fill" /></span>}
+                    </button>
+                  )}
+
                   <button className={`tag${currentFilters.make ? " active" : ""}`} onClick={() => handleMakeOpen()}>
                     Make
                     {currentFilters.make && <span className="active_filter"><i className="bi bi-circle-fill" /></span>}
@@ -787,7 +840,7 @@ export default function StateFilterBar({
         currentFilters.minKg || currentFilters.maxKg || currentFilters.condition ||
         currentFilters.from_sleep || currentFilters.to_sleep || currentFilters.keyword ||
         currentFilters.from_year || currentFilters.to_year ||
-        currentFilters.from_length || currentFilters.to_length) && (
+        currentFilters.from_length || currentFilters.to_length || currentFilters.seller_type) && (
         <div className="container">
           <div className="active-chips-row">
             {currentFilters.make && (
@@ -818,6 +871,12 @@ export default function StateFilterBar({
               <span className={`active-chip${removingChip === "condition" ? " chip-removing" : ""}`}>
                 <span className="chip-label" onClick={handleConditionOpen}>{currentFilters.condition.toLowerCase() === "new" ? "New" : "Used"}</span>
                 <span className="chip-close" onClick={() => removeChip("condition", { condition: undefined })}>×</span>
+              </span>
+            )}
+            {currentFilters.seller_type && (
+              <span className={`active-chip${removingChip === "seller_type" ? " chip-removing" : ""}`}>
+                <span className="chip-label" onClick={handleSellerTypeOpen}>{currentFilters.seller_type === "private" ? "Private" : "Dealer"}</span>
+                <span className="chip-close" onClick={() => removeChip("seller_type", { seller_type: undefined })}>×</span>
               </span>
             )}
             {currentFilters.category && (
@@ -1093,6 +1152,27 @@ export default function StateFilterBar({
                   ))}
                 </ul>
               </div>
+
+              {/* Dealer / Private */}
+              {SELLER_TYPE_FILTER_ENABLED && (
+                <div className="filter-item">
+                  <h4>Dealer / Private</h4>
+                  <ul className="loc-state-list" style={{ display:"flex", gap:20 }}>
+                    {SELLER_TYPES.map(st => (
+                      <li key={st} className="loc-state-item" style={{ borderBottom:"none", padding:"4px 0" }}
+                        onClick={() => setTempSellerType(tempSellerType === st ? null : st)}>
+                        <span className={`loc-checkbox${tempSellerType === st ? " checked" : ""}`}>
+                          {tempSellerType === st && <i className="bi bi-check" style={{ color:"#fff", fontSize:14, lineHeight:1 }} />}
+                        </span>
+                        <span className="loc-state-name">
+                          {st === "private" ? "Private" : "Dealer"}
+                          {sellerTypeCounts[st] !== undefined && ` (${sellerTypeCounts[st].toLocaleString()})`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Make & Model */}
               <div className="filter-item">
@@ -1713,6 +1793,39 @@ export default function StateFilterBar({
             <div className="filter-footer">
               <button className="clear" onClick={handleConditionClear} style={{ opacity:tempCondition?1:0.4, cursor:tempCondition?"pointer":"not-allowed" }}>Clear filters</button>
               <button className={`search${tempCondition?" active":""}`} onClick={handleConditionSearch}>Search</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Dealer / Private Modal ── */}
+      {openModal === "sellerType" && (
+        <div className="filter-overlay">
+          <div className="filter-modal">
+            <div className="filter-header"><h3>Dealer / private</h3>{closeBtn}</div>
+            <div className="filter-body">
+              <div className="filter-item condition-field">
+                <ul className="loc-state-list">
+                  {sellerTypeOptions.map(st => {
+                    const isSelected = tempSellerType === st;
+                    return (
+                      <li key={st} className="loc-state-item" onClick={() => setTempSellerType(isSelected ? null : st)}>
+                        <span className={`loc-checkbox${isSelected ? " checked" : ""}`}>
+                          {isSelected && <i className="bi bi-check" style={{ color:"#fff", fontSize:14, lineHeight:1 }} />}
+                        </span>
+                        <span className="loc-state-name">{st === "private" ? "Private" : "Dealer"}</span>
+                        {sellerTypeCounts[st] !== undefined && (
+                          <span style={{ marginLeft:"auto", color:"#1a73e8" }}>{sellerTypeCounts[st].toLocaleString()}</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+            <div className="filter-footer">
+              <button className="clear" onClick={handleSellerTypeClear} style={{ opacity:tempSellerType?1:0.4, cursor:tempSellerType?"pointer":"not-allowed" }}>Clear filters</button>
+              <button className={`search${tempSellerType?" active":""}`} onClick={handleSellerTypeSearch}>Search</button>
             </div>
           </div>
         </div>

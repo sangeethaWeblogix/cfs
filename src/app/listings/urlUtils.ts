@@ -5,6 +5,12 @@ import type { FilterState } from "./StateFilterBar";
 
 const ORDERBY = "default";
 
+/** Dealer/Private seller filter — hidden until NEXT_PUBLIC_SHOW_SELLER_TYPE_FILTER=true.
+ * While off, the ?seller_type= query param is ignored entirely (parseDemoFilters
+ * drops it), so nothing downstream ever sends it to the API. */
+export const SELLER_TYPE_FILTER_ENABLED = process.env.NEXT_PUBLIC_SHOW_SELLER_TYPE_FILTER === "true";
+export const SELLER_TYPES = ["dealer", "private"] as const;
+
 /** Builds a pool-listings query string — shared by the client grids (home.tsx)
  * and the server-side generateMetadata fetch (page.tsx) so both hit the exact
  * same filter/lock combination and get back the exact same seo_v2. */
@@ -37,6 +43,7 @@ export function buildApiUrl(base: string, filters: FilterState, seed: number, lo
     const normalized = String(filters.keyword).replace(/\+/g, " ").trim().replace(/\s+/g, " ");
     if (normalized) params.set("search", normalized);
   }
+  if (filters.seller_type)        params.set("seller_type",        filters.seller_type);
   if (!lockCondition && filters.condition) params.set("condition", filters.condition);
   if (lockCondition) params.set("condition", lockCondition);
   return `${base}&${params.toString()}`;
@@ -46,10 +53,17 @@ export function buildApiUrl(base: string, filters: FilterState, seed: number, lo
  * (e.g. category + state) and optionally locks the condition segment, so
  * the Featured/New/Used sections each link to the matching filtered page. */
 export function buildListingsSlug(filters: FilterState, conditionOverride?: string): string {
-  const { keyword, condition, ...rest } = filters;
+  const { keyword, condition, seller_type, ...rest } = filters;
   const shared = { ...rest, search: keyword || undefined, condition: conditionOverride ?? condition };
-  const path = buildSlugFromFilters(shared);
-  return path.endsWith("/") ? path : `${path}/`;
+  // buildSlugFromFilters may already append "?radius_kms=…" — keep the
+  // trailing slash on the path, not after the query string.
+  const [rawPath, rawQuery] = buildSlugFromFilters(shared).split("?");
+  const path = rawPath.endsWith("/") ? rawPath : `${rawPath}/`;
+  const query = new URLSearchParams(rawQuery ?? "");
+  // Query param, not a path segment — seller-type pages are never indexed.
+  if (seller_type) query.set("seller_type", seller_type);
+  const qs = query.toString();
+  return qs ? `${path}?${qs}` : path;
 }
 
 export const toTitleCase = (s: string) => s.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -184,5 +198,9 @@ export function parseDemoFilters(
   const filters: FilterState = { ...rest };
   if (search) filters.keyword = search;
   if (condition) filters.condition = condition.toLowerCase();
+  const sellerType = Array.isArray(query.seller_type) ? query.seller_type[0] : query.seller_type;
+  if (SELLER_TYPE_FILTER_ENABLED && SELLER_TYPES.includes(sellerType?.toLowerCase() as typeof SELLER_TYPES[number])) {
+    filters.seller_type = sellerType!.toLowerCase();
+  }
   return filters;
 }
