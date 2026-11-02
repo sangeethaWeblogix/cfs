@@ -162,8 +162,31 @@ async function fetchConditionSeoV2(
  * Live fetch — two paths:
  *  - seed > 0: call WordPress pool_test directly (bypasses Cloudflare pool cache
  *    which strips `seed` from its key, so all seeds would hit the same entry).
- *  - seed = 0: call via /api/pool-listings/ through Cloudflare (normal fallback).
+ *  - seed = 0: call via /api/pool-listings/ through Cloudflare (normal fallback);
+ *    if that round trip fails (the request goes out to the public domain, so a
+ *    Cloudflare WAF / bot rule can answer the server's own call with a challenge),
+ *    fall back to WordPress directly — otherwise the page renders with no
+ *    server-side products or <h1> and crawlers see an empty shell.
  */
+async function fetchPoolDirect(params: URLSearchParams): Promise<any | null> {
+  if (!WP_API_BASE) return null;
+  try {
+    const res = await fetch(`${WP_API_BASE}/pool?${params.toString()}`, {
+      headers: {
+        Accept: "application/json",
+        ...(WP_API_KEY && { "X-Secret-Key": WP_API_KEY }),
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const raw = await res.text();
+    const jsonStart = raw.indexOf("{");
+    return jsonStart >= 0 ? JSON.parse(raw.substring(jsonStart)) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchFromApi(filters: FilterState, seed: number): Promise<any | null> {
   const params = buildApiParams(filters, seed);
 
@@ -194,11 +217,15 @@ async function fetchFromApi(filters: FilterState, seed: number): Promise<any | n
     const res = await fetch(`${APP_URL}/api/pool-listings/?${params.toString()}`, {
       cache: "no-store",
     });
-    if (!res.ok) return null;
-    return await res.json();
+    if (res.ok) {
+      const json = await res.json();
+      if (json) return json;
+    }
   } catch {
-    return null;
+    // fall through to the direct WP call
   }
+  console.log("[fetchInitialPool] /api/pool-listings/ failed — falling back to WP directly");
+  return fetchPoolDirect(params);
 }
 
 /**

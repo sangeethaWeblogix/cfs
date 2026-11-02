@@ -419,12 +419,16 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
             }
           );
           clearTimeout(timeoutId);
-          if (!apiRes.ok) {
+          if (apiRes.status === 404 || apiRes.status === 410) {
+            // WP answers {"message":"Listing not found."} (404) for a product that no longer exists.
             productCache.set(cacheKey, { exists: false, expires: Date.now() + CACHE_TTL });
             return render410(request);
           }
-          const rawText = await apiRes.text();
-          const isChallenge = rawText.includes('sgcaptcha') || rawText.includes('well-known') || !rawText.includes('{"');
+          // Any other non-2xx (5xx, 429, 401, 403) is a WP outage / rate-limit / challenge, not
+          // "product missing" — don't 410 (or cache a 410 for) a live product off it; let the
+          // page component handle it, same as a timeout.
+          const rawText = apiRes.ok ? await apiRes.text() : '';
+          const isChallenge = !apiRes.ok || rawText.includes('sgcaptcha') || rawText.includes('well-known') || !rawText.includes('{"');
           if (isChallenge) {
             // WP origin bot-challenge (HTML page returned with 200 OK) — not a real
             // "product missing" signal, don't cache/410 off it; let the page component handle it.
