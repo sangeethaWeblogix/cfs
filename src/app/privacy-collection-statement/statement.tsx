@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import ObfuscatedEmail from "@/app/components/ObfuscatedEmail";
 
 export default function PrivacyCollectionStatement() {
   return (
@@ -156,9 +157,7 @@ export default function PrivacyCollectionStatement() {
 
               <p>
                 <strong>Email:</strong>{" "}
-                <a href="mailto:admin@marketplacenetwork.com.au">
-                  admin@marketplacenetwork.com.au
-                </a>
+                <ObfuscatedEmail user="admin" domain="marketplacenetwork.com.au" />
               </p>
 
             </div>

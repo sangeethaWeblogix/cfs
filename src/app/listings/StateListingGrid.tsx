@@ -217,9 +217,9 @@ export function ContactModal({ item, onClose }: { item: Listing; onClose: () => 
 
               <p className="terms_text">
                 By clicking &apos;Send Enquiry&apos;, you agree to Marketplace Network{" "}
-                <a href="/privacy-collection-statement" target="_blank" rel="noopener">Collection Statement</a>,{" "}
-                <a href="/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a> and{" "}
-                <a href="/terms-conditions" target="_blank" rel="noopener">Terms and Conditions</a>.
+                <a href="/privacy-collection-statement/" target="_blank" rel="noopener">Collection Statement</a>,{" "}
+                <a href="/privacy-policy/" target="_blank" rel="noopener">Privacy Policy</a> and{" "}
+                <a href="/terms-conditions/" target="_blank" rel="noopener">Terms and Conditions</a>.
               </p>
 
               <div className="submit-btn">

@@ -1,4 +1,5 @@
 'use client'
+import ObfuscatedEmail from "@/app/components/ObfuscatedEmail";
 
 export default function CookiePolicy() {
   return (
@@ -124,9 +125,7 @@ export default function CookiePolicy() {
 
               <p>
                 <strong>Email:</strong>{" "}
-                <a href="mailto:admin@marketplacenetwork.com.au">
-                  admin@marketplacenetwork.com.au
-                </a>
+                <ObfuscatedEmail user="admin" domain="marketplacenetwork.com.au" />
               </p>
 
             </div>

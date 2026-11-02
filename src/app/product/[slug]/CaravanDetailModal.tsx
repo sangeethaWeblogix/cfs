@@ -561,12 +561,12 @@ export default function CaravanDetailModal({
             <p className="terms_text">
               By clicking &apos;Send Enquiry&apos;, you agree to Marketplace
               Network{" "}
-              <a href="/privacy-collection-statement" target="_blank">
+              <a href="/privacy-collection-statement/" target="_blank">
                 Collection Statement
               </a>
               ,{" "}
-              <a href="/privacy-policy" target="_blank">Privacy Policy</a> and{" "}
-              <a href="/terms-conditions" target="_blank">Terms and Conditions</a>.
+              <a href="/privacy-policy/" target="_blank">Privacy Policy</a> and{" "}
+              <a href="/terms-conditions/" target="_blank">Terms and Conditions</a>.
             </p>
 
             <button

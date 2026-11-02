@@ -819,15 +819,15 @@ export default function ExculisiveContent({
                   <p className="terms_text">
                     By clicking &lsquo;Send Enquiry&lsquo;, you agree to Caravan
                     Marketplace{" "}
-                    <Link href="/privacy-collection-statement" target="_blank">
+                    <Link href="/privacy-collection-statement/" target="_blank">
                       Collection Statement
                     </Link>
                     ,{" "}
-                    <Link href="/privacy-policy" target="_blank">
+                    <Link href="/privacy-policy/" target="_blank">
                       Privacy Policy
                     </Link>{" "}
                     and{" "}
-                    <Link href="/terms-conditions" target="_blank">
+                    <Link href="/terms-conditions/" target="_blank">
                       Terms and Conditions
                     </Link>
                     .

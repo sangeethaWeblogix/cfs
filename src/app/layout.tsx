@@ -235,8 +235,9 @@ const RESERVED_TOP_LEVEL_SLUGS = new Set([
     }
 
     // Static pages whose metadata ends up after </head> due to streaming — inject directly
-    const STATIC_META: Record<string, { title: string; description: string; canonical: string }> = {
+    const STATIC_META: Record<string, { title: string; description: string; canonical: string; ownSocialImage?: boolean }> = {
       "/caravan-manufacturers/": {
+        ownSocialImage: true, // page.tsx metadata renders og:image + twitter card
         title: "Top 10 Caravan Manufacturers in Australia: Best Brands of 2024",
         description: "See how top Australian caravan manufacturers excel with the best in innovative designs, quality construction, cost efficiency, and expert craftsmanship.",
         canonical: "https://www.caravansforsale.com.au/caravan-manufacturers/",
@@ -248,6 +249,26 @@ const RESERVED_TOP_LEVEL_SLUGS = new Set([
       },
     };
     const staticMeta = STATIC_META[pathname] ?? null;
+
+    // og:type / og:image / twitter:card / twitter:image for pages whose head tags are
+    // injected here (listings, static pages) — without them Ahrefs flags Open Graph and
+    // X (Twitter) card tags as incomplete. Same image the home page and metaFromSlug use.
+    const SOCIAL_IMAGE = "https://www.caravansforsale.com.au/images/cfs-logo.png";
+    const SOCIAL_IMAGE_ALT = "Caravans for Sale Australia";
+    const socialTags = (
+      <>
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content={SOCIAL_IMAGE} />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="600" />
+        <meta property="og:image:alt" content={SOCIAL_IMAGE_ALT} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content={SOCIAL_IMAGE} />
+        <meta name="twitter:image:width" content="800" />
+        <meta name="twitter:image:height" content="600" />
+        <meta name="twitter:image:alt" content={SOCIAL_IMAGE_ALT} />
+      </>
+    );
 
     let productMeta = { title: "", description: "", canonical: "", ogImage: "" };
     let productJsonLd: Record<string, unknown> | null = null;
@@ -378,6 +399,7 @@ const RESERVED_TOP_LEVEL_SLUGS = new Set([
           {staticMeta && <meta property="og:url" content={staticMeta.canonical} />}
           {staticMeta && <meta name="twitter:title" content={staticMeta.title} />}
           {staticMeta && <meta name="twitter:description" content={staticMeta.description} />}
+          {staticMeta && !staticMeta.ownSocialImage && socialTags}
           {/* Product page SEO — injected here to avoid metadata-in-body streaming issue */}
           {isProductPage && productMeta.title && <title>{productMeta.title}</title>}
           {isProductPage && productMeta.description && <meta name="description" content={productMeta.description} />}
@@ -399,6 +421,7 @@ const RESERVED_TOP_LEVEL_SLUGS = new Set([
           {hasSlugMeta && slugCanonical && <meta property="og:url" content={slugCanonical} />}
           {hasSlugMeta && slugTitle && <meta name="twitter:title" content={slugTitle} />}
           {hasSlugMeta && slugDescription && <meta name="twitter:description" content={slugDescription} />}
+          {hasSlugMeta && socialTags}
           {/* Home page JSON-LD */}
           {isHomePage && (
             <script

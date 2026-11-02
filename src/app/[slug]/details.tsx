@@ -10,6 +10,7 @@
  import { useEffect, useRef, useState } from "react";
  import { formatPostDate } from "@/utils/date";
  import { useBanners } from "@/components/BannerHandler";
+import liveCategoryLinks from "../../../cfs-paths/live-category-links.json";
  import { useBannerTracking } from "@/hooks/useBannerTracking";
  
  // WP occasionally stores an image URL with a doubled protocol
@@ -28,7 +29,15 @@
    regions?: BrowseLink[];
  };
  
- const CAT_MAJOR_CITIES = [
+ // Category + state / region combinations that currently have stock (snapshot kept fresh by
+// scripts/sync-live-listings.js). The "by location" / "by state" blocks only link to these —
+// an empty combination answers 410, which showed up as hundreds of broken internal links.
+// An empty snapshot (should never happen) keeps every link.
+const LIVE_CAT_LINKS = new Set<string>(liveCategoryLinks as string[]);
+const hasStock = (href: string) =>
+  LIVE_CAT_LINKS.size === 0 || LIVE_CAT_LINKS.has(href.replace(/^https?:\/\/[^/]+/, ""));
+
+const CAT_MAJOR_CITIES = [
    { name: "Adelaide",       img: "/images/Adelaide.png",   state: "south-australia-state",           region: "adelaide-region" },
    { name: "Brisbane",       img: "/images/Brisbane.png",   state: "queensland-state",                region: "brisbane-region" },
    { name: "Gold Coast",     img: "/images/Gold-Coast.png", state: "queensland-state",                region: "gold-coast-region" },
@@ -694,7 +703,7 @@
            <div className="container">
              <h2 className="bds-cat-title">Find {catLabel} Caravans by Popular Location</h2>
              <div className="bds-cat-loc__major">
-               {CAT_MAJOR_CITIES.map((city) => (
+               {CAT_MAJOR_CITIES.filter((city) => hasStock(`${catLink}${city.state}/${city.region}/`)).map((city) => (
                  <a key={city.name} href={`${catLink}${city.state}/${city.region}/`} className="bds-cat-city-card">
                    <div className="bds-cat-city-img-wrap">
                      <img src={city.img} alt={city.name} className="bds-cat-city-img" loading="lazy" />
@@ -704,7 +713,7 @@
                ))}
              </div>
              <div className="bds-cat-loc__minor">
-               {CAT_MINOR_CITIES.map((city) => (
+               {CAT_MINOR_CITIES.filter((city) => hasStock(`${catLink}${city.state}/${city.region ? city.region + "/" : ""}`)).map((city) => (
                  <a key={city.name} href={`${catLink}${city.state}/${city.region ? city.region + "/" : ""}`} className="bds-cat-minor-pill">
                    {catLabel} Caravans in {city.name}
                  </a>
@@ -720,7 +729,7 @@
            <div className="container">
              <h2 className="bds-cat-title">Find {catLabel} Caravans by State</h2>
              <div className="bds-cat-state__grid">
-               {CAT_STATES.map((s) => (
+               {CAT_STATES.filter((s) => hasStock(`${catLink}${s.slug}/`)).map((s) => (
                  <a key={s.name} href={`${catLink}${s.slug}/`} className="bds-cat-state-card">
                    <img src={s.img} alt={s.name} className="bds-cat-state-img" loading="lazy" />
                    <span className="bds-cat-state-name">{catLabel} Caravans in {s.name}</span>

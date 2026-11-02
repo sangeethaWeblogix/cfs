@@ -839,12 +839,12 @@ export default function ClientLogger({
                         </button>
                   <p className="terms_text small">
                     By clicking 'Send Enquiry', you agree to Marketplace Network
-                    <a href="/privacy-collection-statement">
+                    <a href="/privacy-collection-statement/">
                       {" "}
                       Collection Statement
                     </a>
-                    , <a href="/privacy-policy">Privacy Policy</a>, and{" "}
-                    <a href="/terms-conditions">Terms and Conditions</a>.
+                    , <a href="/privacy-policy/">Privacy Policy</a>, and{" "}
+                    <a href="/terms-conditions/">Terms and Conditions</a>.
                   </p>
                 </div>
               </div>

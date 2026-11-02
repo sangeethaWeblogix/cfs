@@ -50,9 +50,19 @@ export async function generateMetadata({
   const data = await fetchBlogDetail(slug);
 
   const seo = data?.seo ?? data?.product?.seo ?? {};
+  // The blog API nests the post under data.blog_detail; many posts have no SEO title /
+  // description set (seo.metatitle is null), so fall back to the post's own title and
+  // excerpt before the generic strings (otherwise ~100 pages showed "Product - Caravans
+  // for Sale" / "View caravan details.").
+  const post = data?.data?.blog_detail ?? {};
+  const excerpt =
+    typeof post.excerpt === "string"
+      ? post.excerpt.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim()
+      : "";
   const title =
     seo.metatitle ||
     seo.meta_title ||
+    post.title ||
     data?.title ||
     data?.name ||
     "Product - Caravans for Sale";
@@ -60,10 +70,15 @@ export async function generateMetadata({
   const description =
     seo.metadescription ||
     seo.meta_description ||
+    (excerpt.length > 155 ? excerpt.slice(0, 152).replace(/\s+\S*$/, "") + "..." : excerpt) ||
     data?.short_description ||
     "View caravan details.";
   const robots = "index, follow";
   const canonicalUrl = `https://www.caravansforsale.com.au/${slug}/`;
+  const ogImage: string =
+    (typeof post.featured_image === "string" && post.featured_image) ||
+    (typeof post.image === "string" && post.image) ||
+    "https://www.caravansforsale.com.au/images/cfs-logo.png";
   console.log("generateMetadata", { title, description, robots, canonicalUrl });
   return {
     title,
@@ -78,14 +93,15 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
+      url: canonicalUrl,
+      type: "article",
+      images: [{ url: ogImage }],
     },
     twitter: {
-      card: "summary", // no image card
+      card: "summary_large_image",
       title,
       description,
-    },
-    other: {
-      "og:type": "blog",
+      images: [ogImage],
     },
   };
 }

@@ -1,4 +1,5 @@
 'use client'
+import ObfuscatedEmail from "@/app/components/ObfuscatedEmail";
 
 export default function TermsOfUse() {
   return (
@@ -221,9 +222,7 @@ export default function TermsOfUse() {
               <p>
                 <strong>Marketplace Network Pty Ltd</strong><br />
                 Email:{" "}
-                <a href="mailto:admin@marketplacenetwork.com.au">
-                  admin@marketplacenetwork.com.au
-                </a>
+                <ObfuscatedEmail user="admin" domain="marketplacenetwork.com.au" />
               </p>
 
             </div>

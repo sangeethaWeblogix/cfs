@@ -35,9 +35,10 @@ export default async function ProductLoading() {
         <div style={{ background: "#fff", minHeight: "100vh", paddingBottom: 60 }}>
           <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 15px" }}>
 
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: "#000", margin: "28px 0 8px", lineHeight: 1.3 }}>
+            {/* a <div>, not <h1>: this skeleton stays in the streamed HTML next to the real <h1 className="pdd-title"> (Ahrefs: multiple H1 tags) */}
+            <div style={{ fontSize: 24, fontWeight: 700, color: "#000", margin: "28px 0 8px", lineHeight: 1.3 }}>
               {title}
-            </h1>
+            </div>
 
             <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
               <Skel h={14} w={180} style={{ borderRadius: 4 }} />

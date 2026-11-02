@@ -1,4 +1,5 @@
 'use client'
+import ObfuscatedEmail from "@/app/components/ObfuscatedEmail";
 
  
 export default function CaravanBuyingSafetyGuide() {
@@ -218,9 +219,7 @@ export default function CaravanBuyingSafetyGuide() {
               <p>You can contact our team at:</p>
 
               <p>
-                <a href="mailto:admin@caravansforsale.com.au">
-                  admin@caravansforsale.com.au
-                </a>
+                <ObfuscatedEmail user="admin" domain="caravansforsale.com.au" />
               </p>
 
               <h3>Important Disclaimer</h3>
