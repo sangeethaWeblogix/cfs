@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import indexableUrlsData from "../../../cfs-paths/indexable-urls.json";
+import liveOtherData from "../../../cfs-paths/live-other-listings.json";
 
 /**
  * Listing-page sitemaps only list URLs that are indexable, i.e. the ones in url.csv
@@ -7,6 +8,7 @@ import indexableUrlsData from "../../../cfs-paths/indexable-urls.json";
  * X-Robots-Tag use). Everything else is noindex and has no business in a sitemap.
  */
 const INDEXABLE = new Set<string>(indexableUrlsData as string[]);
+const LIVE_OTHER = new Set<string>(liveOtherData as string[]);
 
 /** "off-road-category/", "/listings/jayco/" or "listings/jayco" → "/listings/…/" */
 export function toListingPath(p: string): string {
@@ -44,16 +46,20 @@ async function fetchTypePaths(type: string): Promise<string[]> {
 
 /**
  * url.csv URLs that none of the other listing sitemaps (nor the general sitemap's /listings/)
- * contain, in url.csv order. Throws if any lookup fails — a partial "seen" set would dump
- * already-listed URLs in here — so unstable_cache keeps serving the last good result.
+ * contain, in url.csv order, limited to the ones that currently have products. url.csv also
+ * holds URLs whose stock has dropped to 0 (the middleware answers those with 410), and a
+ * sitemap must not list them; scripts/sync-live-listings.js keeps live-other-listings.json
+ * (the url.csv URLs that are outside the typed sitemaps and have stock) up to date.
+ * Throws if any lookup fails — a partial "seen" set would dump already-listed URLs in here —
+ * so unstable_cache keeps serving the last good result.
  */
 export const getUnmatchedIndexablePaths = unstable_cache(
   async (): Promise<string[]> => {
     const lists = await Promise.all(OTHER_LISTING_TYPES.map(fetchTypePaths));
     const seen = new Set<string>(["/listings/"]);
     for (const paths of lists) for (const p of paths) seen.add(toListingPath(p));
-    return [...INDEXABLE].filter((p) => !seen.has(p));
+    return [...INDEXABLE].filter((p) => !seen.has(p) && LIVE_OTHER.has(p));
   },
-  ["sitemap-unmatched-indexable-listings"],
+  ["sitemap-unmatched-indexable-listings-live"],
   { revalidate: 3600 },
 );

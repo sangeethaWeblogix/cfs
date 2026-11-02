@@ -4,6 +4,7 @@ name: Sync Model URLs
 # in step with the live stock:
 #   - a model that has products and is not in url.csv yet is added;
 #   - a model that has dropped to 0 products is removed.
+# It also refreshes cfs-paths/live-other-listings.json (see sync-live-listings.js).
 # Also appends any brand-new make to cfs-paths/makes.json (the middleware 410s
 # makes that are not in that snapshot).
 #
@@ -41,17 +42,27 @@ jobs:
       - name: Sync model rows in url.csv
         env:
           CFS_API_KEY: ${{ secrets.CFS_API_KEY }}
-        run: node scripts/sync-model-urls.js
+        run: |
+          test -n "$CFS_API_KEY" || { echo "::error::GitHub secret CFS_API_KEY is not set (the WP API returns 401 without it)"; exit 1; }
+          node scripts/sync-model-urls.js
+
+      # url.csv also holds URLs whose stock has dropped to 0 (410). Record which of the
+      # catch-all (attributes-others) URLs currently have products so the sitemap only
+      # lists those. url.csv itself is not changed by this step.
+      - name: Refresh live catch-all listing URLs
+        env:
+          CFS_API_KEY: ${{ secrets.CFS_API_KEY }}
+        run: node scripts/sync-live-listings.js
 
       - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/app/url.csv cfs-paths/indexable-urls.json cfs-paths/makes.json
+          git add src/app/url.csv cfs-paths/indexable-urls.json cfs-paths/makes.json cfs-paths/live-other-listings.json cfs-paths/live-category-links.json
           if git diff --cached --quiet; then
             echo "Nothing changed — nothing to commit."
           else
-            git commit -m "chore: sync model URLs in url.csv with live stock"
+            git commit -m "chore: sync model URLs and live listing URLs with stock"
             git pull --rebase origin main
             git push origin HEAD:main
           fi
