@@ -1301,14 +1301,14 @@ tr {
 }
 
 /* ── Content typography ── */
-.blog-article-main h2.wp-block-heading {
+.blog-article-main h2.wp-block-heading, .blog-article-main h2 {
   font-size: 1.45rem;
   font-weight: 700;
   color: #0c1f3f;
   margin-top: 36px;
   margin-bottom: 14px;
   padding-bottom: 10px;
-  border-bottom: 2px solid #f58333;
+  /* border-bottom: 2px solid #f58333; */
 }
 .blog-article-main h3 {
   font-size: 1.2rem;
