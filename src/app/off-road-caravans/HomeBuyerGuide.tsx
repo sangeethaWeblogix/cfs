@@ -12,7 +12,7 @@ export default function HomeBuyerGuide() {
             <div className="hbg-img-col">
               <div className="hbg-img-wrap">
                 <Image
-                  src="/images/buyers_guid.jpg"
+                  src="/images/buyers-guide.jpg"
                   alt="Caravans for Sale Australia"
                   width={600}
                   height={420}

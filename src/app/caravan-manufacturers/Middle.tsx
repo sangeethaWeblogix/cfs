@@ -25,7 +25,7 @@ export default function CaravanManufacturers() {
                 />
                 <Image
                   className="hidden-lg hidden-md hidden-sm br-m-8"
-                  src="/images6/10-Best-Caravan-Manufacturers-in-Australia.jpg"
+                  src="/images/10-Best-Caravan-Manufacturers-in-Australia.jpg"
                   alt="10 Best Caravan Manufacturers in Australia"
                   width={900}
                   height={450}

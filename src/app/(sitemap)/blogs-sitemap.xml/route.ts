@@ -5,6 +5,10 @@ import { fetchBlogs } from "@/api/blog/api";
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.caravansforsale.com.au";
 
+// Blog slugs that next.config.ts redirects elsewhere ("Blog URL redirects") — a sitemap must
+// only list the final 200 URL, so these are skipped (Ahrefs: "3XX redirect in sitemap").
+const REDIRECTED_BLOG_SLUGS = new Set(["best-off-road-caravans-in-australia-2026"]);
+
 export async function GET() {
   const firstPage = await fetchBlogs(1);
   let allItems = [...firstPage.items];
@@ -17,6 +21,7 @@ export async function GET() {
   }
 
   const urls = allItems
+    .filter((blog) => !REDIRECTED_BLOG_SLUGS.has(blog.slug))
     .map(
       (blog) => `
     <url>
