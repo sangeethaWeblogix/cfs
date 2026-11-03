@@ -66,6 +66,11 @@ interface Props {
   loading?: boolean;
   showSpotlight?: boolean;
   hideViewAll?: boolean;
+  /** The condition the "View all" link is locked to. The New / Used grids are slot
+   * buckets, not condition filters, so a "Used" grid can hold only New items — its
+   * "View all" would then point at an empty (410) condition page. The link is only
+   * rendered when at least one item here really has that condition. */
+  viewAllCondition?: "New" | "Used";
   hideTitle?: boolean;
   /** Render the title as the page's <h1> instead of <h2> — for pages where
    * the usual hero (which normally carries the h1) is skipped entirely. */
@@ -482,7 +487,7 @@ function SkeletonCard() {
 }
 
 /* ── Main grid component ── */
-export default function StateListingGrid({ title, viewAllHref, apiUrl, items: externalItems, loading: externalLoading, showSpotlight, hideViewAll, hideTitle, titleAs = "h2", skeletonCount = 10, page = 1, onTotalPages, onSeo, maxItems, hideBanners }: Props) {
+export default function StateListingGrid({ title, viewAllHref, apiUrl, items: externalItems, loading: externalLoading, showSpotlight, hideViewAll, viewAllCondition, hideTitle, titleAs = "h2", skeletonCount = 10, page = 1, onTotalPages, onSeo, maxItems, hideBanners }: Props) {
 
   const [fetchedItems,  setFetchedItems]  = useState<Listing[]>([]);
   const [fetchLoading,  setFetchLoading]  = useState(true);
@@ -537,6 +542,13 @@ export default function StateListingGrid({ title, viewAllHref, apiUrl, items: ex
     ? PROMO_BANNERS.filter(b => !b.src.includes('home.jpg'))
     : PROMO_BANNERS;
 
+  // Items without a condition value keep the link (can't tell), so this only ever hides
+  // a link that is known to lead to an empty page.
+  const viewAllHasStock =
+    !viewAllCondition ||
+    loading ||
+    items.some((i) => !i.condition || i.condition.toLowerCase() === viewAllCondition.toLowerCase());
+
   // No title/section at all once we know for sure there's nothing to show —
   // an empty heading with a blank grid under it reads as broken, not "no results".
   if (!loading && items.length === 0) return null;
@@ -552,7 +564,7 @@ export default function StateListingGrid({ title, viewAllHref, apiUrl, items: ex
               ) : titleAs === "h1"
                 ? <h1 className="lsd-grid-title">{title}</h1>
                 : <h2 className="lsd-grid-title">{title}</h2>}
-              {!hideViewAll && (
+              {!hideViewAll && viewAllHasStock && (
                 <Link href={viewAllHref} className="lsd-grid-viewall">
                   View all
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>

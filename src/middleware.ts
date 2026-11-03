@@ -149,6 +149,14 @@ function buildApiParams(filters: Filters): URLSearchParams {
   return p;
 }
 
+/** True only for a genuine /pool payload. A bot challenge (SiteGround answers with HTTP 202 + an
+ * HTML page) or an error body is NOT "0 products". Treating it as empty caches isEmpty and serves
+ * X-Robots-Tag: noindex on a page that does have stock — the likely cause of the 413 model pages
+ * Ahrefs saw with a noindex header while their meta robots said index. */
+function isPoolPayload(data: any): boolean {
+  return !!(data && (data.counts || data.pagination || data.featured_products || data.new_products || data.used_products));
+}
+
 async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest) {
   try {
     const slugParts = url.pathname.replace("/listings", "").split("/").filter(Boolean);
@@ -166,6 +174,7 @@ async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest)
     clearTimeout(timeoutId);
     if (apiRes.ok) {
       const data = await apiRes.json();
+      if (!isPoolPayload(data)) return; // challenge / error body — keep the previous cache entry
       // /pool bucket products into featured/new/used at the top level (no more
       // flat `products` array) — sum them for a total-count check.
       const totalCount = data?.counts?.total ?? data?.pagination?.total_products
@@ -558,7 +567,10 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
             ?? ((data?.featured_products?.length ?? 0) + (data?.new_products?.length ?? 0) + (data?.used_products?.length ?? 0))
             ?? 0;
           const empExclusive = data?.exclusive_products ?? [];
-          if (totalCount === 0) {
+          if (!isPoolPayload(data)) {
+            // Challenge / error body, not a real answer — leave the url.csv-based header and
+            // don't cache, so the next request re-checks.
+          } else if (totalCount === 0) {
             if (empExclusive.length === 0) {
               // Don't 410 from middleware — ISR/page component handles empty state
               seoCache.set(cacheKey, { isEmpty: true, hasExclusiveOnly: false, expires: Date.now() + CACHE_TTL, staleExpires: Date.now() + CACHE_STALE_TTL });

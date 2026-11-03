@@ -682,6 +682,7 @@ export default function StateHome({
               <StateListingGrid
                 title=""
                 viewAllHref={buildListingsSlug(filters, "New")}
+                viewAllCondition="New"
                 items={ip.new}
                 loading={false}
                 hideViewAll={page > 1}
@@ -690,6 +691,7 @@ export default function StateHome({
               <StateListingGrid
                 title=""
                 viewAllHref={buildListingsSlug(filters, "Used")}
+                viewAllCondition="Used"
                 items={ip.used}
                 loading={false}
                 hideViewAll={page > 1}
@@ -869,6 +871,7 @@ export default function StateHome({
             <StateListingGrid
               title={newSeo?.meta_title || (seo?.meta_title ? `New ${seo.meta_title}` : "New Caravans")}
               viewAllHref={buildListingsSlug(filters, "New")}
+              viewAllCondition="New"
               items={pool.new}
               loading={poolLoading}
               hideBanners={!!filters.make}
@@ -877,6 +880,7 @@ export default function StateHome({
             <StateListingGrid
               title={usedSeo?.meta_title || (seo?.meta_title ? `Used ${seo.meta_title}` : "Used Caravans")}
               viewAllHref={buildListingsSlug(filters, "Used")}
+              viewAllCondition="Used"
               items={pool.used}
               loading={poolLoading}
               hideBanners={!!filters.make}
