@@ -8,6 +8,7 @@ import { buildSlugFromFilters } from "@/app/components/slugBuilter";
 import regionPathsData from "../cfs-paths/regions.json";
 import makesData from "../cfs-paths/makes.json";
 import indexableUrlsData from "../cfs-paths/indexable-urls.json";
+import modelRedirectsData from "../cfs-paths/model-redirects.json";
 const API_KEY = process.env.CFS_API_KEY;
 const SERVER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
 
@@ -28,6 +29,10 @@ const VALID_MAKE_SLUGS = new Set<string>(
  * same source the <meta name="robots"> tag uses, see src/utils/seo/indexable-urls.ts).
  * Single source of truth for the X-Robots-Tag header below — no live API call needed. */
 const INDEXABLE_PATHS = new Set<string>(indexableUrlsData as string[]);
+
+/* Old model URL → the parent model it was folded into (WP regrouped e.g. "rapid-15d" into "rapid").
+ * Kept up to date by scripts/sync-model-urls.js; without it those once-indexed URLs would just 410. */
+const MODEL_REDIRECTS = modelRedirectsData as Record<string, string>;
 
 /* ──────────────────────────────────────────────
    Edge-safe in-memory cache
@@ -493,6 +498,18 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
   const isKeywordQuery = url.searchParams.has("keyword") || url.searchParams.has("search");
   if (isListingsPath && !isKeywordQuery && INDEXABLE_PATHS.has(url.pathname)) {
     robotsHeader = "index, follow";
+  }
+
+  // A model URL that no longer exists (not in url.csv = no stock) but has a parent model →
+  // permanent redirect to that parent instead of a 410. url.csv wins: once the old URL has
+  // stock again the sync adds it back and the redirect entry is dropped.
+  if (isListingsPath && !INDEXABLE_PATHS.has(url.pathname)) {
+    const redirectTo = MODEL_REDIRECTS[url.pathname];
+    if (redirectTo) {
+      const dest = new URL(redirectTo, request.url);
+      dest.search = url.search;
+      return NextResponse.redirect(dest, 301);
+    }
   }
 
   if (isListingsPath) {

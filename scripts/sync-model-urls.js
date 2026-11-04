@@ -22,12 +22,20 @@
  *
  * After writing url.csv it regenerates cfs-paths/indexable-urls.json.
  *
- * Safety guards (nothing is written if any of them trips):
+ * It also maintains cfs-paths/model-redirects.json: when WP regroups models (e.g. the
+ * variant "rapid-15d" is folded into the series model "rapid") the old variant URL
+ * would otherwise just 410. Every removed model row whose slug starts (at a "-"
+ * boundary) with a live model of the same make is mapped old → parent, and the
+ * middleware 301s it (src/middleware.ts) while it is not in url.csv. An entry is
+ * dropped as soon as its source has stock again or its target no longer does.
+ *
+ * Safety guards:
  *   - the API answer must be a valid JSON { success, paths[] } (no bot
- *     challenge page, no HTTP error);
- *   - at least MIN_MODELS models must come back;
- *   - at most MAX_REMOVE_RATIO of the existing model rows may be removed in
- *     one run (override with FORCE=1).
+ *     challenge page, no HTTP error) and at least MIN_MODELS models must come
+ *     back — otherwise nothing is written;
+ *   - if more than MAX_REMOVE_RATIO of the existing model rows would be removed
+ *     in one run, the removals (and redirects) are SKIPPED — the additions are
+ *     still applied, so new models keep getting indexed — unless FORCE=1.
  *
  * Usage:
  *   node scripts/sync-model-urls.js            # apply
@@ -45,6 +53,7 @@ const { pathToFileURL } = require("url");
 const ROOT = path.join(__dirname, "..");
 const CSV_FILE = path.join(ROOT, "src", "app", "url.csv");
 const MAKES_FILE = path.join(ROOT, "cfs-paths", "makes.json");
+const REDIRECTS_FILE = path.join(ROOT, "cfs-paths", "model-redirects.json");
 const BASE = "https://www.caravansforsale.com.au";
 const API_BASE = (
   process.env.CFS_API_BASE ||
@@ -54,7 +63,7 @@ const API_BASE = (
 const API_KEY = process.env.CFS_API_KEY || "";
 const DRY = process.argv.includes("--dry-run");
 const FORCE = process.env.FORCE === "1";
-const MIN_MODELS = 1000;
+const MIN_MODELS = 500;
 const MAX_REMOVE_RATIO = 0.25;
 
 async function fetchPaths(type) {
@@ -132,23 +141,52 @@ const clean = (p) => String(p).replace(/^\/?(listings\/)?/, "").replace(/\/+$/, 
   const modelRows = rows.filter(isModelRow);
   const have = new Set(rows.map((r) => r.path));
 
-  const toRemove = modelRows.filter((r) => !desired.has(r.path));
+  const wantRemove = modelRows.filter((r) => !desired.has(r.path));
   const toAdd = [...desired].filter((p) => !have.has(p)).sort();
 
-  if (modelRows.length > 0 && toRemove.length / modelRows.length > MAX_REMOVE_RATIO && !FORCE) {
-    throw new Error(`would remove ${toRemove.length} of ${modelRows.length} model rows (> ${MAX_REMOVE_RATIO * 100}%) — set FORCE=1 to override`);
+  // A mass removal is more likely a bad API answer than real — hold the removals back, but
+  // keep adding (removing only matters for tidiness: a model without stock 410s anyway).
+  const holdBack = modelRows.length > 0 && wantRemove.length / modelRows.length > MAX_REMOVE_RATIO && !FORCE;
+  const toRemove = holdBack ? [] : wantRemove;
+  if (holdBack) {
+    const msg = `would remove ${wantRemove.length} of ${modelRows.length} model rows (> ${MAX_REMOVE_RATIO * 100}%) — removals skipped, set FORCE=1 to apply them`;
+    console.log(`::warning::${msg}`);
   }
+
+  // ── 4b. old model URL → parent model redirects ─────────────────────────
+  let redirects = {};
+  try { redirects = JSON.parse(fs.readFileSync(REDIRECTS_FILE, "utf8")); } catch {}
+  const nextRedirects = {};
+  for (const [from, to] of Object.entries(redirects)) {
+    if (!desired.has(from) && desired.has(to)) nextRedirects[from] = to; // still dead, target still live
+  }
+  const parentOf = (p) => {
+    const [, , make, model] = p.split("/"); // "/listings/<make>/<model>/"
+    const parts = model.split("-");
+    for (let n = parts.length - 1; n >= 1; n--) {
+      const head = parts.slice(0, n).join("-");
+      if (head.length >= 3 && desired.has(`/listings/${make}/${head}/`)) return `/listings/${make}/${head}/`;
+    }
+    return null;
+  };
+  for (const r of toRemove) {
+    const parent = parentOf(r.path);
+    if (parent) nextRedirects[r.path] = parent;
+  }
+  const sortedRedirects = Object.fromEntries(Object.entries(nextRedirects).sort(([a], [b]) => (a < b ? -1 : 1)));
+  const redirectsChanged = JSON.stringify(sortedRedirects) !== JSON.stringify(redirects);
 
   console.log(`WP models: ${modelPaths.length} | usable: ${desired.size} | skipped: ${skipped.length}`);
   console.log(`url.csv rows: ${rows.length} (model rows: ${modelRows.length})`);
   console.log(`+ add ${toAdd.length} | - remove ${toRemove.length} | new makes for makes.json: ${newMakes.length}`);
+  console.log(`redirects (old model → parent): ${Object.keys(sortedRedirects).length}${redirectsChanged ? " (changed)" : ""}`);
   if (skipped.length) console.log("  skipped samples:", skipped.slice(0, 5).join(", "));
   if (newMakes.length) console.log("  new makes:", newMakes.join(", "));
   toRemove.slice(0, 10).forEach((r) => console.log("  - " + r.path));
   toAdd.slice(0, 10).forEach((p) => console.log("  + " + p));
 
   if (DRY) return console.log("(dry-run — nothing written)");
-  if (!toAdd.length && !toRemove.length && !newMakes.length) return console.log("Already in sync.");
+  if (!toAdd.length && !toRemove.length && !newMakes.length && !redirectsChanged) return console.log("Already in sync.");
 
   // ── 5. write ─────────────────────────────────────────────────────────
   if (newMakes.length) {
@@ -167,6 +205,7 @@ const clean = (p) => String(p).replace(/^\/?(listings\/)?/, "").replace(/\/+$/, 
     fs.writeFileSync(CSV_FILE, [header, ...kept, ...added].join(eol));
     execFileSync(process.execPath, [path.join(__dirname, "generate-indexable-urls-json.js")], { stdio: "inherit" });
   }
+  if (redirectsChanged) fs.writeFileSync(REDIRECTS_FILE, JSON.stringify(sortedRedirects, null, 2) + "\n");
   console.log("Done.");
 })().catch((e) => {
   console.error("❌ sync-model-urls failed:", e.message);
