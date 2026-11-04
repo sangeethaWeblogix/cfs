@@ -169,10 +169,10 @@ export default function ContactSection() {
                 <div className="commun-card">
                   <form onSubmit={handleSubmit} className="form" method="post">
                     <div className="text-center header_form">
-                      <h4>
+                      <h1>
                         Exclusive Offers From Select Quality Caravan
                         Manufacturers
-                      </h4>
+                      </h1>
                       <Image
                         className="hidden-xs"
                         src="/images/Blog_bottom_banner.webp"

@@ -33,6 +33,17 @@
     font-weight: 600;
 }
 
+/* "Get in Touch" is the page's <h1>; sized like the <h2> it used to be (Bootstrap's h2 scale) */
+.contact_top h1 {
+    font-size: calc(1.325rem + .9vw);
+    font-weight: 600;
+}
+@media (min-width: 1200px) {
+    .contact_top h1 {
+        font-size: 2rem;
+    }
+}
+
 .form-control {
     display: block;
     width: 100%;

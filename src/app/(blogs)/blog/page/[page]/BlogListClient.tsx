@@ -116,9 +116,9 @@ const loading = !data || !blogPosts || blogPosts.length === 0 && data.totalPages
             style={{ margin: "30px 0px" }}
           >
             <div className="section-head mb-60 style-5">
-              <h2>
+              <h1>
                 Valuable News, Reviews &amp; Advice From Marketplace Network 
-              </h2>
+              </h1>
             </div>
 
           </div>

@@ -1,3 +1,4 @@
+.all-news.blog-listing .section-head.style-5 h1,
 .all-news.blog-listing .section-head.style-5 h2 {
   font-size: 25px;
   font-weight: 700;
@@ -159,7 +160,8 @@
  }
 
 @media (max-width: 767px) {
-  .all-news.blog-listing .section-head.style-5 h2 {
+  .all-news.blog-listing .section-head.style-5 h1,
+.all-news.blog-listing .section-head.style-5 h2 {
     font-size: 23px;
   }
   .blog-page .section-padding {
