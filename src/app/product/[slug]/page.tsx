@@ -3,6 +3,7 @@
  import { redirect } from "next/navigation";
  import { Metadata } from "next";
  import { fetchProductDetail } from "@/utils/fetchProductDetail";
+import { OG_IMAGES } from "@/utils/seo/social-image";
  import './product.css?=30006'
  
  export const dynamic = "force-dynamic";
@@ -87,7 +88,8 @@
        description,
        url: canonicalUrl,
        siteName: "Caravans for Sale",
-       ...(images.length > 0 && { images: [{ url: images[0], alt: title }] }),
+       // listings without photos fall back to the site logo so og:image is never missing
+       images: images.length > 0 ? [{ url: images[0], alt: title }] : OG_IMAGES,
        type: "website",
      },
      twitter: {

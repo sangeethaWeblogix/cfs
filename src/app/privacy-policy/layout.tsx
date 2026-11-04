@@ -1,5 +1,6 @@
  import { Metadata } from "next";
 import { ReactNode } from "react";
+import { OG_IMAGES, SOCIAL_IMAGE_URL } from "@/utils/seo/social-image";
 
 
 
@@ -20,7 +21,14 @@ import { ReactNode } from "react";
 
    },
    
+   twitter: {
+     card: "summary_large_image",
+     images: [SOCIAL_IMAGE_URL],
+   },
+
    openGraph: {
+      type: "website",
+      images: OG_IMAGES,
       url: "https://www.caravansforsale.com.au/privacy-policy/",
      title: "Privacy Policy - caravansforsale.com.au - Caravan Marketplace",
        description:

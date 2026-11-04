@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import Statement from "./statement";
+import { OG_IMAGES, SOCIAL_IMAGE_URL } from "@/utils/seo/social-image";
 import "./statement.css?=123";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -23,9 +24,12 @@ export async function generateMetadata(): Promise<Metadata> {
       description: metaDescription,
       url: "https://www.caravansforsale.com.au/buyer-safety-guide/",
       type: "article",
+      images: OG_IMAGES,
     },
 
     twitter: {
+      card: "summary_large_image",
+      images: [SOCIAL_IMAGE_URL],
       title: metaTitle,
       description: metaDescription,
     },

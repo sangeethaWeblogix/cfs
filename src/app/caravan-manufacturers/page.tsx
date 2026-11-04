@@ -12,6 +12,7 @@ import type { Metadata } from "next";
 // them here produced duplicate tags. Only what STATIC_META does not render stays here.
 export const metadata: Metadata = {
   openGraph: {
+    type: "website",
     images: [
       {
         url: "https://www.caravansforsale.com.au/images/cfs-logo.png",
