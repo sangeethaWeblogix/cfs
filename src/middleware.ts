@@ -162,6 +162,22 @@ function isPoolPayload(data: any): boolean {
   return !!(data && (data.counts || data.pagination || data.featured_products || data.new_products || data.used_products));
 }
 
+/** Seconds from now until the next HH:MM (24h) on the Sydney clock — DST handled by Intl. */
+function secondsUntilSydney(hour: number, minute: number): number {
+  const parts = new Intl.DateTimeFormat("en-AU", {
+    timeZone: "Australia/Sydney",
+    hourCycle: "h23",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+  }).formatToParts(new Date());
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  const nowSec = get("hour") * 3600 + get("minute") * 60 + get("second");
+  let diff = hour * 3600 + minute * 60 - nowSec;
+  if (diff <= 0) diff += 24 * 3600;
+  return diff;
+}
+
 async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest) {
   try {
     const slugParts = url.pathname.replace("/listings", "").split("/").filter(Boolean);
@@ -644,6 +660,15 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
 
   if (isBot(userAgent)) {
     response.headers.set('X-Is-Bot', 'true');
+  }
+
+  // Home page: the CDN copy (CDN-Cache-Control in next.config.ts = 24h from whenever it was
+  // rendered) now expires at 03:40 Sydney time every day instead. WordPress resets its own
+  // cache at 03:30; the 10 minutes of slack mean the first render of the day (featured
+  // listings etc.) reads a settled WP cache — an empty/slow answer would otherwise be
+  // served from this CDN copy for the next 24h.
+  if (url.pathname === '/') {
+    response.headers.set('CDN-Cache-Control', `public, max-age=${Math.max(secondsUntilSydney(3, 40), 60)}`);
   }
 
   return response;
