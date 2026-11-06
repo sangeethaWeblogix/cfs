@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   VID_COOKIE, SCREEN_COOKIE, VID_MAX_AGE_S, SCREEN_TTL_S, ERROR_RETRY_S,
-  getClientIp, getEligibility, getRequestCountry, getTestPaths, getScreening, ipFingerprint, isPrivateIp, isScreeningDisabled, isValidVid,
+  getClientIp, getEligibility, getRequestAsn, getRequestCountry, getTestPaths, getScreening, ipFingerprint, isPrivateIp, isScreeningDisabled, isValidVid,
   markEligible, sameNetwork, screenVisitor, type ScreenTrigger,
 } from "@/lib/visitorCheck";
 import { matchQualifyRule, type QualifySignals } from "@/utils/qualifyRules";
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   if (!record || !sameNetwork(record.ip, ip) || staleError) {
     const trigger: ScreenTrigger = !isValidVid(cookieVid) ? "new_visitor"
       : !record ? "qualify_check" : staleError && sameNetwork(record.ip, ip) ? "expired" : "ip_changed";
-    record = await screenVisitor(vid, ip, "/api/visitor-qualify/", request.headers.get("user-agent") || "", false, trigger, getRequestCountry(request.headers));
+    record = await screenVisitor(vid, ip, "/api/visitor-qualify/", request.headers.get("user-agent") || "", false, trigger, getRequestCountry(request.headers), getRequestAsn(request.headers));
     screenedNow = true;
   }
 

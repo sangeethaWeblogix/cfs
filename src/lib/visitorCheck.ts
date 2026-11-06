@@ -20,7 +20,7 @@ export interface VisitorRecord {
   ua: string;
   status: VisitorStatus;
   reasons: string[];
-  source: 'maxmind' | 'ip_cache' | 'ua' | 'geo' | 'error';
+  source: 'maxmind' | 'ip_cache' | 'asn' | 'ua' | 'geo' | 'error';
   trigger?: string;
   country?: string;
   registeredCountry?: string;
@@ -43,6 +43,9 @@ export const SCREEN_TTL_S = 7 * 86400;
 
 const MAXMIND_TIMEOUT_MS = 1500;
 const IP_CACHE_TTL_S = 7 * 86400;             // same IP across visitors: 7 days
+const IP_ERROR_TTL_S = 60;                    // MaxMind error for an IP: reused for 60 s (not 7 days)
+const IP_LOCK_TTL_S = 5;                      // one MaxMind lookup per IP at a time (all sites)
+const IP_LOCK_WAIT_MS = [300, 500, 800];      // waits for the lock holder's verdict before looking up anyway
 // MaxMind error (e.g. credit ran out): the "unknown" result is retried by /api/visitor-qualify
 // once it is this old, so a short outage doesn't block real visitors from qualifying for 7 days
 export const ERROR_RETRY_S = 3600;
@@ -52,7 +55,11 @@ const LOG_TTL_S = 90 * 86400;                 // logs/counters expire 90 days af
 const K = {
   screening: (vid: string) => `vc:screen:${vid}`,   // IP screening status (per visitor)
   eligibility: (vid: string) => `vc:elig:${vid}`,   // remarketing eligibility (per visitor)
-  ip: (ip: string) => `vc:ip:${ipNetworkKey(ip)}`,  // MaxMind verdict cache (per IPv4 / IPv6 /64)
+  ip: (ip: string) => `vc:ip:${ipNetworkKey(ip)}`,  // MaxMind verdict cache (per IPv4 / IPv6 /64), shared by all sites
+  ipError: (ip: string) => `vc:iperr:${ipNetworkKey(ip)}`,  // last MaxMind error for the IP (60 s)
+  ipLock: (ip: string) => `vc:iplock:${ipNetworkKey(ip)}`,  // lookup in progress (5 s)
+  asnStats: (asn: number) => `vc:asnstat:${asn}`,   // MaxMind verdicts per network: hosting / eligible (all sites)
+  asnListed: (asn: number) => `vc:asnbad:${asn}`,   // network skipped before MaxMind (all sites)
   log: 'vc:log',
   qualifiedLog: 'vc:qualified',
   counts: 'vc:counts',
@@ -73,11 +80,14 @@ export function isDeclaredCrawler(ua: string, headers: Headers): boolean {
   return !/mozilla\//i.test(ua) || EXTRA_CRAWLER_UA.test(ua) || headers.get('x-verified-bot') === 'true';
 }
 
-/* Visitor country from free edge geolocation (Cloudflare first, then Vercel).
-   Returns undefined when unknown ("XX") so the visitor still gets a MaxMind check. */
+/* Visitor country from free edge geolocation. Cloudflare's CF-IPCountry is trusted only when the
+   request really came through Cloudflare (same peer check as getClientIp) — otherwise anyone
+   calling the Vercel URL directly could send "CF-IPCountry: AU". Falls back to Vercel's header.
+   Returns undefined when unknown ("XX", "T1" = Tor) so the visitor still gets a MaxMind check. */
 export function getRequestCountry(headers: Headers): string | undefined {
-  const c = (headers.get('cf-ipcountry') || headers.get('x-vercel-ip-country') || '').trim().toUpperCase();
-  return c && c !== 'XX' ? c : undefined;
+  const cf = isCloudflareIp(getPeerIp(headers)) ? headers.get('cf-ipcountry') : null;
+  const c = (cf || headers.get('x-vercel-ip-country') || '').trim().toUpperCase();
+  return c && c !== 'XX' && c !== 'T1' ? c : undefined;
 }
 
 export const isValidVid = (v: string | undefined): v is string =>
@@ -137,14 +147,19 @@ export function isTestModeAllowedPath(pathname: string): boolean {
 /* ── Client IP ──
    Vercel sets x-forwarded-for to the connecting IP. If that connection is from
    Cloudflare (proxied DNS / Worker), trust Cloudflare's CF-Connecting-IP instead.
-   CF-Connecting-IP is ignored otherwise, so it can't be spoofed by visitors. */
-const CF_IPV4 = [
+   CF-Connecting-IP is ignored otherwise, so it can't be spoofed by visitors.
+   Keep these in sync with https://www.cloudflare.com/ips/ — the daily cron (/api/cron/redis-usage/)
+   compares them with Cloudflare's published list and emails the admin if it changes. */
+export const CF_IPV4 = [
   '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22',
   '141.101.64.0/18', '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20',
   '197.234.240.0/22', '198.41.128.0/17', '162.158.0.0/15', '104.16.0.0/13',
   '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22',
 ];
-const CF_IPV6_PREFIXES = ['2400:cb00:', '2606:4700:', '2803:f800:', '2405:b500:', '2405:8100:', '2c0f:f248:', /^2a06:98c[0-7]:/];
+export const CF_IPV6 = [
+  '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32',
+  '2405:8100::/32', '2a06:98c0::/29', '2c0f:f248::/32',
+];
 
 function ipv4ToInt(ip: string): number | null {
   const p = ip.split('.').map(Number);
@@ -152,10 +167,29 @@ function ipv4ToInt(ip: string): number | null {
   return ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]) >>> 0;
 }
 
-function isCloudflareIp(ip: string): boolean {
+/* Full 128-bit value of an IPv6 address (null if it isn't one) */
+function ipv6ToBigInt(ip: string): bigint | null {
+  const v = ip.trim().toLowerCase().split('%')[0];
+  if (!v.includes(':') || v.split('::').length > 2) return null;
+  const [head, tail] = v.split('::');
+  const headParts = head ? head.split(':') : [];
+  const tailParts = tail !== undefined && tail ? tail.split(':') : [];
+  const missing = v.includes('::') ? 8 - headParts.length - tailParts.length : 0;
+  const parts = [...headParts, ...Array(Math.max(missing, 0)).fill('0'), ...tailParts];
+  if (parts.length !== 8 || parts.some(h => !/^[0-9a-f]{1,4}$/.test(h))) return null;
+  return parts.reduce((acc, h) => (acc << BigInt(16)) | BigInt(parseInt(h, 16)), BigInt(0));
+}
+
+export function isCloudflareIp(ip: string): boolean {
+  if (!ip) return false;
   if (ip.includes(':')) {
-    const v6 = ip.toLowerCase();
-    return CF_IPV6_PREFIXES.some(p => (typeof p === 'string' ? v6.startsWith(p) : p.test(v6)));
+    const n = ipv6ToBigInt(ip);
+    if (n === null) return false;
+    return CF_IPV6.some(cidr => {
+      const [base, bits] = cidr.split('/');
+      const shift = BigInt(128 - Number(bits));
+      return (n >> shift) === (ipv6ToBigInt(base)! >> shift);
+    });
   }
   const n = ipv4ToInt(ip);
   if (n === null) return false;
@@ -166,9 +200,14 @@ function isCloudflareIp(ip: string): boolean {
   });
 }
 
-export function getClientIp(headers: Headers): string | null {
+/* The IP that actually connected to Vercel (Cloudflare's edge when proxied) */
+function getPeerIp(headers: Headers): string {
   const xff = headers.get('x-forwarded-for');
-  const peer = (xff ? xff.split(',')[0] : headers.get('x-real-ip') || '').trim();
+  return (xff ? xff.split(',')[0] : headers.get('x-real-ip') || '').trim();
+}
+
+export function getClientIp(headers: Headers): string | null {
+  const peer = getPeerIp(headers);
   const cf = headers.get('cf-connecting-ip')?.trim();
   if (cf && peer && isCloudflareIp(peer)) return cf;
   return peer || null;
@@ -253,6 +292,8 @@ function classify(d: any): Verdict {
   if (a.is_residential_proxy && (a.confidence ?? 0) >= RESIDENTIAL_PROXY_CONFIDENCE) reasons.push('residential_proxy');
   if (t.user_type === 'hosting') reasons.push('user_type_hosting');
   if (typeof t.ip_risk_snapshot === 'number' && t.ip_risk_snapshot >= RISK_THRESHOLD) reasons.push(`risk_${t.ip_risk_snapshot}`);
+  // MaxMind must also place the IP in Australia (edge headers can be missing or wrong)
+  if (d?.country?.iso_code !== 'AU') reasons.push('non_au');
 
   return {
     status: reasons.length ? 'suspicious' : 'eligible',
@@ -268,6 +309,75 @@ function classify(d: any): Verdict {
 }
 
 
+/* ── Network (ASN) pre-check: AU-located hosting / VPN networks never reach MaxMind ──
+   Cloudflare forwards the visitor's network number in X-Client-ASN (Request Header Transform Rule:
+   X-Client-ASN = to_string(ip.src.asnum)); it is trusted only from Cloudflare's IPs, like CF-IPCountry.
+   A network is listed (shared by all sites, for ASN_LISTED_TTL_S) once MaxMind has called at least
+   ASN_LIST_MIN_HOSTING of its IPs "hosting" and none of them eligible. While listed, its new IPs are
+   "suspicious" (source "asn") without a lookup. The record keeps asn / asnOrg / userType so the visitor
+   log and the CF Auto-Block plugin still count the network. An eligible verdict for the network removes it.
+   Residential proxies on AU ISPs can't be told apart by network: they still go to MaxMind.
+   Env: VISITOR_ASN_CHECK_DISABLED=1 (turn off), ASN_LIST_MIN_HOSTING (default 5). */
+const ASN_STATS_TTL_S = 7 * 86400;            // counts kept while the network stays active (refreshed on each lookup)
+const ASN_LISTED_TTL_S = 7 * 86400;
+const ASN_LIST_MIN_HOSTING = Number(process.env.ASN_LIST_MIN_HOSTING) || 5;
+// Seeded: confirmed scraper networks (6 Nov 2026 visitor log)
+const SEED_LISTED_ASNS: Record<number, string> = { 133499: 'HostRoyale Technologies Pvt Ltd' };
+// Never listed — same defaults as the CF Auto-Block plugin: Google, Microsoft, Amazon, Cloudflare, Meta,
+// Apple and the main AU ISPs (Telstra, Optus, TPG, Aussie Broadband, Vocus, Internode, AAPT)
+const PROTECTED_ASNS = new Set([15169, 396982, 8075, 16509, 14618, 13335, 32934, 714, 1221, 4804, 7545, 4764, 4826, 4739, 2764]);
+
+interface ListedAsn { asn: number; asnOrg?: string; hosting: number; since: string }
+
+const asnCheckEnabled = () => process.env.VISITOR_ASN_CHECK_DISABLED !== '1';
+
+/* Visitor's network number from Cloudflare (undefined when not via Cloudflare or missing) */
+export function getRequestAsn(headers: Headers): number | undefined {
+  if (!isCloudflareIp(getPeerIp(headers))) return undefined;
+  const n = Number(headers.get('x-client-asn'));
+  return Number.isInteger(n) && n > 0 ? n : undefined;
+}
+
+/* Update the network's counts after a MaxMind verdict; list or unlist it */
+async function learnAsn(v: Verdict): Promise<void> {
+  if (typeof v.asn !== 'number' || PROTECTED_ASNS.has(v.asn)) return;
+  const field = v.status === 'eligible' ? 'eligible'
+    : v.userType === 'hosting' || v.reasons.includes('hosting_provider') ? 'hosting' : null;
+  if (!field) return;
+  const out = await redis([
+    ['HINCRBY', K.asnStats(v.asn), field, 1],
+    ['EXPIRE', K.asnStats(v.asn), ASN_STATS_TTL_S],
+    ['HMGET', K.asnStats(v.asn), 'hosting', 'eligible'],
+  ]);
+  const [hosting, eligible] = ((out?.[2] as (string | null)[]) ?? []).map(x => Number(x) || 0);
+  if (eligible > 0) {
+    if (field === 'eligible') await redis([['DEL', K.asnListed(v.asn)]]);
+  } else if (hosting >= ASN_LIST_MIN_HOSTING) {
+    const entry: ListedAsn = { asn: v.asn, asnOrg: v.asnOrg, hosting, since: new Date().toISOString() };
+    const set = await redis([['SET', K.asnListed(v.asn), JSON.stringify(entry), 'NX', 'EX', ASN_LISTED_TTL_S]]);
+    if (set?.[0] === 'OK') console.log(`[visitor-check] ASN LISTED asn=${v.asn} org="${v.asnOrg ?? ''}" hosting=${hosting}`);
+  }
+}
+
+/* Verdicts cached before the AU check (or written by a site without it) are re-checked on read */
+function withAuCheck(v: Verdict | null): Verdict | null {
+  if (!v || v.country === 'AU' || v.reasons.includes('non_au')) return v;
+  return { ...v, status: 'suspicious', reasons: [...v.reasons, 'non_au'] };
+}
+
+/* Another request holds the lookup lock for this IP — poll briefly for its verdict (or its error).
+   Returns null if neither arrives, and the caller then looks the IP up itself. */
+async function waitForIpVerdict(ip: string): Promise<{ verdict: Verdict } | { error: string } | null> {
+  for (const ms of IP_LOCK_WAIT_MS) {
+    await new Promise(r => setTimeout(r, ms));
+    const out = await redis([['GET', K.ip(ip)], ['GET', K.ipError(ip)]]);
+    const v = withAuCheck(parse<Verdict>(out?.[0]));
+    if (v) return { verdict: v };
+    if (typeof out?.[1] === 'string') return { error: out[1] };
+  }
+  return null;
+}
+
 /* new_visitor = new browser (no cfs_vid cookie) AND its IP wasn't seen in the last 7 days.
    A new browser whose IP is already in the IP cache (Incognito, cleared cookies, shared
    connection) is logged as existing_visitor_new_session instead. */
@@ -279,10 +389,10 @@ export type ScreenTrigger = 'new_visitor' | 'existing_visitor_new_session' | 'ip
  */
 export async function screenVisitor(
   vid: string, ip: string, path: string, ua: string, declaredBot: boolean, trigger: ScreenTrigger = 'new_visitor',
-  geoCountry?: string,
+  geoCountry?: string, edgeAsn?: number,
 ): Promise<VisitorRecord> {
   const base = { time: new Date().toISOString(), vid, ip, path, ua: ua.slice(0, 200), trigger };
-  let record: VisitorRecord;
+  let record!: VisitorRecord;
   const cmds: (string | number)[][] = [];
 
   if (declaredBot) {
@@ -293,20 +403,55 @@ export async function screenVisitor(
     record = { ...base, status: 'suspicious', reasons: ['non_au'], source: 'geo', country: geoCountry };
     cmds.push(['SET', K.screening(vid), JSON.stringify(record), 'EX', SCREEN_TTL_S]);
   } else {
-    // Same IP already looked up in the last 7 days (another visitor / cleared cookies) → reuse, no extra cost
-    const cached = parse<Verdict>((await redis([['GET', K.ip(ip)]]))?.[0]);
-    if (cached) {
-      const seenTrigger = trigger === 'new_visitor' ? 'existing_visitor_new_session' : trigger;
-      record = { ...base, trigger: seenTrigger, ...cached, source: 'ip_cache' };
-    } else {
-      const result = await lookupMaxMind(ip);
-      if ('verdict' in result) {
-        record = { ...base, ...result.verdict, source: 'maxmind' };
-        cmds.push(['SET', K.ip(ip), JSON.stringify(result.verdict), 'EX', IP_CACHE_TTL_S]);
-      } else {
-        // Timeout / error → unknown (never passed), IP not cached
-        record = { ...base, status: 'unknown', reasons: [], source: 'error', error: result.error };
+    // Same IP already looked up in the last 7 days (another visitor / another site / cleared cookies)
+    // → reuse, no extra cost. A recent MaxMind error for this IP is reused for IP_ERROR_TTL_S.
+    // The network check rides in the same Redis round-trip (only when Cloudflare sent the ASN)
+    const asn = asnCheckEnabled() && edgeAsn && !PROTECTED_ASNS.has(edgeAsn) ? edgeAsn : undefined;
+    const cachedOut = await redis([
+      ['GET', K.ip(ip)], ['GET', K.ipError(ip)],
+      ...(asn && !SEED_LISTED_ASNS[asn] ? [['GET', K.asnListed(asn)]] : []),
+    ]);
+    let cached = withAuCheck(parse<Verdict>(cachedOut?.[0]));
+    let cachedError = typeof cachedOut?.[1] === 'string' ? cachedOut[1] : null;
+    const seenTrigger = trigger === 'new_visitor' ? 'existing_visitor_new_session' : trigger;
+    const listed: ListedAsn | null = !asn ? null
+      : SEED_LISTED_ASNS[asn] ? { asn, asnOrg: SEED_LISTED_ASNS[asn], hosting: 0, since: 'seed' }
+      : parse<ListedAsn>(cachedOut?.[2]);
+
+    if (!cached && !cachedError && listed) {
+      // Listed hosting / VPN network → suspicious without a paid lookup
+      record = {
+        ...base, status: 'suspicious', reasons: ['asn_listed'], source: 'asn',
+        asn: listed.asn, asnOrg: listed.asnOrg, userType: 'hosting',
+      };
+    } else if (!cached && !cachedError) {
+      // One MaxMind lookup per IP: if another request/site is already looking it up, wait for its result
+      const lock = await redis([['SET', K.ipLock(ip), '1', 'NX', 'EX', IP_LOCK_TTL_S]]);
+      const gotLock = !lock || lock[0] === 'OK';   // Redis down → no lock, look up as before
+      if (!gotLock) {
+        const waited = await waitForIpVerdict(ip);
+        if (waited && 'verdict' in waited) cached = waited.verdict;
+        else if (waited) cachedError = waited.error;
       }
+      if (!cached && !cachedError) {
+        const result = await lookupMaxMind(ip);
+        if ('verdict' in result) {
+          record = { ...base, ...result.verdict, source: 'maxmind' };
+          cmds.push(['SET', K.ip(ip), JSON.stringify(result.verdict), 'EX', IP_CACHE_TTL_S]);
+          if (asnCheckEnabled()) await learnAsn(result.verdict).catch(() => {});
+        } else {
+          // Timeout / error → unknown (never passed); the error is cached briefly so a burst of
+          // requests from the same IP doesn't repeat it, the verdict cache is left empty
+          record = { ...base, status: 'unknown', reasons: [], source: 'error', error: result.error };
+          cmds.push(['SET', K.ipError(ip), result.error, 'EX', IP_ERROR_TTL_S]);
+        }
+        cmds.push(['DEL', K.ipLock(ip)]);
+      }
+    }
+    if (cached) {
+      record = { ...base, trigger: seenTrigger, ...cached, source: 'ip_cache' };
+    } else if (cachedError) {
+      record = { ...base, status: 'unknown', reasons: [], source: 'error', error: `${cachedError} (cached)` };
     }
     // Crawlers get a new ID on every request, so only real browsers are stored per visitor
     cmds.push(['SET', K.screening(vid), JSON.stringify(record), 'EX', SCREEN_TTL_S]);
@@ -328,6 +473,7 @@ export async function screenVisitor(
     ['HINCRBY', K.counts, record.source === 'geo' ? 'non_au' : record.status, 1],
     ['EXPIRE', K.counts, LOG_TTL_S],
   );
+  if (record.source === 'asn') cmds.push(['HINCRBY', K.counts, 'skipped_asn', 1]);   // MaxMind lookups saved
   if (record.status === 'suspicious' && record.source !== 'geo') {
     cmds.push(
       ['LPUSH', K.flagged, `${record.time}|${ip}`],

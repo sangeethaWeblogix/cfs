@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { redis } from "@/lib/visitorCheck";
+import { CF_IPV4, CF_IPV6, redis } from "@/lib/visitorCheck";
 import { mailerConfigStatus, sendAdminEmail } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +13,9 @@ export const runtime = "nodejs";   // nodemailer needs Node.js, not Edge
              back under the limit        → "back to normal", once (new month, or REDIS_MONTHLY_LIMIT raised after upgrading)
      MaxMind < MAXMIND_ALERT_QUERIES lookups left (default 2,500) → warning, at most once every 7 days
              0 left / out-of-credit error                        → every daily run
+     Cloudflare IP ranges differ from CF_IPV4 / CF_IPV6 in lib/visitorCheck.ts → email, repeated every 7 days
+             until the code is updated (a new Cloudflare range would make real visitors look like Cloudflare's
+             own IPs: CF-Connecting-IP / CF-IPCountry ignored, MaxMind flags them as hosting)
    Env: UPSTASH_EMAIL + UPSTASH_API_KEY (Upstash Management API), [REDIS_MONTHLY_LIMIT=500000],
         CRON_SECRET (Vercel sends it as "Authorization: Bearer …"), SMTP_* / ALERT_EMAIL_* (see lib/mailer.ts).
    Manual use (key = VISITOR_LOG_SECRET):
@@ -122,9 +125,9 @@ export async function GET(request: NextRequest) {
   }
 
   const dry = params.get("dry") === "1";
-  const [redisResult, maxmindResult] = await Promise.all([checkRedis(dry, mail.ok), checkMaxmind(dry)]);
-  const failed = "error" in redisResult || "error" in maxmindResult;
-  return json({ redis: redisResult, maxmind: maxmindResult }, failed ? 500 : 200);
+  const [redisResult, maxmindResult, cfResult] = await Promise.all([checkRedis(dry, mail.ok), checkMaxmind(dry), checkCloudflareIps(dry)]);
+  const failed = "error" in redisResult || "error" in maxmindResult || "error" in cfResult;
+  return json({ redis: redisResult, maxmind: maxmindResult, cloudflareIps: cfResult }, failed ? 500 : 200);
 }
 
 /* Sends an alert email; `marker` (optional) = Redis key that limits it to once per `markerTtlS` */
@@ -286,4 +289,54 @@ async function checkMaxmind(dry: boolean): Promise<Record<string, unknown>> {
 
   const marker = level === "low" ? "alert:maxmind:low" : undefined;
   return { ...result, ...(await sendOnce("maxmind-credit", buildMaxmindEmail(level, credit.queriesRemaining, credit.time), marker, 7 * 86400)) };
+}
+
+/* ── Cloudflare IP ranges ──
+   getClientIp() / getRequestCountry() trust CF-Connecting-IP and CF-IPCountry only from Cloudflare's IPs.
+   Compares the hard-coded lists with Cloudflare's published ones (public API, no token needed). */
+async function checkCloudflareIps(dry: boolean): Promise<Record<string, unknown>> {
+  let published: { ipv4: string[]; ipv6: string[]; etag?: string };
+  try {
+    const res = await fetch("https://api.cloudflare.com/client/v4/ips", { cache: "no-store", signal: AbortSignal.timeout(10_000) });
+    const body: any = await res.json().catch(() => null);
+    if (!res.ok || !body?.success || !Array.isArray(body?.result?.ipv4_cidrs) || !Array.isArray(body?.result?.ipv6_cidrs)) {
+      throw new Error(`Cloudflare IP list ${res.status}: unexpected response`);
+    }
+    published = { ipv4: body.result.ipv4_cidrs, ipv6: body.result.ipv6_cidrs, etag: body.result.etag };
+  } catch (e: any) {
+    console.error(`[cf-ips] ${e?.message ?? e}`);
+    return { error: String(e?.message ?? e) };
+  }
+
+  const norm = (l: string[]) => l.map(c => c.trim().toLowerCase());
+  const ours = new Set([...norm(CF_IPV4), ...norm(CF_IPV6)]);
+  const theirs = new Set([...norm(published.ipv4), ...norm(published.ipv6)]);
+  const added = [...theirs].filter(c => !ours.has(c));
+  const removed = [...ours].filter(c => !theirs.has(c));
+  const result = { published: { ipv4: published.ipv4.length, ipv6: published.ipv6.length }, inCode: { ipv4: CF_IPV4.length, ipv6: CF_IPV6.length }, added, removed };
+  if (!added.length && !removed.length) return { ...result, level: "ok", emailed: false };
+  if (dry) return { ...result, level: "changed", emailed: false };
+
+  const lines = [
+    ...added.map(c => `Added by Cloudflare (missing in code): ${c}`),
+    ...removed.map(c => `Removed by Cloudflare (still in code): ${c}`),
+  ];
+  const impact = added.length
+    ? "Visitors arriving through a new Cloudflare range are not recognised as coming via Cloudflare: their real IP and country headers are ignored, the screening sees Cloudflare's own IP, and MaxMind flags them as hosting (\"as\")."
+    : "A range Cloudflare no longer uses is still trusted. Low risk, but remove it so the list matches.";
+  const action = "Update CF_IPV4 / CF_IPV6 in src/lib/visitorCheck.ts (every site that has visitor screening) to match https://www.cloudflare.com/ips/ and deploy.";
+  const email = {
+    subject: "[caravansforsale.com.au] Cloudflare IP ranges changed — update visitor screening",
+    text: ["Cloudflare's published IP ranges no longer match the list in the code.", "", ...lines, "", impact, "", `What to do: ${action}`, "",
+      "Sent automatically by the daily check at /api/cron/redis-usage/ on caravansforsale.com.au."].join("\n"),
+    html: `
+    <p>Cloudflare's published IP ranges no longer match the list in the code.</p>
+    <ul>${lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>
+    <p>${esc(impact)}</p>
+    <p><b>What to do:</b> ${esc(action)}</p>
+    <p style="color:#6b7280;font-size:12px">Sent automatically by the daily check at /api/cron/redis-usage/ on caravansforsale.com.au.</p>`,
+  };
+  // Once per distinct change, repeated every 7 days while the code still differs
+  const marker = `alert:cfips:${[...added, ...removed.map(r => `-${r}`)].sort().join(",").slice(0, 300)}`;
+  return { ...result, level: "changed", ...(await sendOnce("cf-ips", email, marker, 7 * 86400)) };
 }

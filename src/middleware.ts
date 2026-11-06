@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
 import {
-  screenVisitor, getClientIp, isPrivateIp, isScreeningDisabled, isValidVid, ipFingerprint, isDeclaredCrawler, getRequestCountry, isTestModeAllowedPath,
+  screenVisitor, getClientIp, isPrivateIp, isScreeningDisabled, isValidVid, ipFingerprint, isDeclaredCrawler, getRequestCountry, getRequestAsn, isTestModeAllowedPath,
   VID_COOKIE, VID_MAX_AGE_S, SCREEN_COOKIE, SCREEN_TTL_S,
 } from "@/lib/visitorCheck";
 import { parseSlugToFilters, type Filters } from "@/app/components/urlBuilder";
@@ -259,7 +259,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
         if (!isValidVid(existingVid) || screenedFp !== fp) {
           const vid = isValidVid(existingVid) ? existingVid : crypto.randomUUID();
           const trigger = !isValidVid(existingVid) ? 'new_visitor' : screenedFp ? 'ip_changed' : 'expired';
-          event.waitUntil(screenVisitor(vid, ip, path, userAgent, false, trigger, getRequestCountry(request.headers)).catch(() => {}));
+          event.waitUntil(screenVisitor(vid, ip, path, userAgent, false, trigger, getRequestCountry(request.headers), getRequestAsn(request.headers)).catch(() => {}));
 
           const cookieOpts = { httpOnly: true, secure: true, sameSite: 'lax' as const, path: '/' };
           // Re-set on every screening so the ID lasts 30 days from the last screened visit

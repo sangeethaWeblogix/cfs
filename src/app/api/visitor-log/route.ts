@@ -9,7 +9,7 @@ const MAXMIND_INSIGHTS_COST_USD = 0.002;
      [&minutes=30]   only records from the last N minutes (+ a usage summary)
      [&limit=200]    max records returned
      [&status=eligible|suspicious|unknown]
-     [&source=maxmind|ip_cache|ua|geo|error]
+     [&source=maxmind|ip_cache|asn|ua|geo|error]
      [&qualified=1|0] only visitors who did / didn't qualify
    Returns screening counts, the latest screened visitors and the latest qualified visitors.
    Each record carries visitorStatus (as | uk | ps) and `qualified` (when / rule / source, or false). */
