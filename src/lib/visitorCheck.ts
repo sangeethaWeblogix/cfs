@@ -24,6 +24,7 @@ export interface VisitorRecord {
   trigger?: string;
   country?: string;
   registeredCountry?: string;
+  asn?: number;
   asnOrg?: string;
   userType?: string;
   risk?: number;
@@ -31,7 +32,7 @@ export interface VisitorRecord {
   error?: string;
 }
 
-type Verdict = Pick<VisitorRecord, 'status' | 'reasons' | 'country' | 'registeredCountry' | 'asnOrg' | 'userType' | 'risk' | 'anonProvider'>;
+type Verdict = Pick<VisitorRecord, 'status' | 'reasons' | 'country' | 'registeredCountry' | 'asn' | 'asnOrg' | 'userType' | 'risk' | 'anonProvider'>;
 
 export const VID_COOKIE = 'cfs_vid';          // visitor ID
 export const SCREEN_COOKIE = 'cfs_scr';       // fingerprint of the IP that was screened
@@ -258,6 +259,7 @@ function classify(d: any): Verdict {
     reasons,
     country: d?.country?.iso_code,
     registeredCountry: d?.registered_country?.iso_code,
+    asn: typeof t.autonomous_system_number === 'number' ? t.autonomous_system_number : undefined,
     asnOrg: t.autonomous_system_organization,
     userType: t.user_type,
     risk: t.ip_risk_snapshot,
@@ -370,7 +372,7 @@ export async function markEligible(
     time: new Date().toISOString(), vid: record.vid, ip: record.ip, rule,
     entrySource: src?.source, entryMedium: src?.medium,
     listings: new Set(s.listingIds).size, filterUsed: s.filterUsed, scrolled: s.scrolled, clicked: s.clicked, activeSeconds: s.activeSeconds,
-    country: record.country, asnOrg: record.asnOrg,
+    country: record.country, asn: record.asn, asnOrg: record.asnOrg,
   };
   console.log(`[visitor-check] QUALIFIED vid=${record.vid} rule=${rule}`);
   await redis([

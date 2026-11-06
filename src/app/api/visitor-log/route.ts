@@ -33,6 +33,14 @@ export async function GET(request: NextRequest) {
   const inWindow = since ? records.filter(r => Date.parse(r.time) >= since) : records;
   const qualifiedInWindow = since ? qualified.filter((q: any) => Date.parse(q.time) >= since) : qualified;
 
+  // ?groupBy=asn → per-network totals only (used by the WP admin "CF Auto-Block" cron). Small response, no extra Redis reads.
+  if (params.get("groupBy") === "asn") {
+    return NextResponse.json(
+      { redisConfigured: configured, window: since ? `last ${minutes} minutes` : "whole log", networks: groupByNetwork(inWindow, qualifiedInWindow) },
+      { headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow" } }
+    );
+  }
+
   let summary;
   if (since) {
     const tally = (key: "source" | "status") =>
@@ -75,4 +83,55 @@ export async function GET(request: NextRequest) {
     { redisConfigured: configured, summary, counts, qualified: qualifiedInWindow, returned: filtered.length, records: filtered },
     { headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow" } }
   );
+}
+
+/* Per-network (ASN) totals for the screened visitors in the window. Records cached before the ASN number
+   was stored only carry the organisation name, so they are grouped by name and matched to the number
+   seen on newer records of the same organisation; sampleIps lets the caller resolve it otherwise. */
+type NetworkRow = {
+  asn: number | null; org: string; total: number; suspicious: number; eligible: number; unknown: number;
+  hosting: number; maxmind: number; ipCache: number; qualified: number; uniqueIps: number; sampleIps: string[];
+  reasons: Record<string, number>; lastSeen: string;
+};
+
+function groupByNetwork(records: any[], qualified: any[]): NetworkRow[] {
+  const asnByOrg = new Map<string, number>();
+  for (const r of records) if (typeof r.asn === "number" && r.asnOrg) asnByOrg.set(r.asnOrg, r.asn);
+
+  const rows = new Map<string, NetworkRow & { ips: Set<string> }>();
+  const keyOf = (asn: number | undefined, org: string | undefined) => {
+    const n = typeof asn === "number" ? asn : org ? asnByOrg.get(org) : undefined;
+    return { key: n != null ? `asn:${n}` : `org:${org}`, asn: n ?? null };
+  };
+
+  for (const r of records) {
+    if (r.source === "ua" || r.source === "geo" || !r.asnOrg) continue;   // no network data
+    const { key, asn } = keyOf(r.asn, r.asnOrg);
+    let row = rows.get(key);
+    if (!row) {
+      row = { asn, org: r.asnOrg, total: 0, suspicious: 0, eligible: 0, unknown: 0, hosting: 0, maxmind: 0, ipCache: 0,
+        qualified: 0, uniqueIps: 0, sampleIps: [], reasons: {}, lastSeen: r.time, ips: new Set() };
+      rows.set(key, row);
+    }
+    row.total++;
+    if (r.status === "suspicious") row.suspicious++;
+    else if (r.status === "eligible") row.eligible++;
+    else row.unknown++;
+    if (r.userType === "hosting") row.hosting++;
+    if (r.source === "maxmind") row.maxmind++;
+    if (r.source === "ip_cache") row.ipCache++;
+    for (const reason of r.reasons ?? []) row.reasons[reason] = (row.reasons[reason] ?? 0) + 1;
+    if (r.time > row.lastSeen) row.lastSeen = r.time;
+    row.ips.add(r.ip);
+  }
+
+  for (const q of qualified) {
+    if (!q?.asnOrg) continue;
+    const row = rows.get(keyOf(q.asn, q.asnOrg).key);
+    if (row) row.qualified++;
+  }
+
+  return [...rows.values()]
+    .map(({ ips, ...row }) => ({ ...row, uniqueIps: ips.size, sampleIps: [...ips].slice(0, 5) }))
+    .sort((a, b) => b.suspicious - a.suspicious || b.total - a.total);
 }
