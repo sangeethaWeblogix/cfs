@@ -18,8 +18,9 @@ export default function VisitorStatus() {
   useEffect(() => {
     const src = getEntrySource();
     const cached = getCachedStatus();
-    // Cached status is reused, except "unscreened" — every page view starts a screening, so ask again
-    if (cached && Date.now() - cached.at < STATUS_CACHE_MS && cached.status !== "unscreened") {
+    // Cached status is reused for STATUS_CACHE_MS. "unscreened" too: screening is deferred until the
+    // visitor qualifies (fix 4), and qualifying pushes "ps" directly (<VisitorQualifier />)
+    if (cached && Date.now() - cached.at < STATUS_CACHE_MS) {
       publishVisitorStatus(cached.status, src);
       return;
     }

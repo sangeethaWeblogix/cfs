@@ -41,6 +41,88 @@ export const VID_MAX_AGE_S = 30 * 86400;      // visitor ID + remarketing eligib
 // A new network (e.g. switching to a VPN) is re-screened straight away (ip_changed).
 export const SCREEN_TTL_S = 7 * 86400;
 
+/* ── Deferred screening (fix 4) ──
+   New organic visitors get only the FREE checks on arrival; the paid MaxMind lookup waits until they
+   qualify (40 s + a real interaction, /api/visitor-qualify). Screened straight away (as before):
+   paid-ad landings (the "as" audience measures ad traffic quality) and qualified visitors (cfs_q)
+   whose IP changed or whose screening expired. Env VISITOR_SCREEN_DEFER=0 → screen everyone on arrival. */
+export const QUALIFIED_COOKIE = 'cfs_q';      // visitor has qualified (ps) — 30 days
+export const DEFER_COOKIE = 'cfs_dfr';        // fingerprint of the IP whose free checks were done
+export const DEFER_COOKIE_MAX_AGE_S = 86400;  // free checks repeated at most daily (another site may have cached the IP)
+export const TOKEN_COOKIE = 'cfs_qt';         // signed issue time, required by /api/visitor-qualify (fix 5)
+
+export function isDeferEnabled(): boolean {
+  return process.env.VISITOR_SCREEN_DEFER !== '0';
+}
+
+const PAID_PARAMS = ['gclid', 'gbraid', 'wbraid', 'gad_source', 'msclkid'];
+const PAID_MEDIUMS = new Set(['cpc', 'ppc', 'paid', 'paidsearch', 'paid_search', 'paid-search']);
+
+/* Landing from a paid ad (Google / Microsoft Ads click IDs, or utm_medium=cpc etc.) */
+export function isPaidLanding(q: URLSearchParams): boolean {
+  return PAID_PARAMS.some(p => q.has(p)) || PAID_MEDIUMS.has((q.get('utm_medium') || '').trim().toLowerCase());
+}
+
+/* ── Qualify token (fix 5) ──
+   Issued by the middleware on the first page view: "<issuedAtMs>.<HMAC(vid.issuedAt)>". The qualify
+   endpoint (the trigger for most paid lookups once screening is deferred) accepts a call only with a
+   valid token for the same visitor ID that is at least QUALIFY_MIN_AGE_S old — a script can't fake
+   40 s of engagement without waiting 40 s per visitor ID — and each token may cause at most
+   TOKEN_LOOKUP_BUDGET lookups. Secret: VISITOR_TOKEN_SECRET (falls back to VISITOR_LOG_SECRET);
+   with neither set, tokens are off. */
+export const QUALIFY_MIN_AGE_S = 38;          // 40 s rule, minus clock / rounding slack
+const TOKEN_LOOKUP_BUDGET = 3;                // lookups one token can cause (IP changes, MaxMind error retries)
+const tokenSecret = () => process.env.VISITOR_TOKEN_SECRET || process.env.VISITOR_LOG_SECRET || '';
+
+export const isQualifyTokenEnabled = () => !!tokenSecret();
+
+let hmacKey: { secret: string; key: Promise<CryptoKey> } | null = null;
+async function tokenSig(data: string): Promise<string> {
+  const secret = tokenSecret();
+  if (!hmacKey || hmacKey.secret !== secret) {
+    hmacKey = { secret, key: crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']) };
+  }
+  const sig = await crypto.subtle.sign('HMAC', await hmacKey.key, new TextEncoder().encode(data));
+  return Array.from(new Uint8Array(sig).slice(0, 16), b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function issueQualifyToken(vid: string): Promise<string | null> {
+  if (!isQualifyTokenEnabled()) return null;
+  const t = Date.now();
+  return `${t}.${await tokenSig(`${vid}.${t}`)}`;
+}
+
+/* Issue time (ms) of a valid token for this visitor ID, else null */
+export async function readQualifyToken(token: string | undefined, vid: string): Promise<number | null> {
+  const m = token?.match(/^(\d{13})\.([0-9a-f]{32})$/);
+  if (!m || !isQualifyTokenEnabled()) return null;
+  const t = Number(m[1]);
+  if (t > Date.now() + 60_000 || Date.now() - t > VID_MAX_AGE_S * 1000) return null;
+  return (await tokenSig(`${vid}.${t}`)) === m[2] ? t : null;
+}
+
+/* Counts a paid-lookup attempt against the token; false once its budget is used up */
+export async function spendTokenLookup(token: string): Promise<boolean> {
+  const key = `vc:qtuse:${token.slice(-32)}`;
+  const out = await redis([['INCR', key], ['EXPIRE', key, VID_MAX_AGE_S]]);
+  return !out || Number(out[0]) <= TOKEN_LOOKUP_BUDGET;   // Redis down → allow
+}
+
+/* Fixed-window rate limits for /api/visitor-qualify: per visitor ID and per IP network (10 min) */
+const QUALIFY_LIMIT_WINDOW_S = 600;
+const QUALIFY_LIMIT_PER_VID = 20;
+const QUALIFY_LIMIT_PER_IP = 60;   // shared IPs (offices, mobile carrier NAT) get more room
+
+export async function qualifyRateLimited(vid: string, ip: string): Promise<boolean> {
+  const kv = `vc:rl:vid:${vid}`, ki = `vc:rl:ip:${ipNetworkKey(ip)}`;
+  const out = await redis([
+    ['SET', kv, 0, 'EX', QUALIFY_LIMIT_WINDOW_S, 'NX'], ['INCR', kv],
+    ['SET', ki, 0, 'EX', QUALIFY_LIMIT_WINDOW_S, 'NX'], ['INCR', ki],
+  ]);
+  if (!out) return false;   // Redis down → don't block real visitors
+  return Number(out[1]) > QUALIFY_LIMIT_PER_VID || Number(out[3]) > QUALIFY_LIMIT_PER_IP;
+}
+
 const MAXMIND_TIMEOUT_MS = 1500;
 const IP_CACHE_TTL_S = 7 * 86400;             // same IP across visitors: 7 days
 const IP_ERROR_TTL_S = 60;                    // MaxMind error for an IP: reused for 60 s (not 7 days)
@@ -381,16 +463,36 @@ async function waitForIpVerdict(ip: string): Promise<{ verdict: Verdict } | { er
 /* new_visitor = new browser (no cfs_vid cookie) AND its IP wasn't seen in the last 7 days.
    A new browser whose IP is already in the IP cache (Incognito, cleared cookies, shared
    connection) is logged as existing_visitor_new_session instead. */
-export type ScreenTrigger = 'new_visitor' | 'existing_visitor_new_session' | 'ip_changed' | 'expired' | 'qualify_check';
+export type ScreenTrigger = 'new_visitor' | 'existing_visitor_new_session' | 'ip_changed' | 'expired' | 'qualify_check' | 'paid_landing';
 
 /**
  * Screen a visitor's IP and store the result against their visitor ID (for SCREEN_TTL_S).
- * Designed to run inside event.waitUntil() so it never delays the page.
+ * Full screening: free checks first, then MaxMind. Designed to run inside event.waitUntil()
+ * (middleware) so it never delays the page, or awaited by /api/visitor-qualify.
  */
 export async function screenVisitor(
   vid: string, ip: string, path: string, ua: string, declaredBot: boolean, trigger: ScreenTrigger = 'new_visitor',
   geoCountry?: string, edgeAsn?: number,
 ): Promise<VisitorRecord> {
+  return (await screen(vid, ip, path, ua, declaredBot, trigger, geoCountry, edgeAsn, false))!;
+}
+
+/**
+ * Deferred screening (fix 4): FREE checks only — non-AU edge country, the shared IP cache and the
+ * listed-network list. Returns null (and writes nothing but a counter) when none of them has an
+ * answer: the paid MaxMind lookup then waits until the visitor qualifies (/api/visitor-qualify).
+ */
+export async function screenVisitorFree(
+  vid: string, ip: string, path: string, ua: string, trigger: ScreenTrigger,
+  geoCountry?: string, edgeAsn?: number,
+): Promise<VisitorRecord | null> {
+  return screen(vid, ip, path, ua, false, trigger, geoCountry, edgeAsn, true);
+}
+
+async function screen(
+  vid: string, ip: string, path: string, ua: string, declaredBot: boolean, trigger: ScreenTrigger,
+  geoCountry: string | undefined, edgeAsn: number | undefined, freeOnly: boolean,
+): Promise<VisitorRecord | null> {
   const base = { time: new Date().toISOString(), vid, ip, path, ua: ua.slice(0, 200), trigger };
   let record!: VisitorRecord;
   const cmds: (string | number)[][] = [];
@@ -407,16 +509,29 @@ export async function screenVisitor(
     // → reuse, no extra cost. A recent MaxMind error for this IP is reused for IP_ERROR_TTL_S.
     // The network check rides in the same Redis round-trip (only when Cloudflare sent the ASN)
     const asn = asnCheckEnabled() && edgeAsn && !PROTECTED_ASNS.has(edgeAsn) ? edgeAsn : undefined;
-    const cachedOut = await redis([
-      ['GET', K.ip(ip)], ['GET', K.ipError(ip)],
-      ...(asn && !SEED_LISTED_ASNS[asn] ? [['GET', K.asnListed(asn)]] : []),
-    ]);
+    const reads: (string | number)[][] = [['GET', K.ip(ip)], ['GET', K.ipError(ip)]];
+    const asnIdx = asn && !SEED_LISTED_ASNS[asn] ? reads.push(['GET', K.asnListed(asn)]) - 1 : -1;
+    const ownIdx = freeOnly ? reads.push(['GET', K.screening(vid)]) - 1 : -1;
+    const cachedOut = await redis(reads);
     let cached = withAuCheck(parse<Verdict>(cachedOut?.[0]));
     let cachedError = typeof cachedOut?.[1] === 'string' ? cachedOut[1] : null;
     const seenTrigger = trigger === 'new_visitor' ? 'existing_visitor_new_session' : trigger;
     const listed: ListedAsn | null = !asn ? null
       : SEED_LISTED_ASNS[asn] ? { asn, asnOrg: SEED_LISTED_ASNS[asn], hosting: 0, since: 'seed' }
-      : parse<ListedAsn>(cachedOut?.[2]);
+      : asnIdx >= 0 ? parse<ListedAsn>(cachedOut?.[asnIdx]) : null;
+
+    if (freeOnly) {
+      // Already screened on this network (e.g. the daily free re-check) → nothing to do
+      const existing = ownIdx >= 0 ? parse<VisitorRecord>(cachedOut?.[ownIdx]) : null;
+      if (existing && existing.status !== 'unknown' && sameNetwork(existing.ip, ip)) return existing;
+      if (!cached && !listed) {
+        // No free answer → no MaxMind now; the lookup happens if the visitor qualifies
+        console.log(`[visitor-check] DEFERRED vid=${vid} ip=${ip} path=${path} trigger=${trigger}`);
+        await redis([['HINCRBY', K.counts, 'deferred', 1], ['EXPIRE', K.counts, LOG_TTL_S]]);
+        return null;
+      }
+      cachedError = null;   // a cached MaxMind error isn't an answer — leave it to the qualify step
+    }
 
     if (!cached && !cachedError && listed) {
       // Listed hosting / VPN network → suspicious without a paid lookup
