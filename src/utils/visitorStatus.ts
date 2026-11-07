@@ -46,7 +46,8 @@ function detectFromLanding(): EntrySource | null {
 
   let host = "";
   try { host = document.referrer ? new URL(document.referrer).hostname.toLowerCase() : ""; } catch {}
-  if (!host || host === window.location.hostname || host.endsWith(".caravansforsale.com.au")) return null;
+  const own = window.location.hostname.replace(/^www\./, "");
+  if (!host || host === own || host.endsWith(`.${own}`)) return null;   // our own site (any subdomain)
 
   const engine = SEARCH_ENGINES.find(([re]) => re.test(host));
   if (engine) return { source: engine[1], medium: "organic" };

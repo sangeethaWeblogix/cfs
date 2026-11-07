@@ -103,7 +103,7 @@ export async function readQualifyToken(token: string | undefined, vid: string): 
 
 /* Counts a paid-lookup attempt against the token; false once its budget is used up */
 export async function spendTokenLookup(token: string): Promise<boolean> {
-  const key = `vc:qtuse:${token.slice(-32)}`;
+  const key = NS(`qtuse:${token.slice(-32)}`);
   const out = await redis([['INCR', key], ['EXPIRE', key, VID_MAX_AGE_S]]);
   return !out || Number(out[0]) <= TOKEN_LOOKUP_BUDGET;   // Redis down → allow
 }
@@ -114,7 +114,7 @@ const QUALIFY_LIMIT_PER_VID = 20;
 const QUALIFY_LIMIT_PER_IP = 60;   // shared IPs (offices, mobile carrier NAT) get more room
 
 export async function qualifyRateLimited(vid: string, ip: string): Promise<boolean> {
-  const kv = `vc:rl:vid:${vid}`, ki = `vc:rl:ip:${ipNetworkKey(ip)}`;
+  const kv = NS(`rl:vid:${vid}`), ki = NS(`rl:ip:${ipNetworkKey(ip)}`);
   const out = await redis([
     ['SET', kv, 0, 'EX', QUALIFY_LIMIT_WINDOW_S, 'NX'], ['INCR', kv],
     ['SET', ki, 0, 'EX', QUALIFY_LIMIT_WINDOW_S, 'NX'], ['INCR', ki],
@@ -134,18 +134,24 @@ export const ERROR_RETRY_S = 3600;
 const LOG_MAX = 5000;
 const LOG_TTL_S = 90 * 86400;                 // logs/counters expire 90 days after last write
 
+/* Redis namespace for this site's own data (visitor state, logs, counters, rate limits). Every
+   marketplace shares one Upstash database: the IP cache (vc:ip:*) and the network lists are shared on
+   purpose, everything else is per site. CFS keeps the original unprefixed keys (SITE_NS = ""). */
+const SITE_NS = "";
+const NS = (k: string) => (SITE_NS ? `vc:${SITE_NS}:${k}` : `vc:${k}`);
+
 const K = {
-  screening: (vid: string) => `vc:screen:${vid}`,   // IP screening status (per visitor)
-  eligibility: (vid: string) => `vc:elig:${vid}`,   // remarketing eligibility (per visitor)
+  screening: (vid: string) => NS(`screen:${vid}`),  // IP screening status (per visitor)
+  eligibility: (vid: string) => NS(`elig:${vid}`),  // remarketing eligibility (per visitor)
   ip: (ip: string) => `vc:ip:${ipNetworkKey(ip)}`,  // MaxMind verdict cache (per IPv4 / IPv6 /64), shared by all sites
   ipError: (ip: string) => `vc:iperr:${ipNetworkKey(ip)}`,  // last MaxMind error for the IP (60 s)
   ipLock: (ip: string) => `vc:iplock:${ipNetworkKey(ip)}`,  // lookup in progress (5 s)
   asnStats: (asn: number) => `vc:asnstat:${asn}`,   // MaxMind verdicts per network: hosting / eligible (all sites)
   asnListed: (asn: number) => `vc:asnbad:${asn}`,   // network skipped before MaxMind (all sites)
-  log: 'vc:log',
-  qualifiedLog: 'vc:qualified',
-  counts: 'vc:counts',
-  flagged: 'ads:flagged',
+  log: NS('log'),
+  qualifiedLog: NS('qualified'),
+  counts: NS('counts'),
+  flagged: SITE_NS ? `ads:${SITE_NS}:flagged` : 'ads:flagged',
 };
 
 /* Crawlers that don't say "bot" in their user agent (Google-InspectionTool, GoogleOther,

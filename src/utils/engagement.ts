@@ -45,7 +45,8 @@ export function resetQualification() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh())); } catch {}
 }
 
-/* Applied a listings filter or submitted a search */
+/* Applied a listings filter or submitted a search (the type is for readability at call sites) */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function trackEngagement(_type: "filter" | "search") {
   updateEngagement(s => { s.filterUsed = true; });
 }

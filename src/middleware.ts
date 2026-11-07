@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
-import {
-  screenVisitor, screenVisitorFree, getClientIp, isPrivateIp, isScreeningDisabled, isValidVid, ipFingerprint, isDeclaredCrawler, getRequestCountry, getRequestAsn, isTestModeAllowedPath,
-  getTestPaths, isDeferEnabled, isPaidLanding, isQualifyTokenEnabled, issueQualifyToken, readQualifyToken,
-  VID_COOKIE, VID_MAX_AGE_S, SCREEN_COOKIE, SCREEN_TTL_S, QUALIFIED_COOKIE, DEFER_COOKIE, DEFER_COOKIE_MAX_AGE_S, TOKEN_COOKIE,
-} from "@/lib/visitorCheck";
+import { screenRequest } from "@/lib/screeningMiddleware";
 import { parseSlugToFilters, type Filters } from "@/app/components/urlBuilder";
 import { buildSlugFromFilters } from "@/app/components/slugBuilter";
 import regionPathsData from "../cfs-paths/regions.json";
@@ -213,88 +209,9 @@ async function refreshSeoCache(cacheKey: string, url: URL, request: NextRequest)
   } catch {}
 }
 
-/* ──────────────────────────────────────────────
-   Visitor screening (MaxMind) — LOG-ONLY, never blocks or redirects.
-   Screened pages: all page views (not API / assets). A visitor is screened on their
-   first view (cfs_vid cookie) and the result is reused for 7 days across page views.
-   It is re-screened only when that expires or their IP changes (cfs_scr cookie).
-   The lookup runs in waitUntil, so it never delays the page.
-   Set env VISITOR_CHECK_DISABLED=1 (and redeploy) to switch it off.
-────────────────────────────────────────────── */
+/* Visitor screening (MaxMind, log-only) runs after the normal handling — see src/lib/screeningMiddleware.ts */
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
-  const response = await handleRequest(request);
-
-  // Every real page view is screened (home, listings, product, blog posts at /{slug}/, other pages) —
-  // still only once per visitor per 7 days (sooner on a new IP). API calls, Next.js internals and files are skipped.
-  const { pathname } = request.nextUrl;
-  const isScreenedPage =
-    !pathname.startsWith('/api/') && !pathname.startsWith('/_next/') &&
-    !/\.[a-z0-9]+$/i.test(pathname);
-
-  if (
-    !isScreeningDisabled() &&
-    isScreenedPage &&
-    isTestModeAllowedPath(pathname) &&             // test mode: only VISITOR_CHECK_TEST_PATHS
-
-    response.status < 300 &&                       // skip redirects / 410s — the real page view gets screened
-    request.method === 'GET' &&
-    !request.headers.get('x-skip-middleware') &&
-    !request.headers.get('x-internal-render') &&
-    !request.headers.get('next-router-prefetch') &&
-    request.headers.get('purpose') !== 'prefetch'
-  ) {
-    const ip = getClientIp(request.headers);
-    if (ip && !isPrivateIp(ip)) {
-      const userAgent = request.headers.get('user-agent') || '';
-      const path = pathname + request.nextUrl.search;
-
-      if (isBot(userAgent) || isDeclaredCrawler(userAgent, request.headers)) {
-        // Declared crawler — Vercel log only (no Redis, no MaxMind call, no cookies)
-        event.waitUntil(screenVisitor(crypto.randomUUID(), ip, path, userAgent, true).catch(() => {}));
-      } else {
-        // Reuse the screening while cfs_scr (7 days) matches the current IP; otherwise screen again —
-        // fully (MaxMind) only for paid-ad landings and qualified visitors, free checks only for the rest
-        const existingVid = request.cookies.get(VID_COOKIE)?.value;
-        const hasVid = isValidVid(existingVid);
-        const vid = hasVid ? existingVid : crypto.randomUUID();
-        const fp = await ipFingerprint(ip);
-        const screenedFp = request.cookies.get(SCREEN_COOKIE)?.value;
-        const cookieOpts = { httpOnly: true, secure: true, sameSite: 'lax' as const, path: '/' };
-        const country = getRequestCountry(request.headers);
-        const asn = getRequestAsn(request.headers);
-        const trigger = !hasVid ? 'new_visitor' : screenedFp ? 'ip_changed' : 'expired';
-
-        if (!hasVid || screenedFp !== fp) {
-          const qualified = request.cookies.has(QUALIFIED_COOKIE);
-          const paid = isPaidLanding(request.nextUrl.searchParams);
-          const immediate = !isDeferEnabled() || !!getTestPaths() || qualified || paid;
-
-          if (immediate) {
-            event.waitUntil(screenVisitor(vid, ip, path, userAgent, false, paid && !qualified ? 'paid_landing' : trigger, country, asn).catch(() => {}));
-            // Re-set on every screening so the ID lasts 30 days from the last screened visit
-            // and outlives the 30-day qualification it is linked to
-            response.cookies.set(VID_COOKIE, vid, { ...cookieOpts, maxAge: VID_MAX_AGE_S });
-            response.cookies.set(SCREEN_COOKIE, fp, { ...cookieOpts, maxAge: SCREEN_TTL_S });
-          } else if (!hasVid || request.cookies.get(DEFER_COOKIE)?.value !== fp) {
-            // Deferred: free checks only (shared IP cache, listed networks), at most daily per network.
-            // cfs_scr is NOT set, so /api/visitor-status reports "unscreened" (not "pending") until
-            // the free check found a result or the visitor qualifies.
-            event.waitUntil(screenVisitorFree(vid, ip, path, userAgent, trigger, country, asn).catch(() => null));
-            response.cookies.set(VID_COOKIE, vid, { ...cookieOpts, maxAge: VID_MAX_AGE_S });
-            response.cookies.set(DEFER_COOKIE, fp, { ...cookieOpts, maxAge: DEFER_COOKIE_MAX_AGE_S });
-          }
-        }
-
-        // Qualify token (fix 5): /api/visitor-qualify only accepts a valid, old-enough token for this visitor ID
-        if (isQualifyTokenEnabled() && (!hasVid || (await readQualifyToken(request.cookies.get(TOKEN_COOKIE)?.value, vid)) === null)) {
-          const token = await issueQualifyToken(vid);
-          if (token) response.cookies.set(TOKEN_COOKIE, token, { ...cookieOpts, maxAge: VID_MAX_AGE_S });
-        }
-      }
-    }
-  }
-
-  return response;
+  return screenRequest(request, await handleRequest(request), event);
 }
 
 async function handleRequest(request: NextRequest): Promise<NextResponse> {
