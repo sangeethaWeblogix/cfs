@@ -30,6 +30,8 @@ import { getRegionByStateAndPageSlug, buildRegionJsonLd } from "./sell-my-carava
 import { fetchBlogDetail } from "./[slug]/fetchBlogDetail";
 import { isNonBlogSlug } from "@/utils/isNonBlogSlug";
 import { fetchProductDetail } from "@/utils/fetchProductDetail";
+import { HOME_FAQ_JSONLD } from "./home-demo/faqSchema";
+import { HOME_WEBPAGE_JSONLD } from "./home-demo/homeSchema";
 
 // Top-level route segments that are NOT handled by the [slug] blog-details
 // catch-all — used to avoid firing a wasted fetchBlogDetail() call for them.
@@ -433,27 +435,21 @@ const RESERVED_TOP_LEVEL_SLUGS = new Set([
                     {
                       "@type": "WebSite",
                       "@id": "https://www.caravansforsale.com.au/#website",
-                      "url": "https://www.caravansforsale.com.au",
+                      "url": "https://www.caravansforsale.com.au/",
                       "name": "Caravans For Sale",
-                      "description": "Australia's Marketplace for New & Used Caravans",
+                      "alternateName": "Caravans For Sale by Marketplace Network",
+                      "description": "Browse new and used caravans for sale across Australia's top brands, dealers, and private sellers.",
                       "inLanguage": "en-AU",
-                      "potentialAction": {
-                        "@type": "SearchAction",
-                        "target": {
-                          "@type": "EntryPoint",
-                          "urlTemplate": "https://www.caravansforsale.com.au/listings/{search_term_string}-search/",
-                        },
-                        "query-input": "required name=search_term_string",
-                      },
                     },
                     {
                       "@type": "Organization",
                       "@id": "https://www.caravansforsale.com.au/#organization",
                       "name": "Caravans For Sale",
-                      "url": "https://www.caravansforsale.com.au",
+                      "url": "https://www.caravansforsale.com.au/",
                       "logo": {
                         "@type": "ImageObject",
-                        "url": "https://www.caravansforsale.com.au/images/cfs-logo-black.png",
+                        "url": "https://www.caravansforsale.com.au/images/cfs-logo.png",
+                        "caption": "Caravans For Sale",
                       },
                       "contactPoint": {
                         "@type": "ContactPoint",
@@ -462,6 +458,8 @@ const RESERVED_TOP_LEVEL_SLUGS = new Set([
                         "availableLanguage": "English",
                       },
                     },
+                    HOME_WEBPAGE_JSONLD,
+                    HOME_FAQ_JSONLD,
                   ],
                 }),
               }}
