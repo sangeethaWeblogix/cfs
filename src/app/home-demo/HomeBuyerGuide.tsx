@@ -1,4 +1,5 @@
 import Image from "next/image";
+import HomeFaq from "./HomeFaq";
 
 export default function HomeBuyerGuide() {
   return (
@@ -65,6 +66,9 @@ export default function HomeBuyerGuide() {
           </div>
         </div>
       </section>
+
+      {/* ── FAQ ── */}
+      <HomeFaq />
 
       {/* ── Sell CTA Card ── */}
       <section className="hbg-sell-section">
