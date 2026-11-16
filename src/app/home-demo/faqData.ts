@@ -210,7 +210,7 @@ export const HOME_FAQS: FaqCategory[] = [
     "items": [
       {
         "q": "Where can I advertise my caravan for sale?",
-        "a": "Advertise your caravan on <a href=\"/sell-my-caravan/\" class=\"hfaq-link\">CaravansForSale.com.au</a> for a one-time fee of $49 including GST. Your listing stays online until sold, with no sales commission."
+        "a": "You can <a href=\"/sell-my-caravan/\" class=\"hfaq-link\">sell your caravan</a> on CaravansForSale.com.au for a one-time fee of $49 incl. GST. Your listing stays online until sold, with no sales commission."
       },
       {
         "q": "How do I sell my caravan online in Australia?",
