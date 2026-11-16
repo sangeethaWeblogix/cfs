@@ -753,9 +753,9 @@ const CAT_MAJOR_CITIES = [
              from dealers and private sellers across Australia, with listings available by make, model, price, location and caravan type.
            </p>
            <p className="bds-cta-body">
-             <strong>Looking to sell?</strong> If you&apos;re upgrading to a newer caravan or no longer need your current one,{" "}
-             <a href="/sell-my-caravan/" className="bds-cta-link">sell your caravan</a>{" "}
-             by creating a listing on CaravansForSale.com.au. Your advertisement stays online until it&apos;s sold for a one-time fee of $49.
+             <strong>Ready to sell?</strong> Visit{" "}
+             <a href="/sell-my-caravan/" className="bds-cta-link">Sell My Caravan</a>{" "}
+             to advertise your caravan for just $49 incl. GST. Your listing stays live until sold, helping you connect with potential caravan buyers across Australia.
            </p>
          </div>
        </section>
