@@ -1,7 +1,7 @@
 {
     "success": true,
     "type": "makes",
-    "count": 275,
+    "count": 276,
     "paths": [
         "adria/",
         "adventura/",
@@ -277,7 +277,8 @@
         "boundless/",
         "wonderland-rv/",
         "canyon/",
-        "gazal/"
+        "gazal/",
+        "resort-rv/"
     ],
-    "generated_at": "2026-11-17 02:48:17"
+    "generated_at": "2026-11-18 02:10:07"
 }
